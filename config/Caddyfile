@@ -1,0 +1,19 @@
+homehub.local {
+  tls internal
+
+  handle /api/* {
+    reverse_proxy api:8000
+  }
+
+  handle /photos/* {
+    reverse_proxy api:8000
+  }
+
+  handle /ws/* {
+    reverse_proxy api:8000
+  }
+
+  handle {
+    reverse_proxy web:3000
+  }
+}

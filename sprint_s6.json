@@ -1,0 +1,335 @@
+{
+  "manifest_version": "1.0-MVP",
+  "project": "HomeHub",
+  "sprint_id": "S6",
+  "sprint_title": "Hardening & Kiosk Setup",
+  "sprint_goal": "Pi boots directly to wall display. Tests pass. Backup runs. README is complete.",
+  "sprint_duration": "Week 7",
+  "agent_instructions": {
+    "role": "You are a senior full-stack engineer building HomeHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
+    "working_directory": "/home/dev/homehub",
+    "python_environment": {
+      "policy": "ALL Python work must use the project virtual environment at backend/.venv. Never use the system Python or pip directly for project dependencies.",
+      "create_venv": "cd backend && python3 -m venv .venv",
+      "activate_macos_linux": "source backend/.venv/bin/activate",
+      "activate_windows": "backend\\.venv\\Scripts\\activate",
+      "install_deps": "pip install -r requirements.txt",
+      "verify_active": "which python | grep .venv || echo 'ERROR: venv not active'",
+      "rule": "Before running ANY python, alembic, or pytest command, confirm the venv is active. If the shell prompt does not show (.venv), run the activate command first.",
+      "docker_note": "Docker containers have their own isolated Python environment via the Dockerfile \u2014 the .venv is for local development and CI only, not inside containers."
+    },
+    "node_environment": {
+      "policy": "All Node/npm work runs from the frontend/ directory. node_modules are local to frontend/ \u2014 never install globally.",
+      "install": "cd frontend && npm install",
+      "rule": "Always cd into frontend/ before running npm commands."
+    },
+    "code_style": {
+      "python": "PEP8, type hints on all functions, async/await throughout, docstrings on public functions",
+      "typescript": "strict mode, explicit return types, no any, functional components with hooks",
+      "general": "no commented-out code, no TODO comments, no stubs, complete files every time"
+    },
+    "file_rule": "Always write the complete file. Never truncate. If a file already exists, read it first then write the full updated version.",
+    "error_rule": "All API endpoints must have try/except. All async DB operations wrapped. No unhandled exceptions reach the client.",
+    "version_rule": "The application version is stored in ONE canonical location: backend/app/core/config.py as APP_VERSION = '0.1.0'. The Dockerfile, README badge, and API health endpoint all read from this. Never hardcode the version string in more than one place.",
+    "theme_default": "dark \u2014 the <html> element ships with class='dark' by default. Users can toggle per-profile. Stored in users.settings_json.theme (light|dark).",
+    "user_switch": "Shared devices (wall, kitchen tablet) need a quick user-switch. NavShell must include a 'Switch User' button that shows the family member avatar grid and requires PIN to switch \u2014 without a full logout/login cycle.",
+    "project_name": "HomeHub (not FamilyHub \u2014 project was renamed)",
+    "notifications": "Backend must send both email (SMTP) and Discord webhook notifications for: sync job failures, backup job errors, and release announcements. Both channels are wired up via backend/app/services/notifications.py"
+  },
+  "context": {
+    "stack": {
+      "backend": "Python 3.12 + FastAPI + SQLAlchemy 2.0 async + aiosqlite + Alembic + APScheduler + PyJWT + passlib[bcrypt]",
+      "frontend": "React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + TanStack Query v5 + Zustand + React Router v6 + axios + vite-plugin-pwa + Workbox + react-big-calendar + date-fns",
+      "infra": "Docker Compose v2 + Caddy 2 alpine + nginx:alpine (frontend prod) + Avahi mDNS",
+      "ci": "GitHub Actions AMD64 only (no QEMU, no ARM64)"
+    },
+    "key_decisions": {
+      "calendar_sync": "ICS feed URLs only. No OAuth. Sync upserts on external_uid. External always wins on conflict.",
+      "recurring_events": "Fully expand recurring events to individual rows on import. 12-month rolling window.",
+      "colour_model": "Colour on calendar_sources.color_hex. Filter chips per source not per person.",
+      "wall_auth": "/wall is public, no auth.",
+      "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
+      "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
+      "repo": "GitHub public. GHCR images. GitHub Actions CI.",
+      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+    },
+    "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
+    "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
+    "sync_pattern": "APScheduler AsyncIOScheduler. Each calendar_source has sync_interval_hours. Sync job checks source.last_synced_at + interval on each scheduler tick. Upsert on (source_id, external_uid). Delete rows where external_uid no longer in feed."
+  },
+  "repo_structure": {
+    "backend/app/main.py": "FastAPI app, lifespan hooks, CORS, routers, StaticFiles mount",
+    "backend/app/core/config.py": "pydantic-settings Settings",
+    "backend/app/core/database.py": "async engine, WAL+FK pragmas, get_db dependency",
+    "backend/app/core/security.py": "JWT, bcrypt, get_current_user, require_role, PIN rate limiter",
+    "backend/app/models/": "SQLAlchemy ORM models",
+    "backend/app/schemas/": "Pydantic request/response models",
+    "backend/app/routers/": "FastAPI route handlers",
+    "backend/app/services/": "Business logic",
+    "backend/app/jobs/": "APScheduler jobs",
+    "backend/app/integrations/ical_feed.py": "ICS fetch, parse, expand, upsert",
+    "backend/alembic/": "Migrations",
+    "frontend/src/pages/": "Route-level page components",
+    "frontend/src/components/": "Shared UI components",
+    "frontend/src/wall/": "Wall display components (isolated, no auth guard)",
+    "frontend/src/api/": "TanStack Query hooks + axios client",
+    "frontend/src/stores/auth.ts": "Zustand auth store",
+    "config/Caddyfile": "LAN-only tls internal config",
+    "docker-compose.yml": "api + web + caddy services",
+    "scripts/setup-wall-pi.sh": "Pi OS kiosk boot configuration"
+  },
+  "env_vars": {
+    "FAMILY_NAME": "Household display name",
+    "TIMEZONE": "IANA timezone e.g. America/New_York",
+    "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
+    "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
+    "ALLOWED_ORIGINS": "https://homehub.local",
+    "BACKUP_RETENTION_DAYS": "30",
+    "BACKUP_TIME": "03:00",
+    "WALL_IDLE_TIMEOUT_SECONDS": "300",
+    "DISCORD_WEBHOOK_URL": "Discord webhook URL for notifications. Create at: discord.com/developers/applications \u2192 your server \u2192 Integrations \u2192 Webhooks",
+    "SMTP_HOST": "SMTP server hostname e.g. smtp.gmail.com",
+    "SMTP_PORT": "587",
+    "SMTP_USER": "SMTP username / email address",
+    "SMTP_PASSWORD": "SMTP password or app-specific password. For Gmail generate at: myaccount.google.com \u2192 Security \u2192 App passwords",
+    "SMTP_FROM": "From address for notification emails e.g. homehub@gmail.com",
+    "SMTP_TO": "Recipient address for admin alerts e.g. your@email.com",
+    "DATA_PATH": "./data  # Change to NAS mount point e.g. /mnt/nas/homehub",
+    "STAGING_HOST": "homehub-staging.local  # Hostname of staging server",
+    "APP_VERSION": "0.01  # Do not edit manually \u2014 updated by release checklist"
+  },
+  "execution_rules": {
+    "rule_1": "Complete tasks in the exact order listed. Do not start a task until all tasks in depends_on are verified passing.",
+    "rule_2": "Tasks marked is_blocker:true must have all acceptance_check commands passing before you proceed.",
+    "rule_3": "Write every file completely. No stubs, no truncation, no TODOs.",
+    "rule_4": "After completing ALL tasks in this sprint, run the sprint_exit_verification commands below."
+  },
+  "tasks": [
+    {
+      "id": "T6.1",
+      "title": "pytest suite: auth, calendar, ICS sync",
+      "type": "TEST",
+      "is_blocker": false,
+      "depends_on": [
+        "T2.2",
+        "T3.2",
+        "T4.1"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/pytest.ini",
+          "complete_content": "[pytest]\nasyncio_mode = auto\ntestpaths = tests\n"
+        },
+        {
+          "path": "backend/tests/__init__.py",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/tests/conftest.py",
+          "spec": "Async test client fixture using in-memory SQLite. Create engine with TEST_DB_URL sqlite+aiosqlite:///:memory:. Create all tables from Base.metadata. async_sessionmaker factory. Override get_db dependency. AsyncClient using ASGITransport. Fixtures: db_engine (session scope), db_session (function scope with rollback), client (function scope)."
+        },
+        {
+          "path": "backend/tests/test_auth.py",
+          "spec": "Test: health endpoint returns 200 ok. Setup creates family and admin user. Second setup call fails with 400. Login with correct password returns 200 and sets cookie. Login with wrong password returns 401. PIN login works for child user. 6th PIN attempt returns 429. GET /me without cookie returns 401. GET /me with valid cookie returns user data."
+        },
+        {
+          "path": "backend/tests/test_calendar.py",
+          "spec": "Test: create event returns 201 with correct fields. GET events with date range returns created event. PATCH event updates title. DELETE event sets is_deleted. Internal source auto-created on first event creation. Events outside date range not returned."
+        },
+        {
+          "path": "backend/tests/test_ics_sync.py",
+          "spec": "Mock httpx.AsyncClient.get to return a fixture ICS string containing one regular event and one recurring weekly event with 4 occurrences in the next 12 months. Test that sync_source correctly inserts all occurrences as individual rows. Test that running sync again with the same feed does not duplicate rows. Test that an event removed from the feed is deleted on next sync."
+        }
+      ],
+      "shell_commands": [
+        "cd backend && source .venv/bin/activate && pip install pytest pytest-asyncio httpx",
+        "cd backend && source .venv/bin/activate && pytest tests/ -v"
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
+        "cd backend && pytest tests/ -v | tail -5",
+        "All tests PASSED \u2014 0 failures"
+      ]
+    },
+    {
+      "id": "T6.2",
+      "title": "Raspberry Pi kiosk boot script",
+      "type": "INFRA",
+      "is_blocker": false,
+      "depends_on": [],
+      "files_to_create": [
+        {
+          "path": "scripts/setup-wall-pi.sh",
+          "spec": "Bash script targeting Raspberry Pi OS Desktop (Debian-based). Steps: check running on Pi OS (check /etc/os-release for Raspbian or Debian). sudo apt update && sudo apt install -y chromium-browser unclutter. Disable LXDE screensaver by appending to /etc/xdg/lxsession/LXDE-pi/autostart: @xset s off, @xset -dpms, @xset s noblank, @unclutter -idle 0.5 -root. Write /etc/xdg/autostart/homehub-kiosk.desktop with [Desktop Entry] Type=Application Name=HomeHub Kiosk Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 https://homehub.local/wall. Print instructions: 1) Trust the server cert using docs/cert-trust.md Pi OS steps. 2) Reboot. The wall display will launch automatically."
+        },
+        {
+          "path": "docs/wall-screen-setup.md",
+          "spec": "Human-readable guide: hardware needed (Pi + HDMI cable + power), Pi OS installation (recommend Pi OS Desktop 64-bit via Pi Imager), SSH setup, running setup-wall-pi.sh, trusting the Caddy cert (link to docs/cert-trust.md Pi section), reboot and verify. Troubleshooting section: Chromium won't start (check chromium-browser is installed), blank screen (check homehub server is running), cert error (re-follow cert trust steps)."
+        }
+      ],
+      "acceptance_check": [
+        "bash scripts/setup-wall-pi.sh --dry-run 2>/dev/null || bash -n scripts/setup-wall-pi.sh && echo SCRIPT_SYNTAX_OK",
+        "test -f scripts/setup-wall-pi.sh && test -x scripts/setup-wall-pi.sh && echo SCRIPT_EXECUTABLE",
+        "test -f docs/wall-screen-setup.md && wc -l docs/wall-screen-setup.md | awk '{print $1}' | python3 -c \"import sys; assert int(sys.stdin.read()) > 20, 'doc too short'\" && echo DOCS_OK"
+      ]
+    },
+    {
+      "id": "T6.3",
+      "title": "README, .env.example finalisation, admin settings stub page",
+      "type": "FE+INFRA",
+      "is_blocker": false,
+      "depends_on": [
+        "T5.2"
+      ],
+      "files_to_create": [
+        {
+          "path": "README.md",
+          "spec": "Title HomeHub. Short description: self-hosted family calendar and organiser. Requirements section: Docker + Docker Compose, a Linux server or NAS, an Apple ID or Google account for ICS exports, a Raspberry Pi for the wall display (optional). Quick start: 5 steps (clone, cp .env.example .env, fill in SECRET_KEY and FAMILY_NAME and TIMEZONE, docker compose up -d, navigate to https://homehub.local and complete setup wizard). Trust the cert section (link to docs/cert-trust.md). Wall display section (link to docs/wall-screen-setup.md). Adding calendar feeds section: explain ICS export from Google Calendar, iCloud, sports apps like TeamSnap. Update section (git pull, docker compose pull, docker compose up -d). Backup section (automatic daily to ./data/backups, manual restore via sqlite3 copy). Contributing: link to GitHub issues."
+        },
+        {
+          "path": "frontend/src/pages/admin/AdminSettings.tsx",
+          "spec": "Admin only. Shows current settings in read-only form: Family name, Timezone, Backup retention days. Future phases will make these editable. Shows system status: database size, number of calendar sources, last backup timestamp (read from GET /api/health or a new /api/admin/status endpoint). Logout button calls useLogout mutation then navigate /login."
+        }
+      ],
+      "acceptance_check": [
+        "test -f README.md && grep -q 'homehub.local' README.md && echo README_OK",
+        "test -f .env.example && grep -q 'DISCORD_WEBHOOK_URL' .env.example && echo ENV_EXAMPLE_OK",
+        "test -f frontend/src/pages/admin/AdminSettings.tsx && echo ADMIN_SETTINGS_OK"
+      ]
+    },
+    {
+      "id": "T6.4",
+      "title": "MVP hardware test and sign-off checklist",
+      "type": "TEST",
+      "is_blocker": false,
+      "depends_on": [
+        "T6.1",
+        "T6.2"
+      ],
+      "files_to_create": [
+        {
+          "path": "docs/mvp-hardware-checklist.md",
+          "spec": "Manual checklist with checkbox format. Items: docker compose up -d on Linux server boots within 3 minutes. https://homehub.local/api/health returns 200. Setup wizard completes successfully. Admin can add family member with PIN. ICS feed URL added in admin -> events appear in calendar. Internal event created in HomeHub -> visible in all 4 calendar views. Source filter chip toggles events on/off. Wall display at https://homehub.local/wall shows clock and 7-day strip at 1920x1080. Idle mode activates after 5 min. Touch exits idle. New event created on phone -> wall updates within 60 seconds. PWA install prompt on Android Chrome. iOS Safari Add to Home Screen works. Turn off server -> app loads from cache and shows offline banner. Turn server back on -> banner disappears. Pi kiosk boots directly to /wall after running setup-wall-pi.sh and reboot. Backup file appears in ./data/backups/. docker compose restart -> no data loss. All pytest tests pass."
+        }
+      ],
+      "acceptance_check": [
+        "test -f docs/mvp-hardware-checklist.md && echo CHECKLIST_FILE_OK",
+        "python3 -c \"text=open('docs/mvp-hardware-checklist.md').read(); items=text.count('- [ ]'); assert items >= 15, f'Only {items} checklist items \u2014 expected 15+'; print(f'Checklist has {items} items OK')\""
+      ]
+    },
+    {
+      "id": "T6.5",
+      "title": "Backend notification service (email + Discord)",
+      "type": "BE",
+      "is_blocker": false,
+      "depends_on": [
+        "T4.1"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/app/services/notifications.py",
+          "spec": "Notification service supporting both email (SMTP) and Discord webhook. async send_notification(subject: str, body: str, level: str = 'info') -> None: reads settings for SMTP and DISCORD_WEBHOOK_URL. If SMTP configured: send via smtplib.SMTP with STARTTLS to SMTP_HOST:SMTP_PORT, auth with SMTP_USER/SMTP_PASSWORD, from SMTP_FROM to SMTP_TO. If DISCORD_WEBHOOK_URL configured: POST to the webhook URL with a JSON payload containing username='HomeHub', embeds=[{title: subject, description: body, color: 0x00ff00 for info / 0xff0000 for error}]. Both channels run in asyncio.to_thread to avoid blocking. Errors in notification sending are logged but never raise \u2014 notifications must never crash the calling code. Expose: notify_info(subject, body), notify_error(subject, body), notify_sync_failure(source_name, error), notify_backup_failure(error), notify_release(version)."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "backend/app/jobs/calendar_sync.py",
+          "change": "On sync failure, call await notify_sync_failure(source.display_name, str(error)) after logging"
+        },
+        {
+          "path": "backend/app/jobs/backup.py",
+          "change": "On backup failure, call await notify_backup_failure(str(e)) after logging"
+        }
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python3 -c \"from app.services.notifications import notify_info; import asyncio; asyncio.run(notify_info('Test', 'HomeHub notification test'))\" && echo NOTIFICATION_SERVICE_OK",
+        "grep -q 'DISCORD_WEBHOOK_URL' .env.example && echo DISCORD_ENV_VAR_DOCUMENTED"
+      ]
+    },
+    {
+      "id": "T6.6",
+      "title": "Deploy script: scripts/deploy.sh (staging + production)",
+      "type": "INFRA",
+      "is_blocker": false,
+      "depends_on": [
+        "T6.3"
+      ],
+      "files_to_create": [
+        {
+          "path": "scripts/deploy.sh",
+          "spec": "Bash deploy script. Usage: ./scripts/deploy.sh [staging|production] [version_tag]. Defaults: environment=production, version_tag=latest. Reads SERVER_HOST from first arg: staging uses STAGING_HOST (default homehub-staging.local), production uses PROD_HOST (default homehub.local). SSH user always deploy. Steps executed over SSH: 1) cd ~/homehub (or ~/homehub-staging for staging). 2) git pull origin main. 3) docker compose pull. 4) docker compose up -d --remove-orphans. 5) sleep 5. 6) curl -sf http://localhost:8000/api/health | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d[\"status\"]==\"ok\"; print(\"Health check PASS version:\", d[\"version\"])'. Print coloured status: green for success, red for failure. On health check failure: automatically roll back by running docker compose up -d with the previous image tag (stored before pull as PREV_TAG). Require SSH key auth (no password prompts). Print the full deploy log to stdout. Add --dry-run flag that prints all SSH commands without executing them."
+        },
+        {
+          "path": "scripts/setup-server.sh",
+          "spec": "Server first-time setup script run on the Linux production server. Steps: 1) Update system: apt update && apt upgrade -y. 2) Install Docker: curl -fsSL https://get.docker.com | sh. 3) Install Docker Compose plugin: apt install -y docker-compose-plugin. 4) Create deploy user: useradd -m -s /bin/bash deploy. 5) Add deploy to docker group: usermod -aG docker deploy. 6) Create ~/homehub directory as deploy user. 7) Create NAS mount point at /mnt/nas/homehub. 8) Print instructions for: SSH key setup (ssh-copy-id deploy@homehub.local from Mac), configuring NFS or SMB mount (link to docs/server-setup.md), and cloning the repo as the deploy user."
+        },
+        {
+          "path": "docs/server-setup.md",
+          "spec": "Complete server setup guide. Sections: 1) Prerequisites (Linux server on LAN, Docker installed via scripts/setup-server.sh). 2) SSH key setup from Mac: ssh-keygen -t ed25519 -C 'homehub-deploy', ssh-copy-id deploy@homehub.local. 3) NAS Mount \u2014 NFS: sudo apt install nfs-common, add /etc/fstab entry nas-host:/volume1/homehub /mnt/nas/homehub nfs defaults,_netdev 0 0, sudo mount -a. 4) NAS Mount \u2014 SMB/CIFS: sudo apt install cifs-utils, store credentials in /etc/samba/homehub-creds (username= password= domain=), add /etc/fstab entry //nas-host/homehub /mnt/nas/homehub cifs credentials=/etc/samba/homehub-creds,uid=deploy,gid=deploy,_netdev 0 0. 5) Set DATA_PATH=/mnt/nas/homehub in .env. 6) First deploy: as deploy user, git clone https://github.com/vnmyers13/HomeHub.git ~/homehub, cp .env.example .env, fill in required vars, docker compose up -d. 7) Verify: curl http://localhost:8000/api/health. 8) Caddy cert trust on server for homehub.local (link to docs/cert-trust.md). 9) Set up Pi kiosk (link to docs/wall-screen-setup.md). 10) Troubleshooting: NAS mount permission denied (check uid/gid), Caddy cert errors, Docker permission denied."
+        },
+        {
+          "path": "docker-compose.staging.yml",
+          "spec": "Docker Compose override file for staging environment. Extends docker-compose.yml. Changes: all service names suffixed with -staging. Caddy listens on ports 8080 and 8443 instead of 80/443. Caddyfile points to homehub-staging.local. DATA_PATH points to /mnt/nas/homehub-staging. Database file is homehub-staging.db. All containers use :latest tag (staging always tracks latest). Add STAGING=true environment variable to api service."
+        }
+      ],
+      "acceptance_check": [
+        "test -f scripts/deploy.sh && test -x scripts/deploy.sh && echo DEPLOY_SCRIPT_OK",
+        "bash scripts/deploy.sh --dry-run staging 2>&1 | grep -i 'ssh\\|dry-run' && echo DRY_RUN_OK",
+        "test -f docs/server-setup.md && grep -q 'NFS' docs/server-setup.md && grep -q 'SMB' docs/server-setup.md && echo SERVER_DOCS_COMPLETE"
+      ]
+    },
+    {
+      "id": "T6.7",
+      "title": "Create docs/test-history.md and docs/releases/ directory",
+      "type": "INFRA",
+      "is_blocker": false,
+      "depends_on": [],
+      "files_to_create": [
+        {
+          "path": "docs/test-history.md",
+          "complete_content": "# HomeHub \u2014 Test History\n\nThis file is appended automatically by the release checklist (Phase P4.7) after every full test run.\n\n---\n\n*No test runs recorded yet \u2014 will be populated on first release.*\n"
+        },
+        {
+          "path": "docs/releases/.gitkeep",
+          "complete_content": ""
+        }
+      ],
+      "acceptance_check": [
+        "test -f docs/test-history.md && echo TEST_HISTORY_OK",
+        "test -d docs/releases && echo RELEASES_DIR_OK"
+      ]
+    },
+    {
+      "id": "T6.8",
+      "title": "User-switch component in NavShell",
+      "type": "FE",
+      "is_blocker": false,
+      "depends_on": [
+        "T5.3"
+      ],
+      "files_to_create": [
+        {
+          "path": "frontend/src/components/UserSwitcher.tsx",
+          "spec": "Quick user-switch component for shared devices. Shows as a button in the NavShell displaying the current user's avatar and name with a chevron-down icon. On click: opens a Sheet (shadcn, side=bottom) showing the family member avatar grid (same as the Login page grid, loaded from GET /api/users/public). Tapping a different member: if the selected member has a PIN, show the PIN pad (same custom numpad from Login.tsx, 56px buttons). On correct PIN: call POST /api/auth/login/pin, update the auth store with the new user, close the sheet, navigate to /dashboard. On incorrect PIN: show attempt counter. Tapping your own avatar: dismisses the sheet. This component should NOT do a full logout \u2014 it switches context while keeping the session active for the new user. Import and render in NavShell below the current user's name in both mobile (bottom bar) and desktop (sidebar) layouts."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "frontend/src/components/NavShell.tsx",
+          "change": "Import UserSwitcher and render it in both mobile bottom bar (replacing or alongside the user avatar area) and desktop sidebar (at the bottom where the user info is shown)"
+        }
+      ],
+      "acceptance_check": [
+        "Tap UserSwitcher on a shared device \u2014 family member grid appears",
+        "Tap a different member with a PIN \u2014 PIN pad appears",
+        "Enter correct PIN \u2014 switches to that member's dashboard without full page reload",
+        "Tap own avatar \u2014 sheet dismisses"
+      ]
+    }
+  ],
+  "sprint_exit_verification": [
+    "All 4 tasks in S6 completed",
+    "All blocker tasks verified with acceptance_check commands",
+    "Sprint goal achieved: Pi boots directly to wall display. Tests pass. Backup runs. README is complete."
+  ]
+}

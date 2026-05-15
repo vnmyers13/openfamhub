@@ -1,0 +1,345 @@
+{
+  "manifest_version": "1.0-MVP",
+  "project": "HomeHub",
+  "sprint_id": "S1",
+  "sprint_title": "Infrastructure Scaffold",
+  "sprint_goal": "Empty repo \u2192 Docker stack boots \u2192 https://homehub.local/api/health returns 200",
+  "sprint_duration": "Week 1",
+  "agent_instructions": {
+    "role": "You are a senior full-stack engineer building HomeHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
+    "working_directory": "/home/dev/homehub",
+    "python_environment": {
+      "policy": "ALL Python work must use the project virtual environment at backend/.venv. Never use the system Python or pip directly for project dependencies.",
+      "create_venv": "cd backend && python3 -m venv .venv",
+      "activate_macos_linux": "source backend/.venv/bin/activate",
+      "activate_windows": "backend\\.venv\\Scripts\\activate",
+      "install_deps": "pip install -r requirements.txt",
+      "verify_active": "which python | grep .venv || echo 'ERROR: venv not active'",
+      "rule": "Before running ANY python, alembic, or pytest command, confirm the venv is active. If the shell prompt does not show (.venv), run the activate command first.",
+      "docker_note": "Docker containers have their own isolated Python environment via the Dockerfile \u2014 the .venv is for local development and CI only, not inside containers."
+    },
+    "node_environment": {
+      "policy": "All Node/npm work runs from the frontend/ directory. node_modules are local to frontend/ \u2014 never install globally.",
+      "install": "cd frontend && npm install",
+      "rule": "Always cd into frontend/ before running npm commands."
+    },
+    "code_style": {
+      "python": "PEP8, type hints on all functions, async/await throughout, docstrings on public functions",
+      "typescript": "strict mode, explicit return types, no any, functional components with hooks",
+      "general": "no commented-out code, no TODO comments, no stubs, complete files every time"
+    },
+    "file_rule": "Always write the complete file. Never truncate. If a file already exists, read it first then write the full updated version.",
+    "error_rule": "All API endpoints must have try/except. All async DB operations wrapped. No unhandled exceptions reach the client.",
+    "version_rule": "The application version is stored in ONE canonical location: backend/app/core/config.py as APP_VERSION = '0.1.0'. The Dockerfile, README badge, and API health endpoint all read from this. Never hardcode the version string in more than one place.",
+    "theme_default": "dark \u2014 the <html> element ships with class='dark' by default. Users can toggle per-profile. Stored in users.settings_json.theme (light|dark).",
+    "user_switch": "Shared devices (wall, kitchen tablet) need a quick user-switch. NavShell must include a 'Switch User' button that shows the family member avatar grid and requires PIN to switch \u2014 without a full logout/login cycle.",
+    "project_name": "HomeHub (not FamilyHub \u2014 project was renamed)",
+    "notifications": "Backend must send both email (SMTP) and Discord webhook notifications for: sync job failures, backup job errors, and release announcements. Both channels are wired up via backend/app/services/notifications.py"
+  },
+  "context": {
+    "stack": {
+      "backend": "Python 3.12 + FastAPI + SQLAlchemy 2.0 async + aiosqlite + Alembic + APScheduler + PyJWT + passlib[bcrypt]",
+      "frontend": "React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + TanStack Query v5 + Zustand + React Router v6 + axios + vite-plugin-pwa + Workbox + react-big-calendar + date-fns",
+      "infra": "Docker Compose v2 + Caddy 2 alpine + nginx:alpine (frontend prod) + Avahi mDNS",
+      "ci": "GitHub Actions AMD64 only (no QEMU, no ARM64)"
+    },
+    "key_decisions": {
+      "calendar_sync": "ICS feed URLs only. No OAuth. Sync upserts on external_uid. External always wins on conflict.",
+      "recurring_events": "Fully expand recurring events to individual rows on import. 12-month rolling window.",
+      "colour_model": "Colour on calendar_sources.color_hex. Filter chips per source not per person.",
+      "wall_auth": "/wall is public, no auth.",
+      "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
+      "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
+      "repo": "GitHub public. GHCR images. GitHub Actions CI.",
+      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+    },
+    "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
+    "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
+    "sync_pattern": "APScheduler AsyncIOScheduler. Each calendar_source has sync_interval_hours. Sync job checks source.last_synced_at + interval on each scheduler tick. Upsert on (source_id, external_uid). Delete rows where external_uid no longer in feed."
+  },
+  "repo_structure": {
+    "backend/app/main.py": "FastAPI app, lifespan hooks, CORS, routers, StaticFiles mount",
+    "backend/app/core/config.py": "pydantic-settings Settings",
+    "backend/app/core/database.py": "async engine, WAL+FK pragmas, get_db dependency",
+    "backend/app/core/security.py": "JWT, bcrypt, get_current_user, require_role, PIN rate limiter",
+    "backend/app/models/": "SQLAlchemy ORM models",
+    "backend/app/schemas/": "Pydantic request/response models",
+    "backend/app/routers/": "FastAPI route handlers",
+    "backend/app/services/": "Business logic",
+    "backend/app/jobs/": "APScheduler jobs",
+    "backend/app/integrations/ical_feed.py": "ICS fetch, parse, expand, upsert",
+    "backend/alembic/": "Migrations",
+    "frontend/src/pages/": "Route-level page components",
+    "frontend/src/components/": "Shared UI components",
+    "frontend/src/wall/": "Wall display components (isolated, no auth guard)",
+    "frontend/src/api/": "TanStack Query hooks + axios client",
+    "frontend/src/stores/auth.ts": "Zustand auth store",
+    "config/Caddyfile": "LAN-only tls internal config",
+    "docker-compose.yml": "api + web + caddy services",
+    "scripts/setup-wall-pi.sh": "Pi OS kiosk boot configuration"
+  },
+  "env_vars": {
+    "FAMILY_NAME": "Household display name",
+    "TIMEZONE": "IANA timezone e.g. America/New_York",
+    "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
+    "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
+    "ALLOWED_ORIGINS": "https://homehub.local",
+    "BACKUP_RETENTION_DAYS": "30",
+    "BACKUP_TIME": "03:00",
+    "WALL_IDLE_TIMEOUT_SECONDS": "300",
+    "DISCORD_WEBHOOK_URL": "Discord webhook URL for notifications. Create at: discord.com/developers/applications \u2192 your server \u2192 Integrations \u2192 Webhooks",
+    "SMTP_HOST": "SMTP server hostname e.g. smtp.gmail.com",
+    "SMTP_PORT": "587",
+    "SMTP_USER": "SMTP username / email address",
+    "SMTP_PASSWORD": "SMTP password or app-specific password. For Gmail generate at: myaccount.google.com \u2192 Security \u2192 App passwords",
+    "SMTP_FROM": "From address for notification emails e.g. homehub@gmail.com",
+    "SMTP_TO": "Recipient address for admin alerts e.g. your@email.com",
+    "DATA_PATH": "./data  # Change to NAS mount point e.g. /mnt/nas/homehub",
+    "STAGING_HOST": "homehub-staging.local  # Hostname of staging server",
+    "APP_VERSION": "0.01  # Do not edit manually \u2014 updated by release checklist"
+  },
+  "execution_rules": {
+    "rule_1": "Complete tasks in the exact order listed. Do not start a task until all tasks in depends_on are verified passing.",
+    "rule_2": "Tasks marked is_blocker:true must have all acceptance_check commands passing before you proceed.",
+    "rule_3": "Write every file completely. No stubs, no truncation, no TODOs.",
+    "rule_4": "After completing ALL tasks in this sprint, run the sprint_exit_verification commands below."
+  },
+  "tasks": [
+    {
+      "id": "T1.1",
+      "title": "Git repo, directory structure, gitignore",
+      "type": "INFRA",
+      "is_blocker": true,
+      "depends_on": [],
+      "files_to_create": [
+        {
+          "path": ".gitignore",
+          "complete_content": ".env\ndata/\n*.db\n*.db-shm\n*.db-wal\n__pycache__/\n*.pyc\n.venv/\nnode_modules/\ndist/\n.DS_Store\ncaddy_data/\ncaddy_config/\n"
+        },
+        {
+          "path": "data/db/.gitkeep",
+          "complete_content": ""
+        },
+        {
+          "path": "data/photos/.gitkeep",
+          "complete_content": ""
+        },
+        {
+          "path": "data/backups/.gitkeep",
+          "complete_content": ""
+        }
+      ],
+      "shell_commands": [
+        "mkdir -p backend/app/{core,models,schemas,routers,services,jobs,integrations}",
+        "mkdir -p backend/{alembic,tests}",
+        "mkdir -p frontend/src/{pages,components,wall,api,stores,hooks}",
+        "mkdir -p frontend/public/icons",
+        "mkdir -p config data/{db,photos,backups} scripts docs",
+        "mkdir -p .github/workflows",
+        "git init && git add .gitignore && git commit -m 'chore: initial gitignore'"
+      ],
+      "acceptance_check": [
+        "test -d backend/app/core && echo PASS",
+        "test -d frontend/src/wall && echo PASS",
+        "git status | grep 'nothing to commit' || git log --oneline | grep 'initial gitignore'"
+      ]
+    },
+    {
+      "id": "T1.2",
+      "title": "docker-compose.yml + Caddyfile + .env.example",
+      "type": "INFRA",
+      "is_blocker": true,
+      "depends_on": [
+        "T1.1"
+      ],
+      "files_to_create": [
+        {
+          "path": "docker-compose.yml",
+          "spec": "Docker Compose v2 (no top-level version key). Three services: api (build ./backend, expose 8000, env_file .env, bind mounts ./data/db:/data/db ./data/photos:/data/photos ./data/backups:/data/backups, restart unless-stopped), web (build ./frontend, expose 3000, restart unless-stopped), caddy (image caddy:2-alpine, ports 80:80 443:443, bind mounts ./config/Caddyfile:/etc/caddy/Caddyfile, named volumes caddy_data and caddy_config, restart unless-stopped). Named volumes section at bottom: caddy_data, caddy_config."
+        },
+        {
+          "path": "config/Caddyfile",
+          "complete_content": "homehub.local {\n  tls internal\n\n  handle /api/* {\n    reverse_proxy api:8000\n  }\n\n  handle /photos/* {\n    reverse_proxy api:8000\n  }\n\n  handle /ws/* {\n    reverse_proxy api:8000\n  }\n\n  handle {\n    reverse_proxy web:3000\n  }\n}\n"
+        },
+        {
+          "path": ".env.example",
+          "spec": "Document every env var with inline comments. FAMILY_NAME=My Family. TIMEZONE=America/New_York (with note: find yours at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). SECRET_KEY=REPLACE_WITH_64_CHAR_HEX (with note: generate with openssl rand -hex 32, back this up in a password manager). DATABASE_URL=sqlite+aiosqlite:////data/db/homehub.db. ALLOWED_ORIGINS=https://homehub.local. BACKUP_RETENTION_DAYS=30. BACKUP_TIME=03:00. WALL_IDLE_TIMEOUT_SECONDS=300."
+        }
+      ],
+      "shell_commands": [
+        "cp .env.example .env"
+      ],
+      "acceptance_check": [
+        "grep 'caddy_data' docker-compose.yml && echo PASS",
+        "grep 'tls internal' config/Caddyfile && echo PASS",
+        "grep 'SECRET_KEY' .env.example && echo PASS"
+      ]
+    },
+    {
+      "id": "T1.3",
+      "title": "FastAPI skeleton: config, database, main, health endpoint, Alembic init",
+      "type": "BE",
+      "is_blocker": true,
+      "depends_on": [
+        "T1.2"
+      ],
+      "packages": [
+        "fastapi",
+        "uvicorn[standard]",
+        "sqlalchemy[asyncio]",
+        "aiosqlite",
+        "alembic",
+        "pydantic-settings",
+        "pyjwt",
+        "passlib[bcrypt]",
+        "python-multipart",
+        "httpx",
+        "apscheduler",
+        "python-dateutil",
+        "icalendar"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/requirements.txt",
+          "spec": "All packages listed in packages field above, each pinned with ==latest_stable. Also include pytest, pytest-asyncio, httpx as test dependencies (marked with # test comment)."
+        },
+        {
+          "path": "backend/app/__init__.py",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/app/core/__init__.py",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/app/core/config.py",
+          "spec": "pydantic-settings BaseSettings. Fields: family_name str default HomeHub, timezone str default UTC, secret_key str (required), database_url str default sqlite+aiosqlite:////data/db/homehub.db, allowed_origins str default https://homehub.local, backup_retention_days int default 30, backup_time str default 03:00, wall_idle_timeout_seconds int default 300. Config: env_file=.env, env_file_encoding=utf-8. Expose a cached settings singleton via get_settings() using @lru_cache and module-level settings = get_settings()."
+        },
+        {
+          "path": "backend/app/core/database.py",
+          "spec": "Create async SQLAlchemy engine from settings.database_url. Register a connect event listener on engine.sync_engine that executes PRAGMA foreign_keys=ON and PRAGMA journal_mode=WAL on every new connection. Create async_sessionmaker as AsyncSessionLocal. Define DeclarativeBase subclass as Base. Define async get_db generator that yields an AsyncSession, commits on success, rolls back on exception."
+        },
+        {
+          "path": "backend/app/core/security.py",
+          "spec": "Implement: hash_password(password) using passlib bcrypt. verify_password(plain, hashed). create_access_token(user_id, expires_days=30) returns JWT string signed with settings.secret_key HS256. decode_token(token) returns payload dict, raises HTTPException 401 on any PyJWTError. PIN rate limiter using a module-level defaultdict(list) keyed by user_id storing timestamps \u2014 check_pin_rate_limit(user_id) raises HTTPException 429 if 5+ attempts in last 60 seconds. get_current_user FastAPI dependency: reads access_token from Cookie, decodes JWT, loads User from DB, raises 401 if missing/invalid/deleted. require_role(*roles) factory: returns a dependency that calls get_current_user and raises 403 if role not in roles."
+        },
+        {
+          "path": "backend/app/main.py",
+          "spec": "FastAPI app with lifespan context manager. In startup: run alembic upgrade head programmatically (import Config and command from alembic), start APScheduler AsyncIOScheduler, register calendar sync job, register daily backup job. In shutdown: scheduler.shutdown(). Add CORSMiddleware using origins from settings.allowed_origins split by comma. Add global exception handler returning JSON 500. Mount StaticFiles at /photos pointing to /data/photos. Create /data/photos/originals /data/photos/avatars /data/photos/thumbnails /data/db /data/backups directories with exist_ok=True. Include all routers (auth, users, calendar, integrations, ws). Expose GET /api/health returning {status: ok, version: 0.1.0}. Set docs_url=/api/docs, openapi_url=/api/openapi.json."
+        },
+        {
+          "path": "backend/alembic.ini",
+          "spec": "Standard Alembic ini. script_location = alembic. Do not put sqlalchemy.url here \u2014 it is loaded dynamically in env.py."
+        },
+        {
+          "path": "backend/alembic/env.py",
+          "spec": "Import Base from app.core.database and all model modules so metadata is populated. Load database URL from settings. Implement run_migrations_online using asyncio.run() with an async function that creates an async connection and calls context.run_migrations(). Implement run_migrations_offline for the offline case using settings.database_url."
+        },
+        {
+          "path": "backend/alembic/versions/.gitkeep",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/Dockerfile",
+          "spec": "FROM python:3.12-slim. WORKDIR /app. RUN apt-get update && apt-get install -y --no-install-recommends libheif-dev && rm -rf /var/lib/apt/lists/*. COPY requirements.txt . RUN pip install --no-cache-dir -r requirements.txt. COPY . . CMD uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
+        }
+      ],
+      "shell_commands": [
+        "cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt",
+        "cd backend && source .venv/bin/activate && alembic init alembic",
+        "docker compose up -d --build api"
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
+        "curl -sk https://homehub.local/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'\" && echo PASS",
+        "docker compose logs api | grep 'Application startup complete' && echo PASS"
+      ]
+    },
+    {
+      "id": "T1.4",
+      "title": "React/Vite/TypeScript frontend skeleton + PWA manifest + Nginx + Dockerfile",
+      "type": "FE",
+      "is_blocker": true,
+      "depends_on": [
+        "T1.2"
+      ],
+      "shell_commands": [
+        "npm create vite@latest frontend -- --template react-ts",
+        "cd frontend && npm install react-router-dom @tanstack/react-query axios zustand",
+        "cd frontend && npm install -D tailwindcss postcss autoprefixer vite-plugin-pwa workbox-window @types/node",
+        "cd frontend && npx tailwindcss init -p",
+        "cd frontend && npx shadcn-ui@latest init --defaults",
+        "cd frontend && npm install react-big-calendar date-fns @use-gesture/react",
+        "cd frontend && npm install -D @types/react-big-calendar",
+        "python3 -c \"from PIL import Image; [Image.new('RGB',(s,s),'#4F46E5').save(f'frontend/public/icons/icon-{s}.png') for s in [192,512,180]]\" 2>/dev/null || echo 'Generate placeholder icons manually'"
+      ],
+      "files_to_create": [
+        {
+          "path": "frontend/tailwind.config.js",
+          "spec": "content: ['./index.html','./src/**/*.{ts,tsx}']. darkMode: 'class'. Extend theme with colors: primary DEFAULT #4F46E5 dark #3730A3. fontFamily: extend with display for wall clock. Keep all other shadcn/ui defaults from init."
+        },
+        {
+          "path": "frontend/vite.config.ts",
+          "spec": "Import defineConfig from vite, react from @vitejs/plugin-react, VitePWA from vite-plugin-pwa. VitePWA config: registerType autoUpdate, includeAssets icons/*.png, manifest with name HomeHub short_name HomeHub theme_color #4F46E5 background_color #ffffff display standalone start_url / icons array (192 512 180 apple-touch-icon). workbox config: navigateFallback /index.html, navigateFallbackDenylist [/^\\/api/, /^\\/photos/], runtimeCaching with NetworkFirst for /api/auth/me /api/users /api/calendar/events /api/calendar/sources each with their own cacheName. server.proxy: /api to http://localhost:8000, /photos to http://localhost:8000."
+        },
+        {
+          "path": "frontend/src/api/client.ts",
+          "spec": "Create axios instance with baseURL /api, withCredentials true, Content-Type application/json header. Add response interceptor: on 401 status, import useAuthStore dynamically, call clearUser(), redirect to /login via window.location.href. Export as apiClient."
+        },
+        {
+          "path": "frontend/src/stores/auth.ts",
+          "spec": "Zustand store. User interface: id string, display_name string, role (admin|co_admin|teen|child|guest), color_hex string, ui_mode (standard|child|kiosk), avatar_type string, avatar_value string, family_id string. AuthStore: user User|null, setUser(user:User)=>void, clearUser()=>void. Export useAuthStore."
+        },
+        {
+          "path": "frontend/src/main.tsx",
+          "spec": "Wrap App in QueryClientProvider with QueryClient defaultOptions staleTime 60000 retry 1 refetchOnWindowFocus false. Mount to #root."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "spec": "React Router BrowserRouter. Routes: /setup -> SetupWizard, /login -> Login, /dashboard -> Dashboard, /calendar -> CalendarPage, /wall -> WallLayout (no nav chrome), /admin/users -> ManageUsers, /admin/calendars -> CalendarSettings, /admin/settings -> AdminSettings, / redirect to /dashboard. On mount useEffect: call GET /api/auth/setup/status. If setup_complete false navigate /setup. Else call GET /api/auth/me. If 200 setUser and navigate /dashboard. If 401 navigate /login. Render OfflineBanner and InstallPrompt as global overlays above the router."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "spec": "@tailwind base; @tailwind components; @tailwind utilities; Import react-big-calendar/lib/css/react-big-calendar.css"
+        },
+        {
+          "path": "frontend/nginx.conf",
+          "complete_content": "server {\n  listen 3000;\n  root /usr/share/nginx/html;\n  index index.html;\n  gzip on;\n  gzip_types text/css application/javascript application/json;\n  location / {\n    try_files $uri $uri/ /index.html;\n  }\n  location ~* \\.(js|css|png|ico|svg|woff2)$ {\n    expires 1y;\n    add_header Cache-Control 'public, immutable';\n  }\n}\n"
+        },
+        {
+          "path": "frontend/Dockerfile",
+          "spec": "Multi-stage. Stage 1 FROM node:20-alpine AS build. WORKDIR /app. COPY package*.json ./. RUN npm ci. COPY . . RUN npm run build. Stage 2 FROM nginx:alpine. COPY --from=build /app/dist /usr/share/nginx/html. COPY nginx.conf /etc/nginx/conf.d/default.conf. EXPOSE 3000."
+        }
+      ],
+      "acceptance_check": [
+        "cd frontend && npm run build && echo BUILD_PASS",
+        "docker compose up -d --build web && curl -sk https://homehub.local | grep -i 'HomeHub\\|root' && echo PASS"
+      ]
+    },
+    {
+      "id": "T1.5",
+      "title": "GitHub Actions CI workflow (AMD64 only)",
+      "type": "INFRA",
+      "is_blocker": false,
+      "depends_on": [
+        "T1.3",
+        "T1.4"
+      ],
+      "files_to_create": [
+        {
+          "path": ".github/workflows/build.yml",
+          "spec": "Trigger on push to main. Two jobs. Job 1 'test': runs-on ubuntu-latest, steps: checkout, setup python 3.12, pip install requirements.txt pytest pytest-asyncio httpx, run pytest backend/tests/ -v. Job 2 'build': needs test, runs-on ubuntu-latest, permissions contents read packages write. Steps: checkout, login to ghcr.io with GITHUB_TOKEN, build-push-action for backend (context ./backend, platforms linux/amd64, push true, tags ghcr.io/vnmyers13/HomeHub/homehub-api:latest and :SHA, cache-from/to type=gha), build-push-action for frontend (same pattern). No QEMU step \u2014 AMD64 only."
+        }
+      ],
+      "acceptance_check": [
+        "cat .github/workflows/build.yml | grep 'linux/amd64' && echo PASS",
+        "cat .github/workflows/build.yml | grep -v 'linux/arm64' && echo NO_ARM_PASS"
+      ]
+    }
+  ],
+  "sprint_exit_verification": [
+    "All 5 tasks in S1 completed",
+    "All blocker tasks verified with acceptance_check commands",
+    "Sprint goal achieved: Empty repo \u2192 Docker stack boots \u2192 https://homehub.local/api/health returns 200"
+  ]
+}

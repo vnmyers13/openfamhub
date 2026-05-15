@@ -1,0 +1,196 @@
+{
+  "manifest_version": "1.0-MVP",
+  "project": "HomeHub",
+  "sprint_id": "S3",
+  "sprint_title": "Internal Calendar",
+  "sprint_goal": "Events can be created, edited, deleted inside HomeHub and viewed in all four calendar views",
+  "sprint_duration": "Week 3",
+  "agent_instructions": {
+    "role": "You are a senior full-stack engineer building HomeHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
+    "working_directory": "/home/dev/homehub",
+    "python_environment": {
+      "policy": "ALL Python work must use the project virtual environment at backend/.venv. Never use the system Python or pip directly for project dependencies.",
+      "create_venv": "cd backend && python3 -m venv .venv",
+      "activate_macos_linux": "source backend/.venv/bin/activate",
+      "activate_windows": "backend\\.venv\\Scripts\\activate",
+      "install_deps": "pip install -r requirements.txt",
+      "verify_active": "which python | grep .venv || echo 'ERROR: venv not active'",
+      "rule": "Before running ANY python, alembic, or pytest command, confirm the venv is active. If the shell prompt does not show (.venv), run the activate command first.",
+      "docker_note": "Docker containers have their own isolated Python environment via the Dockerfile \u2014 the .venv is for local development and CI only, not inside containers."
+    },
+    "node_environment": {
+      "policy": "All Node/npm work runs from the frontend/ directory. node_modules are local to frontend/ \u2014 never install globally.",
+      "install": "cd frontend && npm install",
+      "rule": "Always cd into frontend/ before running npm commands."
+    },
+    "code_style": {
+      "python": "PEP8, type hints on all functions, async/await throughout, docstrings on public functions",
+      "typescript": "strict mode, explicit return types, no any, functional components with hooks",
+      "general": "no commented-out code, no TODO comments, no stubs, complete files every time"
+    },
+    "file_rule": "Always write the complete file. Never truncate. If a file already exists, read it first then write the full updated version.",
+    "error_rule": "All API endpoints must have try/except. All async DB operations wrapped. No unhandled exceptions reach the client.",
+    "version_rule": "The application version is stored in ONE canonical location: backend/app/core/config.py as APP_VERSION = '0.1.0'. The Dockerfile, README badge, and API health endpoint all read from this. Never hardcode the version string in more than one place.",
+    "theme_default": "dark \u2014 the <html> element ships with class='dark' by default. Users can toggle per-profile. Stored in users.settings_json.theme (light|dark).",
+    "user_switch": "Shared devices (wall, kitchen tablet) need a quick user-switch. NavShell must include a 'Switch User' button that shows the family member avatar grid and requires PIN to switch \u2014 without a full logout/login cycle.",
+    "project_name": "HomeHub (not FamilyHub \u2014 project was renamed)",
+    "notifications": "Backend must send both email (SMTP) and Discord webhook notifications for: sync job failures, backup job errors, and release announcements. Both channels are wired up via backend/app/services/notifications.py"
+  },
+  "context": {
+    "stack": {
+      "backend": "Python 3.12 + FastAPI + SQLAlchemy 2.0 async + aiosqlite + Alembic + APScheduler + PyJWT + passlib[bcrypt]",
+      "frontend": "React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + TanStack Query v5 + Zustand + React Router v6 + axios + vite-plugin-pwa + Workbox + react-big-calendar + date-fns",
+      "infra": "Docker Compose v2 + Caddy 2 alpine + nginx:alpine (frontend prod) + Avahi mDNS",
+      "ci": "GitHub Actions AMD64 only (no QEMU, no ARM64)"
+    },
+    "key_decisions": {
+      "calendar_sync": "ICS feed URLs only. No OAuth. Sync upserts on external_uid. External always wins on conflict.",
+      "recurring_events": "Fully expand recurring events to individual rows on import. 12-month rolling window.",
+      "colour_model": "Colour on calendar_sources.color_hex. Filter chips per source not per person.",
+      "wall_auth": "/wall is public, no auth.",
+      "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
+      "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
+      "repo": "GitHub public. GHCR images. GitHub Actions CI.",
+      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+    },
+    "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
+    "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
+    "sync_pattern": "APScheduler AsyncIOScheduler. Each calendar_source has sync_interval_hours. Sync job checks source.last_synced_at + interval on each scheduler tick. Upsert on (source_id, external_uid). Delete rows where external_uid no longer in feed."
+  },
+  "repo_structure": {
+    "backend/app/main.py": "FastAPI app, lifespan hooks, CORS, routers, StaticFiles mount",
+    "backend/app/core/config.py": "pydantic-settings Settings",
+    "backend/app/core/database.py": "async engine, WAL+FK pragmas, get_db dependency",
+    "backend/app/core/security.py": "JWT, bcrypt, get_current_user, require_role, PIN rate limiter",
+    "backend/app/models/": "SQLAlchemy ORM models",
+    "backend/app/schemas/": "Pydantic request/response models",
+    "backend/app/routers/": "FastAPI route handlers",
+    "backend/app/services/": "Business logic",
+    "backend/app/jobs/": "APScheduler jobs",
+    "backend/app/integrations/ical_feed.py": "ICS fetch, parse, expand, upsert",
+    "backend/alembic/": "Migrations",
+    "frontend/src/pages/": "Route-level page components",
+    "frontend/src/components/": "Shared UI components",
+    "frontend/src/wall/": "Wall display components (isolated, no auth guard)",
+    "frontend/src/api/": "TanStack Query hooks + axios client",
+    "frontend/src/stores/auth.ts": "Zustand auth store",
+    "config/Caddyfile": "LAN-only tls internal config",
+    "docker-compose.yml": "api + web + caddy services",
+    "scripts/setup-wall-pi.sh": "Pi OS kiosk boot configuration"
+  },
+  "env_vars": {
+    "FAMILY_NAME": "Household display name",
+    "TIMEZONE": "IANA timezone e.g. America/New_York",
+    "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
+    "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
+    "ALLOWED_ORIGINS": "https://homehub.local",
+    "BACKUP_RETENTION_DAYS": "30",
+    "BACKUP_TIME": "03:00",
+    "WALL_IDLE_TIMEOUT_SECONDS": "300",
+    "DISCORD_WEBHOOK_URL": "Discord webhook URL for notifications. Create at: discord.com/developers/applications \u2192 your server \u2192 Integrations \u2192 Webhooks",
+    "SMTP_HOST": "SMTP server hostname e.g. smtp.gmail.com",
+    "SMTP_PORT": "587",
+    "SMTP_USER": "SMTP username / email address",
+    "SMTP_PASSWORD": "SMTP password or app-specific password. For Gmail generate at: myaccount.google.com \u2192 Security \u2192 App passwords",
+    "SMTP_FROM": "From address for notification emails e.g. homehub@gmail.com",
+    "SMTP_TO": "Recipient address for admin alerts e.g. your@email.com",
+    "DATA_PATH": "./data  # Change to NAS mount point e.g. /mnt/nas/homehub",
+    "STAGING_HOST": "homehub-staging.local  # Hostname of staging server",
+    "APP_VERSION": "0.01  # Do not edit manually \u2014 updated by release checklist"
+  },
+  "execution_rules": {
+    "rule_1": "Complete tasks in the exact order listed. Do not start a task until all tasks in depends_on are verified passing.",
+    "rule_2": "Tasks marked is_blocker:true must have all acceptance_check commands passing before you proceed.",
+    "rule_3": "Write every file completely. No stubs, no truncation, no TODOs.",
+    "rule_4": "After completing ALL tasks in this sprint, run the sprint_exit_verification commands below."
+  },
+  "tasks": [
+    {
+      "id": "T3.1",
+      "title": "DB migration 002: calendar_sources, calendar_events, sync_logs",
+      "type": "DB",
+      "is_blocker": true,
+      "depends_on": [
+        "T2.1"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/app/models/calendar.py",
+          "spec": "CalendarSource: id TEXT PK, family_id FK families, provider TEXT (internal|ical), display_name TEXT, color_hex TEXT, ics_url TEXT nullable, sync_interval_hours INT default 6, last_synced_at DateTime nullable, sync_error TEXT nullable, enabled BOOL default True, created_at DateTime UTC. CalendarEvent: id TEXT PK, source_id FK calendar_sources, external_uid TEXT nullable, title TEXT not null, start_dt DateTime UTC not null, end_dt DateTime UTC not null, all_day BOOL default False, location TEXT nullable, description TEXT nullable, created_by FK users nullable, is_deleted BOOL default False, created_at DateTime UTC, updated_at DateTime UTC. Add composite index on (source_id, start_dt, end_dt) and unique constraint on (source_id, external_uid) where external_uid is not null. SyncLog: id TEXT PK, source_id FK calendar_sources, synced_at DateTime UTC, events_upserted INT, events_deleted INT, duration_ms INT, error TEXT nullable."
+        }
+      ],
+      "shell_commands": [
+        "cd backend && source .venv/bin/activate && alembic revision --autogenerate -m '002_calendar'",
+        "cd backend && source .venv/bin/activate && alembic upgrade head"
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
+        "sqlite3 data/db/homehub.db '.tables' | grep -E 'calendar_sources|calendar_events|sync_logs' && echo PASS"
+      ]
+    },
+    {
+      "id": "T3.2",
+      "title": "Calendar API: events CRUD + sources CRUD + auto-create internal source",
+      "type": "BE",
+      "is_blocker": true,
+      "depends_on": [
+        "T3.1"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/app/schemas/calendar.py",
+          "spec": "CalendarSourceResponse: all CalendarSource fields. CreateCalendarSourceRequest: display_name, color_hex, provider, ics_url Optional, sync_interval_hours int default 6. CalendarEventResponse: all CalendarEvent fields plus source_color_hex from the joined source. CreateEventRequest: title str, start_dt datetime, end_dt datetime, all_day bool default False, location Optional str, description Optional str. PatchEventRequest: all fields Optional. CalendarEventResponse should include start_dt and end_dt as ISO8601 strings in UTC."
+        },
+        {
+          "path": "backend/app/services/calendar.py",
+          "spec": "async get_or_create_internal_source(db, family_id) -> CalendarSource: query for source where family_id matches and provider=internal, create it if not exists with display_name Family Calendar and color_hex #4F46E5. async get_events_in_range(db, family_id, start, end) -> list: join calendar_events with calendar_sources on source_id, filter source.family_id=family_id, event.start_dt between start and end, is_deleted=False. Return events with source color_hex included."
+        },
+        {
+          "path": "backend/app/routers/calendar.py",
+          "spec": "APIRouter prefix /api/calendar. GET /events: query params start ISO datetime required, end ISO datetime required. Load events in range via service. Return list of CalendarEventResponse. POST /events: require auth, get_or_create_internal_source, create CalendarEvent with source_id=internal source, created_by=current_user.id. Return CalendarEventResponse. GET /events/{id}: return single event. PATCH /events/{id}: update fields, update updated_at to now. DELETE /events/{id}: set is_deleted=True. GET /sources: return all non-deleted sources for the family. POST /sources: admin only, create source row. PATCH /sources/{id}: admin only. DELETE /sources/{id}: admin only, set enabled=False (not hard delete, we keep sync history). POST /sources/{id}/sync: admin only, trigger immediate sync for that source (call sync job inline). GET /sources/{id}/log: return last 20 SyncLog rows for the source ordered by synced_at desc."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "backend/app/main.py",
+          "change": "Include calendar router"
+        }
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
+        "curl -sk -b cookies.txt -X POST https://homehub.local/api/calendar/events -H 'Content-Type: application/json' -d '{\"title\":\"Test Event\",\"start_dt\":\"2026-05-10T10:00:00Z\",\"end_dt\":\"2026-05-10T11:00:00Z\"}' | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d.get('title')=='Test Event'\" && echo PASS",
+        "curl -sk -b cookies.txt 'https://homehub.local/api/calendar/events?start=2026-05-01T00:00:00Z&end=2026-05-31T23:59:59Z' | python3 -c \"import sys,json; d=json.load(sys.stdin); assert isinstance(d,list)\" && echo LIST_PASS"
+      ]
+    },
+    {
+      "id": "T3.3",
+      "title": "Calendar UI: Month/Week/Day/Agenda views + event form + member filter chips",
+      "type": "FE",
+      "is_blocker": true,
+      "depends_on": [
+        "T3.2"
+      ],
+      "files_to_create": [
+        {
+          "path": "frontend/src/api/calendar.ts",
+          "spec": "useCalendarEvents(start: Date, end: Date): useQuery GET /api/calendar/events with start and end as ISO strings. useCreateEvent(): useMutation POST /api/calendar/events, invalidates calendar events on success. usePatchEvent(): useMutation PATCH /api/calendar/events/{id}. useDeleteEvent(): useMutation DELETE /api/calendar/events/{id}. useCalendarSources(): useQuery GET /api/calendar/sources."
+        },
+        {
+          "path": "frontend/src/pages/CalendarPage.tsx",
+          "spec": "View switcher: Month|Week|Day|Agenda persisted to localStorage. Use react-big-calendar with dateFnsLocalizer. Fetch events for the current view's visible date range via useCalendarEvents. Map events to react-big-calendar format: {id, title, start: Date, end: Date, resource: {color: source.color_hex}}. Custom event component (eventPropGetter): set backgroundColor to event.resource.color. Source filter chips at top: one chip per calendar source, toggle hides/shows events from that source. Clicking event opens event detail Sheet (shadcn) showing title, time, location, description, source name with colour dot, edit/delete buttons if current user is admin or co_admin. New event FAB (bottom-right fixed, +) opens create event Sheet: title input, all_day toggle, start/end datetime-local inputs, location optional, description optional. Submit calls useCreateEvent. Swipe left/right (@use-gesture/react useDrag with 50px threshold) navigates prev/next period on mobile. Mobile layout: bottom navigation tabs with calendar icon active."
+        }
+      ],
+      "acceptance_check": [
+        "Navigate to /calendar \u2014 all four views render without errors",
+        "Create an event \u2014 appears in calendar without full page reload",
+        "Toggle a source filter chip \u2014 events from that source disappear",
+        "Tap an event \u2014 detail sheet opens with title and time"
+      ]
+    }
+  ],
+  "sprint_exit_verification": [
+    "All 3 tasks in S3 completed",
+    "All blocker tasks verified with acceptance_check commands",
+    "Sprint goal achieved: Events can be created, edited, deleted inside HomeHub and viewed in all four calendar views"
+  ]
+}

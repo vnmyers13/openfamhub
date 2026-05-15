@@ -1,0 +1,187 @@
+{
+  "manifest_version": "1.0-MVP",
+  "project": "HomeHub",
+  "sprint_id": "S4",
+  "sprint_title": "ICS Feed Sync",
+  "sprint_goal": "Admin adds an ICS URL, events appear within the configured refresh window, sync log is visible",
+  "sprint_duration": "Week 4",
+  "agent_instructions": {
+    "role": "You are a senior full-stack engineer building HomeHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
+    "working_directory": "/home/dev/homehub",
+    "python_environment": {
+      "policy": "ALL Python work must use the project virtual environment at backend/.venv. Never use the system Python or pip directly for project dependencies.",
+      "create_venv": "cd backend && python3 -m venv .venv",
+      "activate_macos_linux": "source backend/.venv/bin/activate",
+      "activate_windows": "backend\\.venv\\Scripts\\activate",
+      "install_deps": "pip install -r requirements.txt",
+      "verify_active": "which python | grep .venv || echo 'ERROR: venv not active'",
+      "rule": "Before running ANY python, alembic, or pytest command, confirm the venv is active. If the shell prompt does not show (.venv), run the activate command first.",
+      "docker_note": "Docker containers have their own isolated Python environment via the Dockerfile \u2014 the .venv is for local development and CI only, not inside containers."
+    },
+    "node_environment": {
+      "policy": "All Node/npm work runs from the frontend/ directory. node_modules are local to frontend/ \u2014 never install globally.",
+      "install": "cd frontend && npm install",
+      "rule": "Always cd into frontend/ before running npm commands."
+    },
+    "code_style": {
+      "python": "PEP8, type hints on all functions, async/await throughout, docstrings on public functions",
+      "typescript": "strict mode, explicit return types, no any, functional components with hooks",
+      "general": "no commented-out code, no TODO comments, no stubs, complete files every time"
+    },
+    "file_rule": "Always write the complete file. Never truncate. If a file already exists, read it first then write the full updated version.",
+    "error_rule": "All API endpoints must have try/except. All async DB operations wrapped. No unhandled exceptions reach the client.",
+    "version_rule": "The application version is stored in ONE canonical location: backend/app/core/config.py as APP_VERSION = '0.1.0'. The Dockerfile, README badge, and API health endpoint all read from this. Never hardcode the version string in more than one place.",
+    "theme_default": "dark \u2014 the <html> element ships with class='dark' by default. Users can toggle per-profile. Stored in users.settings_json.theme (light|dark).",
+    "user_switch": "Shared devices (wall, kitchen tablet) need a quick user-switch. NavShell must include a 'Switch User' button that shows the family member avatar grid and requires PIN to switch \u2014 without a full logout/login cycle.",
+    "project_name": "HomeHub (not FamilyHub \u2014 project was renamed)",
+    "notifications": "Backend must send both email (SMTP) and Discord webhook notifications for: sync job failures, backup job errors, and release announcements. Both channels are wired up via backend/app/services/notifications.py"
+  },
+  "context": {
+    "stack": {
+      "backend": "Python 3.12 + FastAPI + SQLAlchemy 2.0 async + aiosqlite + Alembic + APScheduler + PyJWT + passlib[bcrypt]",
+      "frontend": "React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + TanStack Query v5 + Zustand + React Router v6 + axios + vite-plugin-pwa + Workbox + react-big-calendar + date-fns",
+      "infra": "Docker Compose v2 + Caddy 2 alpine + nginx:alpine (frontend prod) + Avahi mDNS",
+      "ci": "GitHub Actions AMD64 only (no QEMU, no ARM64)"
+    },
+    "key_decisions": {
+      "calendar_sync": "ICS feed URLs only. No OAuth. Sync upserts on external_uid. External always wins on conflict.",
+      "recurring_events": "Fully expand recurring events to individual rows on import. 12-month rolling window.",
+      "colour_model": "Colour on calendar_sources.color_hex. Filter chips per source not per person.",
+      "wall_auth": "/wall is public, no auth.",
+      "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
+      "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
+      "repo": "GitHub public. GHCR images. GitHub Actions CI.",
+      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+    },
+    "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
+    "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
+    "sync_pattern": "APScheduler AsyncIOScheduler. Each calendar_source has sync_interval_hours. Sync job checks source.last_synced_at + interval on each scheduler tick. Upsert on (source_id, external_uid). Delete rows where external_uid no longer in feed."
+  },
+  "repo_structure": {
+    "backend/app/main.py": "FastAPI app, lifespan hooks, CORS, routers, StaticFiles mount",
+    "backend/app/core/config.py": "pydantic-settings Settings",
+    "backend/app/core/database.py": "async engine, WAL+FK pragmas, get_db dependency",
+    "backend/app/core/security.py": "JWT, bcrypt, get_current_user, require_role, PIN rate limiter",
+    "backend/app/models/": "SQLAlchemy ORM models",
+    "backend/app/schemas/": "Pydantic request/response models",
+    "backend/app/routers/": "FastAPI route handlers",
+    "backend/app/services/": "Business logic",
+    "backend/app/jobs/": "APScheduler jobs",
+    "backend/app/integrations/ical_feed.py": "ICS fetch, parse, expand, upsert",
+    "backend/alembic/": "Migrations",
+    "frontend/src/pages/": "Route-level page components",
+    "frontend/src/components/": "Shared UI components",
+    "frontend/src/wall/": "Wall display components (isolated, no auth guard)",
+    "frontend/src/api/": "TanStack Query hooks + axios client",
+    "frontend/src/stores/auth.ts": "Zustand auth store",
+    "config/Caddyfile": "LAN-only tls internal config",
+    "docker-compose.yml": "api + web + caddy services",
+    "scripts/setup-wall-pi.sh": "Pi OS kiosk boot configuration"
+  },
+  "env_vars": {
+    "FAMILY_NAME": "Household display name",
+    "TIMEZONE": "IANA timezone e.g. America/New_York",
+    "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
+    "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
+    "ALLOWED_ORIGINS": "https://homehub.local",
+    "BACKUP_RETENTION_DAYS": "30",
+    "BACKUP_TIME": "03:00",
+    "WALL_IDLE_TIMEOUT_SECONDS": "300",
+    "DISCORD_WEBHOOK_URL": "Discord webhook URL for notifications. Create at: discord.com/developers/applications \u2192 your server \u2192 Integrations \u2192 Webhooks",
+    "SMTP_HOST": "SMTP server hostname e.g. smtp.gmail.com",
+    "SMTP_PORT": "587",
+    "SMTP_USER": "SMTP username / email address",
+    "SMTP_PASSWORD": "SMTP password or app-specific password. For Gmail generate at: myaccount.google.com \u2192 Security \u2192 App passwords",
+    "SMTP_FROM": "From address for notification emails e.g. homehub@gmail.com",
+    "SMTP_TO": "Recipient address for admin alerts e.g. your@email.com",
+    "DATA_PATH": "./data  # Change to NAS mount point e.g. /mnt/nas/homehub",
+    "STAGING_HOST": "homehub-staging.local  # Hostname of staging server",
+    "APP_VERSION": "0.01  # Do not edit manually \u2014 updated by release checklist"
+  },
+  "execution_rules": {
+    "rule_1": "Complete tasks in the exact order listed. Do not start a task until all tasks in depends_on are verified passing.",
+    "rule_2": "Tasks marked is_blocker:true must have all acceptance_check commands passing before you proceed.",
+    "rule_3": "Write every file completely. No stubs, no truncation, no TODOs.",
+    "rule_4": "After completing ALL tasks in this sprint, run the sprint_exit_verification commands below."
+  },
+  "tasks": [
+    {
+      "id": "T4.1",
+      "title": "ICS feed integration: fetch, parse, expand recurrences, upsert",
+      "type": "BE",
+      "is_blocker": true,
+      "depends_on": [
+        "T3.2"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/app/integrations/__init__.py",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/app/integrations/ical_feed.py",
+          "spec": "async fetch_and_parse(url: str) -> list[dict]: use httpx.AsyncClient with timeout=30 to GET the URL. Raise ValueError on non-200. Parse response content with icalendar.Calendar.from_ical(). Iterate VEVENT components. For each event extract: uid (UID), title (SUMMARY), dtstart (DTSTART), dtend (DTEND or DTSTART + DURATION), all_day (True if dtstart is date not datetime), location (LOCATION optional), description (DESCRIPTION optional). For RRULE events: expand using python-dateutil rrulestr(). Generate all occurrences from today to today+365 days. Each occurrence becomes a separate dict with uid_{occurrence_iso} as the uid to make it unique. Convert all datetimes to UTC. Return list of dicts with keys: external_uid, title, start_dt, end_dt, all_day, location, description."
+        },
+        {
+          "path": "backend/app/jobs/__init__.py",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/app/jobs/calendar_sync.py",
+          "spec": "async sync_source(source: CalendarSource, db: AsyncSession): fetch_and_parse(source.ics_url). For each parsed event: upsert into calendar_events using (source_id, external_uid) as the conflict key \u2014 INSERT OR REPLACE in SQLite terms. After upserting, delete rows in calendar_events where source_id=source.id and external_uid is not null and external_uid not in the set of external_uids just synced (these events were removed from the feed). Write a SyncLog row with counts and duration. Update source.last_synced_at. On any exception: write SyncLog with error, update source.sync_error, do not re-raise (log it). async sync_all_due(db: AsyncSession): load all enabled calendar_sources where provider=ical. For each: check if now >= last_synced_at + sync_interval_hours (or last_synced_at is null). If due, call sync_source(source, db). def register_sync_jobs(scheduler): add interval job running sync_all_due every 15 minutes."
+        },
+        {
+          "path": "backend/app/jobs/backup.py",
+          "spec": "async daily_backup(): Path /data/db/homehub.db -> /data/backups/homehub_{YYYY-MM-DD}.db using sqlite3.backup() API for safe live copy. Prune backups older than settings.backup_retention_days. Log success or error. def register_backup_job(scheduler): add cron job parsing settings.backup_time as HH:MM."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "backend/app/main.py",
+          "change": "In lifespan startup: import and call register_sync_jobs(scheduler) and register_backup_job(scheduler)"
+        }
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
+        "cd backend && source .venv/bin/activate && python3 -c \"import asyncio; from app.integrations.ical_feed import fetch_and_parse; events = asyncio.run(fetch_and_parse('https://www.mozilla.org/media/caldata/calendars/holidays/US.ics')); assert len(events) > 0; print(f'Parsed {len(events)} events PASS')\"",
+        "docker compose logs api | grep 'sync' || echo 'Sync job registered'"
+      ]
+    },
+    {
+      "id": "T4.2",
+      "title": "ICS integration route + calendar settings admin page",
+      "type": "BE+FE",
+      "is_blocker": false,
+      "depends_on": [
+        "T4.1"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/app/routers/integrations.py",
+          "spec": "APIRouter prefix /api/integrations. POST /ical: admin only. Body: ics_url str (validated by attempting an httpx HEAD or GET), display_name str, color_hex str, sync_interval_hours int default 6. Validate URL is reachable (attempt fetch with timeout=10, raise 400 if fails). Create CalendarSource row with provider=ical. Trigger immediate first sync by calling sync_source inline. Return the created CalendarSource."
+        },
+        {
+          "path": "frontend/src/pages/admin/CalendarSettings.tsx",
+          "spec": "Admin only route. Load calendar sources via useCalendarSources. Show a list of connected sources: each row has colour swatch, display name, provider badge, last synced timestamp, sync_error display if present, sync interval display, Sync Now button, Delete button. Add ICS Feed section below: form with URL input, display name, colour picker (8 preset swatches), sync interval select (1h, 3h, 6h, 12h, 24h). Submit calls POST /api/integrations/ical. On success invalidates sources query. Sync Now button calls POST /api/calendar/sources/{id}/sync. After sync, poll GET /api/calendar/sources/{id}/log to show last sync result. Show a sync log drawer per source: last 20 log entries with timestamp, events_upserted, events_deleted, duration, error."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "backend/app/main.py",
+          "change": "Include integrations router"
+        }
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
+        "Add a public ICS URL via admin UI -> source appears in sources list",
+        "Tap Sync Now -> sync log shows events_upserted > 0",
+        "Navigate to /calendar -> events from the ICS feed appear colour-coded"
+      ]
+    }
+  ],
+  "sprint_exit_verification": [
+    "All 2 tasks in S4 completed",
+    "All blocker tasks verified with acceptance_check commands",
+    "Sprint goal achieved: Admin adds an ICS URL, events appear within the configured refresh window, sync log is visible"
+  ]
+}

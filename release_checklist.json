@@ -1,0 +1,771 @@
+{
+  "document": "OpenHomeHub Release Checklist",
+  "version": "1.0",
+  "description": "Complete step-by-step release process. Every release — no matter how small — follows every step in order. No step is optional.",
+  "agent_instructions": {
+    "role": "You are a release engineer executing the OpenHomeHub release process. Work through every phase and every step in exact order. Do not proceed to the next step until the current step's verify command returns the expected output. If any step fails, stop and report the failure before continuing.",
+    "working_directory": "/home/dev/openhomehub",
+    "python_environment": "source backend/.venv/bin/activate before any Python/alembic/pytest command",
+    "version_format": "MAJOR.MINOR — always two decimal places e.g. 0.10, 0.11, 1.00. Increment MINOR by 1 per release (0.10 → 0.11). A MAJOR bump resets MINOR to 0.",
+    "canonical_version_file": "backend/app/core/config.py — the APP_VERSION constant is the single source of truth",
+    "abort_rule": "If any test fails or any verify command returns unexpected output, STOP the release. Fix the issue and restart from Phase 3 (tests).",
+    "project_name": "OpenHomeHub (repo: vnmyers13/openhomehub)",
+    "dockerhub_username": "vnmyers13",
+    "staging_host": "openhomehub-staging.local",
+    "production_host": "openhomehub.local",
+    "deploy_user": "deploy"
+  },
+  "phases": [
+    {
+      "id": "P1",
+      "title": "Pre-Release: Check GitHub for Issues",
+      "description": "Before touching any code, check what the community has reported. This drives the TODO and FUTURE_ENHANCEMENTS files.",
+      "steps": [
+        {
+          "id": "P1.1",
+          "title": "Fetch open GitHub issues via API",
+          "type": "SHELL",
+          "commands": [
+            "# Fetch all open issues from the repo (replace vnmyers13/openhomehub)",
+            "curl -s 'https://api.github.com/repos/vnmyers13/openhomehub/issues?state=open&per_page=100' -H 'Accept: application/vnd.github.v3+json' > /tmp/gh_issues.json",
+            "python3 -c \"import json; issues=json.load(open('/tmp/gh_issues.json')); [print(f\\\"#{i['number']} [{i['labels'][0]['name'] if i['labels'] else 'unlabeled'}] {i['title']} — {i['html_url']}\\\") for i in issues]\""
+          ],
+          "verify": "cat /tmp/gh_issues.json | python3 -c \"import json,sys; d=json.load(sys.stdin); print(f'Fetched {len(d)} open issues')\"",
+          "note": "If GITHUB_TOKEN is set, add -H 'Authorization: token $GITHUB_TOKEN' for private rate limits"
+        },
+        {
+          "id": "P1.2",
+          "title": "Categorise issues into bugs vs enhancements",
+          "type": "SHELL",
+          "commands": [
+            "python3 << 'PYEOF'",
+            "import json, datetime",
+            "",
+            "issues = json.load(open('/tmp/gh_issues.json'))",
+            "bugs = [i for i in issues if any(l['name'].lower() in ['bug','defect','error'] for l in i['labels'])]",
+            "enhancements = [i for i in issues if any(l['name'].lower() in ['enhancement','feature','feature request'] for l in i['labels'])]",
+            "unlabeled = [i for i in issues if not i['labels']]",
+            "",
+            "print(f'Bugs: {len(bugs)}')",
+            "print(f'Enhancements: {len(enhancements)}')",
+            "print(f'Unlabeled: {len(unlabeled)}')",
+            "",
+            "# Write bugs to /tmp/new_bugs.txt",
+            "with open('/tmp/new_bugs.txt', 'w') as f:",
+            "    f.write(f'# Issues fetched {datetime.date.today()}\\n')",
+            "    for i in bugs + unlabeled:",
+            "        f.write(f\"- [ ] #{i['number']}: {i['title']} ({i['html_url']})\\n\")",
+            "",
+            "# Write enhancements to /tmp/new_enhancements.txt",
+            "with open('/tmp/new_enhancements.txt', 'w') as f:",
+            "    f.write(f'# Enhancements fetched {datetime.date.today()}\\n')",
+            "    for i in enhancements:",
+            "        f.write(f\"- [ ] #{i['number']}: {i['title']} ({i['html_url']})\\n\")",
+            "",
+            "print('Written to /tmp/new_bugs.txt and /tmp/new_enhancements.txt')",
+            "PYEOF"
+          ],
+          "verify": "test -f /tmp/new_bugs.txt && echo BUGS_FILE_OK"
+        },
+        {
+          "id": "P1.3",
+          "title": "Merge new issues into TODO.md and FUTURE_ENHANCEMENTS.md",
+          "type": "SHELL",
+          "commands": [
+            "# Append new bugs to TODO.md (avoiding duplicates by issue number)",
+            "python3 << 'PYEOF'",
+            "import re, pathlib",
+            "",
+            "todo_path = pathlib.Path('TODO.md')",
+            "existing = todo_path.read_text() if todo_path.exists() else ''",
+            "existing_nums = set(re.findall(r'#(\\d+)', existing))",
+            "",
+            "new_lines = []",
+            "for line in open('/tmp/new_bugs.txt'):",
+            "    if line.startswith('- '):",
+            "        num = re.search(r'#(\\d+)', line)",
+            "        if num and num.group(1) not in existing_nums:",
+            "            new_lines.append(line)",
+            "",
+            "if new_lines:",
+            "    with open('TODO.md', 'a') as f:",
+            "        f.write('\\n## From GitHub Issues\\n')",
+            "        f.writelines(new_lines)",
+            "    print(f'Added {len(new_lines)} new bugs to TODO.md')",
+            "else:",
+            "    print('No new bugs to add to TODO.md')",
+            "PYEOF",
+            "",
+            "# Append new enhancements to FUTURE_ENHANCEMENTS.md",
+            "python3 << 'PYEOF'",
+            "import re, pathlib",
+            "",
+            "fe_path = pathlib.Path('FUTURE_ENHANCEMENTS.md')",
+            "existing = fe_path.read_text() if fe_path.exists() else ''",
+            "existing_nums = set(re.findall(r'#(\\d+)', existing))",
+            "",
+            "new_lines = []",
+            "for line in open('/tmp/new_enhancements.txt'):",
+            "    if line.startswith('- '):",
+            "        num = re.search(r'#(\\d+)', line)",
+            "        if num and num.group(1) not in existing_nums:",
+            "            new_lines.append(line)",
+            "",
+            "if new_lines:",
+            "    with open('FUTURE_ENHANCEMENTS.md', 'a') as f:",
+            "        f.write('\\n## From GitHub Issues\\n')",
+            "        f.writelines(new_lines)",
+            "    print(f'Added {len(new_lines)} new enhancements to FUTURE_ENHANCEMENTS.md')",
+            "else:",
+            "    print('No new enhancements to add')",
+            "PYEOF"
+          ],
+          "verify": "test -f TODO.md && test -f FUTURE_ENHANCEMENTS.md && echo FILES_OK"
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "title": "Version Bump",
+      "description": "Increment the version number in every location that records it. One command does all of them.",
+      "steps": [
+        {
+          "id": "P2.1",
+          "title": "Read current version",
+          "type": "SHELL",
+          "commands": [
+            "source backend/.venv/bin/activate",
+            "python3 -c \"from app.core.config import settings; print('Current version:', settings.app_version)\" 2>/dev/null || grep 'APP_VERSION' backend/app/core/config.py"
+          ],
+          "verify": "grep 'APP_VERSION' backend/app/core/config.py | grep -E '[0-9]+\\.[0-9]+' && echo VERSION_FOUND"
+        },
+        {
+          "id": "P2.2",
+          "title": "Increment version by 0.01 in all canonical locations",
+          "type": "SHELL",
+          "commands": [
+            "python3 << 'PYEOF'",
+            "import re, pathlib",
+            "",
+            "# Read current version from canonical source",
+            "config_path = pathlib.Path('backend/app/core/config.py')",
+            "config_text = config_path.read_text()",
+            "match = re.search(r\"APP_VERSION\\s*=\\s*['\\\"]([0-9]+)\\.([0-9]+)['\\\"]\", config_text)",
+            "if not match:",
+            "    raise ValueError('Could not find APP_VERSION in config.py')",
+            "",
+            "major = int(match.group(1))",
+            "minor = int(match.group(2))",
+            "new_minor = minor + 1",
+            "old_ver = f'{major}.{minor:02d}'",
+            "new_ver = f'{major}.{new_minor:02d}'",
+            "print(f'Bumping {old_ver} → {new_ver}')",
+            "",
+            "# Files that contain the version string",
+            "files_to_update = {",
+            "    'backend/app/core/config.py': (f\"'{old_ver}'\", f\"'{new_ver}'\"),",
+            "    'backend/Dockerfile': (f'VERSION={old_ver}', f'VERSION={new_ver}'),",
+            "    'README.md': (old_ver, new_ver),",
+            "    'CHANGELOG.md': None,  # Will append, not replace",
+            "}",
+            "",
+            "# Update config.py, Dockerfile, README",
+            "for filepath, replacement in files_to_update.items():",
+            "    p = pathlib.Path(filepath)",
+            "    if not p.exists():",
+            "        print(f'  SKIP {filepath} — not found')",
+            "        continue",
+            "    if replacement is None:",
+            "        continue",
+            "    old, new = replacement",
+            "    text = p.read_text()",
+            "    if old not in text:",
+            "        print(f'  WARN {filepath} — old version string not found, skipping')",
+            "        continue",
+            "    p.write_text(text.replace(old, new))",
+            "    print(f'  Updated {filepath}')",
+            "",
+            "# Prepend entry to CHANGELOG.md",
+            "import datetime",
+            "changelog_path = pathlib.Path('CHANGELOG.md')",
+            "existing = changelog_path.read_text() if changelog_path.exists() else ''",
+            "entry = f'''## [{new_ver}] - {datetime.date.today()}",
+            "",
+            "### Changed",
+            "- (describe changes here before committing)",
+            "",
+            "### Fixed",
+            "- (list bug fixes here)",
+            "",
+            "### Added",
+            "- (list new features here)",
+            "",
+            "---",
+            "",
+            "'''",
+            "changelog_path.write_text(entry + existing)",
+            "print(f'  Prepended entry to CHANGELOG.md')",
+            "print(f'\\nVersion bump complete: {old_ver} → {new_ver}')",
+            "print('ACTION REQUIRED: Edit CHANGELOG.md and fill in the release notes before committing.')",
+            "PYEOF"
+          ],
+          "verify": "grep 'APP_VERSION' backend/app/core/config.py | python3 -c \"import sys,re; line=sys.stdin.read(); m=re.search(r'APP_VERSION.*([0-9]+)\\.([0-9]+)',line); print('New version:', m.group(0) if m else 'NOT FOUND')\"",
+          "note": "After this step: open CHANGELOG.md and fill in the release notes before proceeding"
+        },
+        {
+          "id": "P2.3",
+          "title": "Update CHANGELOG.md with release notes",
+          "type": "MANUAL",
+          "instruction": "Open CHANGELOG.md in your editor. Fill in the three sections (Changed, Fixed, Added) for this release. Do not leave placeholder text. Save the file before proceeding.",
+          "verify": "python3 -c \"import pathlib; text=pathlib.Path('CHANGELOG.md').read_text(); assert 'describe changes here' not in text, 'CHANGELOG still has placeholder text'; print('CHANGELOG OK')\"",
+          "note": "This step cannot be automated — it requires human judgement about what changed"
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "title": "Documentation Update",
+      "description": "Every user-facing document must be accurate before the release goes out.",
+      "steps": [
+        {
+          "id": "P3.1",
+          "title": "Verify Dockerfile version label matches new version",
+          "type": "SHELL",
+          "commands": [
+            "python3 -c \"",
+            "import re, pathlib",
+            "config = pathlib.Path('backend/app/core/config.py').read_text()",
+            "dockerfile = pathlib.Path('backend/Dockerfile').read_text()",
+            "ver_match = re.search(r\\\"APP_VERSION\\s*=\\s*['\\\"](.*?)['\\\"]\\\", config)",
+            "if not ver_match: raise ValueError('No APP_VERSION in config.py')",
+            "ver = ver_match.group(1)",
+            "if ver not in dockerfile: print(f'WARNING: Version {ver} not in Dockerfile')",
+            "else: print(f'Dockerfile version OK: {ver}')",
+            "\""
+          ],
+          "verify": "grep 'LABEL version' backend/Dockerfile || grep 'VERSION' backend/Dockerfile | head -1"
+        },
+        {
+          "id": "P3.2",
+          "title": "Verify README version badge / quick-start version reference",
+          "type": "SHELL",
+          "commands": [
+            "python3 -c \"",
+            "import re, pathlib",
+            "config = pathlib.Path('backend/app/core/config.py').read_text()",
+            "readme = pathlib.Path('README.md').read_text()",
+            "ver_match = re.search(r\\\"APP_VERSION\\s*=\\s*['\\\"](.*?)['\\\"]\\\", config)",
+            "ver = ver_match.group(1)",
+            "count = readme.count(ver)",
+            "print(f'README contains version {ver}: {count} time(s)')",
+            "if count == 0: print('WARNING: README does not mention new version')",
+            "\""
+          ],
+          "verify": "grep -c '[0-9]\\.[0-9][0-9]' README.md | python3 -c \"import sys; n=int(sys.stdin.read()); print(f'README has {n} version references'); assert n>=1\" && echo README_OK"
+        },
+        {
+          "id": "P3.3",
+          "title": "Verify API docs endpoint reflects new version",
+          "type": "SHELL",
+          "commands": [
+            "# Start the API locally and check /api/health returns the new version",
+            "source backend/.venv/bin/activate",
+            "cd backend && uvicorn app.main:app --port 8001 --host 127.0.0.1 &",
+            "sleep 3",
+            "curl -s http://127.0.0.1:8001/api/health",
+            "kill %1 2>/dev/null || true"
+          ],
+          "verify": "python3 -c \"import re, pathlib; ver=re.search(r\\\"APP_VERSION.*['\\\"](.*?)['\\\"]\\\",pathlib.Path('backend/app/core/config.py').read_text()).group(1); print(f'Expecting version {ver} from /api/health')\""
+        },
+        {
+          "id": "P3.4",
+          "title": "Check that GitHub repo description and topics are current",
+          "type": "MANUAL",
+          "instruction": "Navigate to https://github.com/vnmyers13/openhomehub. Click the gear icon next to About. Verify: (1) Description is accurate, (2) Website field is correct if applicable, (3) Topics include: self-hosted, docker, raspberry-pi, family-calendar, fastapi, react, pwa. Update any that are stale. Screenshot or note the current description for the release notes.",
+          "verify": "echo 'MANUAL_STEP — confirm GitHub description reviewed before continuing'"
+        },
+        {
+          "id": "P3.5",
+          "title": "Verify all environment variable documentation is current",
+          "type": "SHELL",
+          "commands": [
+            "python3 << 'PYEOF'",
+            "import re, pathlib",
+            "",
+            "# Get all env var names referenced in config.py",
+            "config = pathlib.Path('backend/app/core/config.py').read_text()",
+            "# Find field names in the Settings class",
+            "field_names = re.findall(r'^    (\\w+)\\s*:', config, re.MULTILINE)",
+            "field_names = [f.upper() for f in field_names if not f.startswith('_')]",
+            "",
+            "# Check each is documented in .env.example",
+            "env_example = pathlib.Path('.env.example').read_text()",
+            "missing = [f for f in field_names if f not in env_example]",
+            "",
+            "if missing:",
+            "    print(f'WARNING: These fields are in config.py but not in .env.example:')",
+            "    for m in missing: print(f'  - {m}')",
+            "else:",
+            "    print(f'All {len(field_names)} config fields are documented in .env.example')",
+            "PYEOF"
+          ],
+          "verify": "test -f .env.example && echo ENV_EXAMPLE_EXISTS"
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "title": "Test Suite — Full Run",
+      "description": "Every test must pass. Zero failures, zero errors. No skipped tests without documented reason.",
+      "steps": [
+        {
+          "id": "P4.1",
+          "title": "Install/sync all backend dependencies into venv",
+          "type": "SHELL",
+          "commands": [
+            "source backend/.venv/bin/activate",
+            "pip install -r backend/requirements.txt --quiet",
+            "pip check"
+          ],
+          "verify": "source backend/.venv/bin/activate && pip check && echo DEPS_OK"
+        },
+        {
+          "id": "P4.2",
+          "title": "Run backend unit and integration tests",
+          "type": "SHELL",
+          "commands": [
+            "source backend/.venv/bin/activate",
+            "cd backend && pytest tests/ -v --tb=short --strict-markers 2>&1 | tee /tmp/pytest_output.txt",
+            "echo 'Exit code:' $?"
+          ],
+          "verify": "python3 -c \"output=open('/tmp/pytest_output.txt').read(); assert 'failed' not in output.lower() or '0 failed' in output, 'TESTS FAILED — see /tmp/pytest_output.txt'; passed=__import__('re').search(r'(\\d+) passed',output); print(f'Tests: {passed.group(0) if passed else \\\"unknown\\\"}'); print('ALL TESTS PASS')\"",
+          "on_failure": "STOP RELEASE. Fix all failing tests before continuing. Do not proceed with a broken test suite."
+        },
+        {
+          "id": "P4.3",
+          "title": "Run database migration round-trip test",
+          "type": "SHELL",
+          "commands": [
+            "source backend/.venv/bin/activate",
+            "cd backend",
+            "# Test upgrade to head",
+            "DATABASE_URL='sqlite+aiosqlite:///test_release.db' alembic upgrade head && echo 'UPGRADE OK'",
+            "# Test downgrade all the way",
+            "DATABASE_URL='sqlite+aiosqlite:///test_release.db' alembic downgrade base && echo 'DOWNGRADE OK'",
+            "# Test upgrade again",
+            "DATABASE_URL='sqlite+aiosqlite:///test_release.db' alembic upgrade head && echo 'SECOND_UPGRADE OK'",
+            "# Clean up",
+            "rm -f test_release.db"
+          ],
+          "verify": "echo 'Migration round-trip test complete — all three steps must print OK above'"
+        },
+        {
+          "id": "P4.4",
+          "title": "Frontend type check",
+          "type": "SHELL",
+          "commands": [
+            "cd frontend && npm run build 2>&1 | tee /tmp/frontend_build.txt",
+            "echo 'Frontend build exit code:' $?"
+          ],
+          "verify": "python3 -c \"output=open('/tmp/frontend_build.txt').read(); assert 'error' not in output.lower() or 'TypeScript' not in output, 'FRONTEND BUILD ERRORS — see /tmp/frontend_build.txt'; print('Frontend build OK')\"",
+          "on_failure": "STOP RELEASE. Fix all TypeScript/build errors before continuing."
+        },
+        {
+          "id": "P4.5",
+          "title": "Docker Compose build test (both images)",
+          "type": "SHELL",
+          "commands": [
+            "docker compose build --no-cache 2>&1 | tee /tmp/docker_build.txt",
+            "echo 'Docker build exit code:' $?"
+          ],
+          "verify": "python3 -c \"output=open('/tmp/docker_build.txt').read(); assert 'ERROR' not in output, 'DOCKER BUILD FAILED — see /tmp/docker_build.txt'; print('Docker build OK')\"",
+          "on_failure": "STOP RELEASE. Fix Docker build errors before continuing."
+        },
+        {
+          "id": "P4.6",
+          "title": "Smoke test: docker compose up and health check",
+          "type": "SHELL",
+          "commands": [
+            "docker compose up -d",
+            "sleep 8",
+            "curl -sk https://openhomehub.local/api/health",
+            "docker compose down"
+          ],
+          "verify": "docker compose up -d && sleep 8 && curl -sk https://openhomehub.local/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Smoke test OK — version:', d.get('version','?'))\" && docker compose down"
+        },
+        {
+          "id": "P4.7",
+          "title": "Record test results",
+          "type": "SHELL",
+          "commands": [
+            "python3 << 'PYEOF'",
+            "import datetime, re, pathlib",
+            "",
+            "pytest_out = open('/tmp/pytest_output.txt').read()",
+            "passed = re.search(r'(\\d+) passed', pytest_out)",
+            "failed = re.search(r'(\\d+) failed', pytest_out)",
+            "",
+            "config = pathlib.Path('backend/app/core/config.py').read_text()",
+            "ver_match = re.search(r\\\"APP_VERSION\\s*=\\s*['\\\"](.*?)['\\\"]\\\", config)",
+            "ver = ver_match.group(1) if ver_match else 'unknown'",
+            "",
+            "result = f'''",
+            "## Release {ver} — Test Run — {datetime.datetime.now().isoformat()}",
+            "- pytest: {passed.group(0) if passed else 'unknown'} {'FAILED: ' + failed.group(0) if failed else '0 failed'}",
+            "- Frontend build: OK",
+            "- Docker build: OK",
+            "- Smoke test: OK",
+            "- Migration round-trip: OK",
+            "'''",
+            "",
+            "with open('docs/test-history.md', 'a') as f:",
+            "    f.write(result)",
+            "print('Test results recorded to docs/test-history.md')",
+            "PYEOF"
+          ],
+          "verify": "test -f docs/test-history.md && echo TEST_HISTORY_RECORDED"
+        }
+      ]
+    },
+    {
+      "id": "P5",
+      "title": "Git Commit & Tag",
+      "description": "Commit all changes with a structured message and create a version tag.",
+      "steps": [
+        {
+          "id": "P5.1",
+          "title": "Stage all changed files",
+          "type": "SHELL",
+          "commands": [
+            "git status",
+            "git diff --stat"
+          ],
+          "verify": "git status | grep -E 'modified|new file' && echo 'Files staged — review above before proceeding'"
+        },
+        {
+          "id": "P5.2",
+          "title": "Final review of staged changes",
+          "type": "MANUAL",
+          "instruction": "Review the git diff output above. Confirm: (1) No .env file is staged (it must never be committed). (2) No test database files (*.db) are staged. (3) CHANGELOG.md has real release notes (no placeholders). (4) Version number in config.py matches the expected new version. Only then continue.",
+          "verify": "git diff --cached --name-only | python3 -c \"import sys; files=sys.stdin.read(); assert '.env' not in files, 'ERROR: .env is staged — unstage it immediately'; assert '.db' not in files, 'ERROR: .db file is staged'; print('Staged files clean — no secrets or databases')\""
+        },
+        {
+          "id": "P5.3",
+          "title": "Commit with structured message",
+          "type": "SHELL",
+          "commands": [
+            "python3 -c \"import re,pathlib; ver=re.search(r\\\"APP_VERSION.*['\\\"](.*?)['\\\"]\\\",pathlib.Path('backend/app/core/config.py').read_text()).group(1); print(ver)\" > /tmp/new_version.txt",
+            "NEW_VER=$(cat /tmp/new_version.txt)",
+            "git add -A",
+            "git commit -m \"release: v${NEW_VER}",
+            "",
+            "- Bump version to ${NEW_VER}",
+            "- Update CHANGELOG, README, Dockerfile labels",
+            "- All tests passing",
+            "",
+            "See CHANGELOG.md for full release notes.\""
+          ],
+          "verify": "git log --oneline -1 | grep 'release:' && echo COMMIT_OK"
+        },
+        {
+          "id": "P5.4",
+          "title": "Create annotated version tag",
+          "type": "SHELL",
+          "commands": [
+            "NEW_VER=$(cat /tmp/new_version.txt)",
+            "git tag -a \"v${NEW_VER}\" -m \"Release v${NEW_VER} — see CHANGELOG.md\"",
+            "echo \"Created tag v${NEW_VER}\""
+          ],
+          "verify": "git tag --sort=-creatordate | head -1 | python3 -c \"import sys; tag=sys.stdin.read().strip(); assert tag.startswith('v'), f'Latest tag {tag} does not start with v'; print(f'Tag verified: {tag}')\""
+        }
+      ]
+    },
+    {
+      "id": "P6",
+      "title": "Publish to GitHub",
+      "description": "Push the commit and tag to GitHub. Create a GitHub Release with the CHANGELOG notes.",
+      "steps": [
+        {
+          "id": "P6.1",
+          "title": "Push commits and tags to origin",
+          "type": "SHELL",
+          "commands": [
+            "git push origin main",
+            "git push origin --tags",
+            "echo 'Push complete'"
+          ],
+          "verify": "git log origin/main --oneline -1 | grep 'release:' && echo PUSH_OK"
+        },
+        {
+          "id": "P6.2",
+          "title": "Verify GitHub Actions CI passes on the new commit",
+          "type": "SHELL",
+          "commands": [
+            "# Poll GitHub Actions until the workflow completes",
+            "python3 << 'PYEOF'",
+            "import subprocess, time, json",
+            "",
+            "# Get the latest commit SHA",
+            "sha = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()",
+            "print(f'Waiting for CI on commit: {sha}')",
+            "print('Check status at: https://github.com/vnmyers13/openhomehub/actions')",
+            "print('Wait for the build workflow to complete before proceeding.')",
+            "PYEOF"
+          ],
+          "verify": "echo 'MANUAL_CHECK: Navigate to https://github.com/vnmyers13/openhomehub/actions and confirm the latest workflow run shows a green checkmark before proceeding'"
+        },
+        {
+          "id": "P6.3",
+          "title": "Create GitHub Release with CHANGELOG notes",
+          "type": "SHELL",
+          "commands": [
+            "python3 << 'PYEOF'",
+            "import re, pathlib, subprocess",
+            "",
+            "# Read the top entry from CHANGELOG.md",
+            "changelog = pathlib.Path('CHANGELOG.md').read_text()",
+            "# Extract the first release block (between first ## and second ##)",
+            "sections = re.split(r'^## ', changelog, flags=re.MULTILINE)",
+            "if len(sections) < 2:",
+            "    print('ERROR: Could not parse CHANGELOG.md')",
+            "    exit(1)",
+            "",
+            "latest_entry = '## ' + sections[1].strip()",
+            "print('Release notes preview:')",
+            "print(latest_entry[:500])",
+            "",
+            "# Write release notes to file",
+            "pathlib.Path('/tmp/release_notes.md').write_text(latest_entry)",
+            "print('\\nRelease notes written to /tmp/release_notes.md')",
+            "print('Use: gh release create TAG --notes-file /tmp/release_notes.md')",
+            "PYEOF",
+            "",
+            "# Create the release using GitHub CLI (if installed)",
+            "NEW_VER=$(cat /tmp/new_version.txt)",
+            "gh release create \"v${NEW_VER}\" --title \"OpenHomeHub v${NEW_VER}\" --notes-file /tmp/release_notes.md 2>/dev/null || echo 'gh CLI not found — create the release manually at https://github.com/vnmyers13/openhomehub/releases/new'"
+          ],
+          "verify": "echo 'Verify GitHub Release is visible at https://github.com/vnmyers13/openhomehub/releases'"
+        }
+      ]
+    },
+    {
+      "id": "P7",
+      "title": "Publish to Docker Hub",
+      "description": "Build production images and push to Docker Hub with version and latest tags.",
+      "steps": [
+        {
+          "id": "P7.1",
+          "title": "Log in to Docker Hub",
+          "type": "SHELL",
+          "commands": [
+            "docker login --username $DOCKERHUB_USERNAME",
+            "echo 'Logged in to Docker Hub'"
+          ],
+          "verify": "docker info 2>/dev/null | grep 'Username' && echo DOCKERHUB_LOGIN_OK",
+          "note": "Set DOCKERHUB_USERNAME env var before running. Password will be prompted interactively. Use a Docker Hub access token (not your account password) — generate one at https://hub.docker.com/settings/security"
+        },
+        {
+          "id": "P7.2",
+          "title": "Build production images with version tag",
+          "type": "SHELL",
+          "commands": [
+            "NEW_VER=$(cat /tmp/new_version.txt)",
+            "REPO=${DOCKERHUB_USERNAME}/openhomehub",
+            "",
+            "# Build API image",
+            "docker build -t vnmyers13/openhomehub-api:${NEW_VER} -t vnmyers13/openhomehub-api:latest ./backend",
+            "echo \"Built vnmyers13/openhomehub-api:${NEW_VER}\"",
+            "",
+            "# Build Web image",
+            "docker build -t vnmyers13/openhomehub-web:${NEW_VER} -t vnmyers13/openhomehub-web:latest ./frontend",
+            "echo \"Built vnmyers13/openhomehub-web:${NEW_VER}\""
+          ],
+          "verify": "NEW_VER=$(cat /tmp/new_version.txt) && docker images | grep openhomehub | grep ${NEW_VER} && echo IMAGES_BUILT_OK"
+        },
+        {
+          "id": "P7.3",
+          "title": "Smoke test the production Docker images",
+          "type": "SHELL",
+          "commands": [
+            "NEW_VER=$(cat /tmp/new_version.txt)",
+            "REPO=${DOCKERHUB_USERNAME}/openhomehub",
+            "",
+            "# Quick sanity check: API image starts and returns health",
+            "docker run --rm -d --name fh_test_api -e SECRET_KEY=testsecretkey12345678901234567890123456789012 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db -p 8099:8000 vnmyers13/openhomehub-api:${NEW_VER}",
+            "sleep 6",
+            "curl -s http://localhost:8099/api/health",
+            "docker stop fh_test_api"
+          ],
+          "verify": "docker run --rm -d --name fh_ver_check -e SECRET_KEY=testsecretkey12345678901234567890123456789012 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db -p 8098:8000 ${DOCKERHUB_USERNAME}/openhomehub-api:latest && sleep 6 && curl -s http://localhost:8098/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Docker image smoke test PASS, version:', d.get('version','?'))\" && docker stop fh_ver_check"
+        },
+        {
+          "id": "P7.4",
+          "title": "Push images to Docker Hub",
+          "type": "SHELL",
+          "commands": [
+            "NEW_VER=$(cat /tmp/new_version.txt)",
+            "REPO=${DOCKERHUB_USERNAME}/openhomehub",
+            "",
+            "docker push vnmyers13/openhomehub-api:${NEW_VER}",
+            "docker push vnmyers13/openhomehub-api:latest",
+            "echo 'API image pushed'",
+            "",
+            "docker push vnmyers13/openhomehub-web:${NEW_VER}",
+            "docker push vnmyers13/openhomehub-web:latest",
+            "echo 'Web image pushed'",
+            "",
+            "echo \"All images pushed for v${NEW_VER}\""
+          ],
+          "verify": "NEW_VER=$(cat /tmp/new_version.txt) && echo 'Verify at: https://hub.docker.com/r/'${DOCKERHUB_USERNAME}'/openhomehub-api/tags'"
+        },
+        {
+          "id": "P7.5",
+          "title": "Update Docker Hub README / description",
+          "type": "SHELL",
+          "commands": [
+            "# Push README to Docker Hub API (requires DOCKERHUB_TOKEN)",
+            "python3 << 'PYEOF'",
+            "import os, json, pathlib",
+            "import urllib.request",
+            "",
+            "username = os.environ.get('DOCKERHUB_USERNAME', '')",
+            "token = os.environ.get('DOCKERHUB_TOKEN', '')",
+            "",
+            "if not token:",
+            "    print('DOCKERHUB_TOKEN not set — update Docker Hub description manually at:')",
+            "    print(f'  https://hub.docker.com/r/{username}/openhomehub-api')",
+            "    exit(0)",
+            "",
+            "readme_content = pathlib.Path('README.md').read_text()",
+            "",
+            "for repo_name in ['openhomehub-api', 'openhomehub-web']:",
+            "    url = f'https://hub.docker.com/v2/repositories/{username}/{repo_name}/'",
+            "    data = json.dumps({'full_description': readme_content}).encode()",
+            "    req = urllib.request.Request(url, data=data, method='PATCH')",
+            "    req.add_header('Content-Type', 'application/json')",
+            "    req.add_header('Authorization', f'JWT {token}')",
+            "    try:",
+            "        resp = urllib.request.urlopen(req)",
+            "        print(f'Updated Docker Hub description for {repo_name}')",
+            "    except Exception as e:",
+            "        print(f'Failed to update {repo_name}: {e}')",
+            "PYEOF"
+          ],
+          "verify": "echo 'Docker Hub README update attempted — verify manually if DOCKERHUB_TOKEN was not set'"
+        }
+      ]
+    },
+    {
+      "id": "P8",
+      "title": "Post-Release Housekeeping",
+      "description": "Close the loop — update tracking files and confirm everything is in order.",
+      "steps": [
+        {
+          "id": "P8.1",
+          "title": "Update TODO.md — mark resolved items",
+          "type": "MANUAL",
+          "instruction": "Open TODO.md. For every item that was fixed in this release: change '- [ ]' to '- [x]' and append '(fixed in vX.XX)'. Move the completed items to a 'Completed' section at the bottom of the file. Save.",
+          "verify": "grep -c '\\- \\[x\\]' TODO.md | python3 -c \"import sys; n=int(sys.stdin.read()); print(f'{n} items marked complete in TODO.md')\" || echo 'No completed items yet — OK for first release'"
+        },
+        {
+          "id": "P8.2",
+          "title": "Write release summary to docs/releases/",
+          "type": "SHELL",
+          "commands": [
+            "python3 << 'PYEOF'",
+            "import pathlib, re, datetime, subprocess",
+            "",
+            "config = pathlib.Path('backend/app/core/config.py').read_text()",
+            "ver = re.search(r\\\"APP_VERSION.*['\\\"](.*?)['\\\"]\\\", config).group(1)",
+            "",
+            "sha = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode().strip()",
+            "date = datetime.date.today().isoformat()",
+            "",
+            "releases_dir = pathlib.Path('docs/releases')",
+            "releases_dir.mkdir(parents=True, exist_ok=True)",
+            "",
+            "summary = f'''# Release v{ver} — {date}",
+            "",
+            "**Git SHA:** {sha}",
+            "**Date:** {date}",
+            "",
+            "## Release Assets",
+            "- GitHub Release: https://github.com/vnmyers13/openhomehub/releases/tag/v{ver}",
+            "- Docker Hub API: https://hub.docker.com/r/vnmyers13/openhomehub-api/tags",
+            "- Docker Hub Web: https://hub.docker.com/r/vnmyers13/openhomehub-web/tags",
+            "",
+            "## Test Results",
+            "See docs/test-history.md for full test output.",
+            "",
+            "## Checklist Completed",
+            "- [x] GitHub issues reviewed and TODO/FUTURE_ENHANCEMENTS updated",
+            "- [x] Version bumped and CHANGELOG updated",
+            "- [x] All documentation verified",
+            "- [x] All tests passing",
+            "- [x] Docker images built and smoke tested",
+            "- [x] Pushed to GitHub with tag",
+            "- [x] Pushed to Docker Hub with version and latest tags",
+            "'''",
+            "",
+            "out_path = releases_dir / f'v{ver}.md'",
+            "out_path.write_text(summary)",
+            "print(f'Release summary written to {out_path}')",
+            "PYEOF"
+          ],
+          "verify": "ls docs/releases/*.md | head -1 && echo RELEASE_SUMMARY_OK"
+        },
+        {
+          "id": "P8.3",
+          "title": "Commit housekeeping files",
+          "type": "SHELL",
+          "commands": [
+            "git add TODO.md FUTURE_ENHANCEMENTS.md docs/test-history.md docs/releases/",
+            "git commit -m 'chore: post-release housekeeping [skip ci]'",
+            "git push origin main",
+            "echo 'Housekeeping commit pushed'"
+          ],
+          "verify": "git log --oneline -1 | grep 'housekeeping' && echo HOUSEKEEPING_COMMITTED"
+        },
+        {
+          "id": "P8.4",
+          "title": "Announce release (optional)",
+          "type": "MANUAL",
+          "instruction": "If the project has a Discord, Slack, or community forum: post a brief release announcement with the version number and the key changes from CHANGELOG.md. Link to the GitHub Release page.",
+          "verify": "echo 'MANUAL_STEP — optional announcement'"
+        }
+      ]
+    }
+  ],
+  "quick_reference": {
+    "full_checklist_order": [
+      "P1: Check GitHub issues → update TODO.md + FUTURE_ENHANCEMENTS.md",
+      "P2: Bump version in config.py, Dockerfile, README, CHANGELOG",
+      "P3: Verify all documentation is accurate",
+      "P4: Run full test suite — ALL must pass before continuing",
+      "P5: git commit with structured message + annotated tag",
+      "P6: Push to GitHub + wait for CI + create GitHub Release",
+      "P7: Build Docker images + smoke test + push to Docker Hub",
+      "P8: Mark resolved TODOs + write release summary + housekeeping commit"
+    ],
+    "abort_conditions": [
+      "Any pytest test fails",
+      "Frontend TypeScript build fails",
+      "Docker build fails",
+      "Smoke test returns non-200 from /api/health",
+      "Migration round-trip fails",
+      ".env file accidentally staged for commit",
+      "CHANGELOG.md still contains placeholder text"
+    ],
+    "required_env_vars_for_release": {
+      "DOCKERHUB_USERNAME": "Your Docker Hub username",
+      "DOCKERHUB_TOKEN": "Docker Hub access token (from hub.docker.com/settings/security)",
+      "GITHUB_TOKEN": "Optional — increases GitHub API rate limit for issue fetching"
+    },
+    "files_that_record_version": [
+      "backend/app/core/config.py — APP_VERSION (canonical source)",
+      "backend/Dockerfile — LABEL version= or ENV VERSION=",
+      "README.md — version badge or quick-start reference",
+      "CHANGELOG.md — top entry header"
+    ]
+  }
+}

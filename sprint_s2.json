@@ -1,0 +1,259 @@
+{
+  "manifest_version": "1.0-MVP",
+  "project": "HomeHub",
+  "sprint_id": "S2",
+  "sprint_title": "Auth, Profiles & Setup Wizard",
+  "sprint_goal": "Family can create accounts, log in with PIN or password, admin can manage members",
+  "sprint_duration": "Week 2",
+  "agent_instructions": {
+    "role": "You are a senior full-stack engineer building HomeHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
+    "working_directory": "/home/dev/homehub",
+    "python_environment": {
+      "policy": "ALL Python work must use the project virtual environment at backend/.venv. Never use the system Python or pip directly for project dependencies.",
+      "create_venv": "cd backend && python3 -m venv .venv",
+      "activate_macos_linux": "source backend/.venv/bin/activate",
+      "activate_windows": "backend\\.venv\\Scripts\\activate",
+      "install_deps": "pip install -r requirements.txt",
+      "verify_active": "which python | grep .venv || echo 'ERROR: venv not active'",
+      "rule": "Before running ANY python, alembic, or pytest command, confirm the venv is active. If the shell prompt does not show (.venv), run the activate command first.",
+      "docker_note": "Docker containers have their own isolated Python environment via the Dockerfile \u2014 the .venv is for local development and CI only, not inside containers."
+    },
+    "node_environment": {
+      "policy": "All Node/npm work runs from the frontend/ directory. node_modules are local to frontend/ \u2014 never install globally.",
+      "install": "cd frontend && npm install",
+      "rule": "Always cd into frontend/ before running npm commands."
+    },
+    "code_style": {
+      "python": "PEP8, type hints on all functions, async/await throughout, docstrings on public functions",
+      "typescript": "strict mode, explicit return types, no any, functional components with hooks",
+      "general": "no commented-out code, no TODO comments, no stubs, complete files every time"
+    },
+    "file_rule": "Always write the complete file. Never truncate. If a file already exists, read it first then write the full updated version.",
+    "error_rule": "All API endpoints must have try/except. All async DB operations wrapped. No unhandled exceptions reach the client.",
+    "version_rule": "The application version is stored in ONE canonical location: backend/app/core/config.py as APP_VERSION = '0.1.0'. The Dockerfile, README badge, and API health endpoint all read from this. Never hardcode the version string in more than one place.",
+    "theme_default": "dark \u2014 the <html> element ships with class='dark' by default. Users can toggle per-profile. Stored in users.settings_json.theme (light|dark).",
+    "user_switch": "Shared devices (wall, kitchen tablet) need a quick user-switch. NavShell must include a 'Switch User' button that shows the family member avatar grid and requires PIN to switch \u2014 without a full logout/login cycle.",
+    "project_name": "HomeHub (not FamilyHub \u2014 project was renamed)",
+    "notifications": "Backend must send both email (SMTP) and Discord webhook notifications for: sync job failures, backup job errors, and release announcements. Both channels are wired up via backend/app/services/notifications.py"
+  },
+  "context": {
+    "stack": {
+      "backend": "Python 3.12 + FastAPI + SQLAlchemy 2.0 async + aiosqlite + Alembic + APScheduler + PyJWT + passlib[bcrypt]",
+      "frontend": "React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + TanStack Query v5 + Zustand + React Router v6 + axios + vite-plugin-pwa + Workbox + react-big-calendar + date-fns",
+      "infra": "Docker Compose v2 + Caddy 2 alpine + nginx:alpine (frontend prod) + Avahi mDNS",
+      "ci": "GitHub Actions AMD64 only (no QEMU, no ARM64)"
+    },
+    "key_decisions": {
+      "calendar_sync": "ICS feed URLs only. No OAuth. Sync upserts on external_uid. External always wins on conflict.",
+      "recurring_events": "Fully expand recurring events to individual rows on import. 12-month rolling window.",
+      "colour_model": "Colour on calendar_sources.color_hex. Filter chips per source not per person.",
+      "wall_auth": "/wall is public, no auth.",
+      "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
+      "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
+      "repo": "GitHub public. GHCR images. GitHub Actions CI.",
+      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+    },
+    "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
+    "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
+    "sync_pattern": "APScheduler AsyncIOScheduler. Each calendar_source has sync_interval_hours. Sync job checks source.last_synced_at + interval on each scheduler tick. Upsert on (source_id, external_uid). Delete rows where external_uid no longer in feed."
+  },
+  "repo_structure": {
+    "backend/app/main.py": "FastAPI app, lifespan hooks, CORS, routers, StaticFiles mount",
+    "backend/app/core/config.py": "pydantic-settings Settings",
+    "backend/app/core/database.py": "async engine, WAL+FK pragmas, get_db dependency",
+    "backend/app/core/security.py": "JWT, bcrypt, get_current_user, require_role, PIN rate limiter",
+    "backend/app/models/": "SQLAlchemy ORM models",
+    "backend/app/schemas/": "Pydantic request/response models",
+    "backend/app/routers/": "FastAPI route handlers",
+    "backend/app/services/": "Business logic",
+    "backend/app/jobs/": "APScheduler jobs",
+    "backend/app/integrations/ical_feed.py": "ICS fetch, parse, expand, upsert",
+    "backend/alembic/": "Migrations",
+    "frontend/src/pages/": "Route-level page components",
+    "frontend/src/components/": "Shared UI components",
+    "frontend/src/wall/": "Wall display components (isolated, no auth guard)",
+    "frontend/src/api/": "TanStack Query hooks + axios client",
+    "frontend/src/stores/auth.ts": "Zustand auth store",
+    "config/Caddyfile": "LAN-only tls internal config",
+    "docker-compose.yml": "api + web + caddy services",
+    "scripts/setup-wall-pi.sh": "Pi OS kiosk boot configuration"
+  },
+  "env_vars": {
+    "FAMILY_NAME": "Household display name",
+    "TIMEZONE": "IANA timezone e.g. America/New_York",
+    "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
+    "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
+    "ALLOWED_ORIGINS": "https://homehub.local",
+    "BACKUP_RETENTION_DAYS": "30",
+    "BACKUP_TIME": "03:00",
+    "WALL_IDLE_TIMEOUT_SECONDS": "300",
+    "DISCORD_WEBHOOK_URL": "Discord webhook URL for notifications. Create at: discord.com/developers/applications \u2192 your server \u2192 Integrations \u2192 Webhooks",
+    "SMTP_HOST": "SMTP server hostname e.g. smtp.gmail.com",
+    "SMTP_PORT": "587",
+    "SMTP_USER": "SMTP username / email address",
+    "SMTP_PASSWORD": "SMTP password or app-specific password. For Gmail generate at: myaccount.google.com \u2192 Security \u2192 App passwords",
+    "SMTP_FROM": "From address for notification emails e.g. homehub@gmail.com",
+    "SMTP_TO": "Recipient address for admin alerts e.g. your@email.com",
+    "DATA_PATH": "./data  # Change to NAS mount point e.g. /mnt/nas/homehub",
+    "STAGING_HOST": "homehub-staging.local  # Hostname of staging server",
+    "APP_VERSION": "0.01  # Do not edit manually \u2014 updated by release checklist"
+  },
+  "execution_rules": {
+    "rule_1": "Complete tasks in the exact order listed. Do not start a task until all tasks in depends_on are verified passing.",
+    "rule_2": "Tasks marked is_blocker:true must have all acceptance_check commands passing before you proceed.",
+    "rule_3": "Write every file completely. No stubs, no truncation, no TODOs.",
+    "rule_4": "After completing ALL tasks in this sprint, run the sprint_exit_verification commands below."
+  },
+  "tasks": [
+    {
+      "id": "T2.1",
+      "title": "DB migration 001: families, users, sessions",
+      "type": "DB",
+      "is_blocker": true,
+      "depends_on": [
+        "T1.3"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/app/models/__init__.py",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/app/models/auth.py",
+          "spec": "SQLAlchemy ORM models. Family: id TEXT PK uuid default, name TEXT not null, timezone TEXT default UTC, settings_json JSON default dict, created_at DateTime UTC. User: id TEXT PK uuid default, family_id TEXT FK families.id not null, display_name TEXT not null, role TEXT not null (admin|co_admin|teen|child|guest), avatar_type TEXT default emoji, avatar_value TEXT default person emoji, color_hex TEXT default #4F46E5, ui_mode TEXT default standard, pin_hash TEXT nullable, password_hash TEXT nullable, settings_json JSON default dict, is_deleted BOOL default false, created_at DateTime UTC, last_login_at DateTime nullable. Session: id TEXT PK uuid default, user_id TEXT FK users.id not null, token_hash TEXT not null unique, device_hint TEXT nullable, expires_at DateTime not null, created_at DateTime UTC. Add module-level helper functions utcnow() and new_uuid(). Add relationships: Family.users -> User, User.family -> Family."
+        }
+      ],
+      "shell_commands": [
+        "cd backend && source .venv/bin/activate && alembic revision --autogenerate -m '001_initial_schema'",
+        "cd backend && source .venv/bin/activate && alembic upgrade head"
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
+        "sqlite3 data/db/homehub.db '.tables' | grep -E 'families|users|sessions' && echo PASS",
+        "cd backend && source .venv/bin/activate && alembic downgrade -1 && alembic upgrade head && echo ROUNDTRIP_PASS"
+      ]
+    },
+    {
+      "id": "T2.2",
+      "title": "Auth API: setup, login (password + PIN), logout, me, setup/status",
+      "type": "BE",
+      "is_blocker": true,
+      "depends_on": [
+        "T2.1"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/app/schemas/__init__.py",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/app/schemas/auth.py",
+          "spec": "Pydantic models. SetupRequest: family_name str min_length 1 max_length 200, timezone str, admin_display_name str min_length 1 max_length 100, admin_password str min_length 8. LoginRequest: display_name str, password str. PinLoginRequest: user_id str, pin str min_length 4 max_length 8. UserResponse: id, display_name, role, color_hex, ui_mode, avatar_type, avatar_value, family_id \u2014 all str. Config from_attributes=True. SetupStatusResponse: setup_complete bool."
+        },
+        {
+          "path": "backend/app/routers/__init__.py",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/app/routers/auth.py",
+          "spec": "APIRouter prefix /api/auth. GET /setup/status: count families, return SetupStatusResponse. POST /setup: if family exists raise 400. Create Family row, create User with role=admin hash_password(admin_password), create access token, set httpOnly SameSite=Strict secure=True max_age=2592000 cookie, return UserResponse. POST /login: find user by lower(display_name) case-insensitive, verify_password, set cookie, update last_login_at, return UserResponse. POST /login/pin: check_pin_rate_limit(user_id), load user, verify PIN with passlib, set cookie, update last_login_at, return UserResponse. POST /logout: delete cookie by setting max_age=0. GET /me: uses get_current_user dependency, returns UserResponse."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "backend/app/main.py",
+          "change": "Import auth router and include it: app.include_router(auth_router)"
+        }
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
+        "curl -sk -X POST https://homehub.local/api/auth/setup -H 'Content-Type: application/json' -d '{\"family_name\":\"Test\",\"timezone\":\"UTC\",\"admin_display_name\":\"Admin\",\"admin_password\":\"password123\"}' | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d.get('display_name')=='Admin'\" && echo SETUP_PASS",
+        "curl -sk https://homehub.local/api/auth/setup/status | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['setup_complete']==True\" && echo STATUS_PASS"
+      ]
+    },
+    {
+      "id": "T2.3",
+      "title": "Users API: public list, CRUD, avatar upload",
+      "type": "BE",
+      "is_blocker": false,
+      "depends_on": [
+        "T2.2"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/app/services/__init__.py",
+          "complete_content": ""
+        },
+        {
+          "path": "backend/app/services/users.py",
+          "spec": "async generate_thumbnail(source_path, dest_path, size tuple). Uses asyncio.to_thread with Pillow Image.open().thumbnail().save(JPEG quality=85). Register pillow_heif opener at module level if pillow-heif is installed."
+        },
+        {
+          "path": "backend/app/schemas/users.py",
+          "spec": "PublicUserResponse: id, display_name, avatar_type, avatar_value, color_hex. CreateUserRequest: display_name str, role str, color_hex str default #4F46E5, ui_mode str default standard, avatar_type str default emoji, avatar_value str default person emoji, pin str|None, password str|None. PatchUserRequest: all fields Optional."
+        },
+        {
+          "path": "backend/app/routers/users.py",
+          "spec": "APIRouter prefix /api/users. GET /public: no auth, return list of PublicUserResponse (id, display_name, avatar_type, avatar_value, color_hex) for non-deleted users in the family. Never return pin_hash or password_hash. GET /: requires auth, returns all non-deleted users as UserResponse. POST /: require_role admin co_admin, create user with optional pin_hash and password_hash. PATCH /{id}: own profile OR admin. DELETE /{id}: admin only, set is_deleted=True, cannot delete self (raise 400 if deleting own id). POST /{id}/avatar: multipart UploadFile, save to /data/photos/avatars/{user_id}.jpg, call generate_thumbnail to /data/photos/avatars/{user_id}_thumb.jpg at 96x96, return {url: /photos/avatars/{user_id}_thumb.jpg}."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "backend/app/main.py",
+          "change": "Include users router"
+        }
+      ],
+      "acceptance_check": [
+        "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
+        "curl -sk https://homehub.local/api/users/public | python3 -c \"import sys,json; d=json.load(sys.stdin); assert isinstance(d,list) and 'pin_hash' not in str(d)\" && echo PUBLIC_PASS"
+      ]
+    },
+    {
+      "id": "T2.4",
+      "title": "Setup wizard + login page + manage users (frontend)",
+      "type": "FE",
+      "is_blocker": true,
+      "depends_on": [
+        "T2.2",
+        "T2.3"
+      ],
+      "files_to_create": [
+        {
+          "path": "frontend/src/api/auth.ts",
+          "spec": "TanStack Query hooks and mutation functions. useSetupStatus(): useQuery GET /api/auth/setup/status. useSetup(): useMutation POST /api/auth/setup. useLogin(): useMutation POST /api/auth/login. usePinLogin(): useMutation POST /api/auth/login/pin. useLogout(): useMutation POST /api/auth/logout. useMe(): useQuery GET /api/auth/me. usePublicUsers(): useQuery GET /api/users/public."
+        },
+        {
+          "path": "frontend/src/pages/SetupWizard.tsx",
+          "spec": "Three-step wizard. Local state for step 1|2|3 and formData. Step 1: family name text input (required min 1), timezone combobox using Intl.supportedValuesOf('timeZone') with search filter. Step 2: admin display name, password (min 8), confirm password (must match). Step 3: summary card showing entered values, submit button. On submit call useSetup mutation. On success call setUser(response) then navigate /dashboard. Disable submit while isPending. Show API error message on failure. Use shadcn Card Input Button Select."
+        },
+        {
+          "path": "frontend/src/pages/Login.tsx",
+          "spec": "Load public users via usePublicUsers. Show grid of avatar cards (min 120x120px). Each card: avatar (emoji large or img), display_name below. On card tap: set selectedUser, show PIN pad if user has pin_hash indicator (role child or teen), else show password input. PIN pad: custom 3x3 grid + 0 + backspace \u2014 NOT <input type=number>. State is a string built digit by digit. Auto-submit when string reaches 4-8 chars. Password field: text input + submit button. Call usePinLogin or useLogin. On success setUser + navigate /dashboard. Show attempt counter and lockout message on 429 response. Back button returns to user grid."
+        },
+        {
+          "path": "frontend/src/pages/admin/ManageUsers.tsx",
+          "spec": "Redirect to /dashboard if current user role is not admin or co_admin. List family members with role badge, colour swatch, avatar. Add member button opens shadcn Sheet side=right with form: display_name, role Select (all 5 roles with descriptions), color_hex (8 preset swatch circles), ui_mode toggle, PIN input, optional password input. Edit: same sheet pre-filled. Delete: confirmation Dialog. All mutations call appropriate users API endpoints and invalidate users queries."
+        },
+        {
+          "path": "frontend/src/components/OfflineBanner.tsx",
+          "spec": "Listens to window online/offline events and navigator.onLine. When offline renders a fixed top banner: yellow bg, text You are offline showing saved data, z-50. Returns null when online."
+        },
+        {
+          "path": "frontend/src/components/InstallPrompt.tsx",
+          "spec": "beforeinstallprompt handler stores the event. Shows a fixed bottom bar with Install button when event is available. iOS Safari detection (navigator.userAgent includes iPad|iPhone|iPod and not standalone): shows a bottom sheet with instruction to tap Share then Add to Home Screen. Stores ios-install-shown in localStorage so the guide only shows once. Both prompts are dismissible."
+        }
+      ],
+      "acceptance_check": [
+        "Navigate to https://homehub.local -> redirects to /setup",
+        "Complete 3-step setup -> lands on /dashboard",
+        "Navigate to /login -> shows family member cards",
+        "Enter wrong PIN 5 times -> lockout message appears"
+      ]
+    }
+  ],
+  "sprint_exit_verification": [
+    "All 4 tasks in S2 completed",
+    "All blocker tasks verified with acceptance_check commands",
+    "Sprint goal achieved: Family can create accounts, log in with PIN or password, admin can manage members"
+  ]
+}

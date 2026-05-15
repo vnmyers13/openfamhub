@@ -1,0 +1,244 @@
+{
+  "manifest_version": "1.0-MVP",
+  "project": "HomeHub",
+  "sprint_id": "S5",
+  "sprint_title": "Wall Display + PWA",
+  "sprint_goal": "Wall screen shows 7-day calendar strip at 1920x1080. PWA installs on Android and iOS. Idle slideshow activates.",
+  "sprint_duration": "Week 5-6",
+  "agent_instructions": {
+    "role": "You are a senior full-stack engineer building HomeHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
+    "working_directory": "/home/dev/homehub",
+    "python_environment": {
+      "policy": "ALL Python work must use the project virtual environment at backend/.venv. Never use the system Python or pip directly for project dependencies.",
+      "create_venv": "cd backend && python3 -m venv .venv",
+      "activate_macos_linux": "source backend/.venv/bin/activate",
+      "activate_windows": "backend\\.venv\\Scripts\\activate",
+      "install_deps": "pip install -r requirements.txt",
+      "verify_active": "which python | grep .venv || echo 'ERROR: venv not active'",
+      "rule": "Before running ANY python, alembic, or pytest command, confirm the venv is active. If the shell prompt does not show (.venv), run the activate command first.",
+      "docker_note": "Docker containers have their own isolated Python environment via the Dockerfile \u2014 the .venv is for local development and CI only, not inside containers."
+    },
+    "node_environment": {
+      "policy": "All Node/npm work runs from the frontend/ directory. node_modules are local to frontend/ \u2014 never install globally.",
+      "install": "cd frontend && npm install",
+      "rule": "Always cd into frontend/ before running npm commands."
+    },
+    "code_style": {
+      "python": "PEP8, type hints on all functions, async/await throughout, docstrings on public functions",
+      "typescript": "strict mode, explicit return types, no any, functional components with hooks",
+      "general": "no commented-out code, no TODO comments, no stubs, complete files every time"
+    },
+    "file_rule": "Always write the complete file. Never truncate. If a file already exists, read it first then write the full updated version.",
+    "error_rule": "All API endpoints must have try/except. All async DB operations wrapped. No unhandled exceptions reach the client.",
+    "version_rule": "The application version is stored in ONE canonical location: backend/app/core/config.py as APP_VERSION = '0.1.0'. The Dockerfile, README badge, and API health endpoint all read from this. Never hardcode the version string in more than one place.",
+    "theme_default": "dark \u2014 the <html> element ships with class='dark' by default. Users can toggle per-profile. Stored in users.settings_json.theme (light|dark).",
+    "user_switch": "Shared devices (wall, kitchen tablet) need a quick user-switch. NavShell must include a 'Switch User' button that shows the family member avatar grid and requires PIN to switch \u2014 without a full logout/login cycle.",
+    "project_name": "HomeHub (not FamilyHub \u2014 project was renamed)",
+    "notifications": "Backend must send both email (SMTP) and Discord webhook notifications for: sync job failures, backup job errors, and release announcements. Both channels are wired up via backend/app/services/notifications.py"
+  },
+  "context": {
+    "stack": {
+      "backend": "Python 3.12 + FastAPI + SQLAlchemy 2.0 async + aiosqlite + Alembic + APScheduler + PyJWT + passlib[bcrypt]",
+      "frontend": "React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui + TanStack Query v5 + Zustand + React Router v6 + axios + vite-plugin-pwa + Workbox + react-big-calendar + date-fns",
+      "infra": "Docker Compose v2 + Caddy 2 alpine + nginx:alpine (frontend prod) + Avahi mDNS",
+      "ci": "GitHub Actions AMD64 only (no QEMU, no ARM64)"
+    },
+    "key_decisions": {
+      "calendar_sync": "ICS feed URLs only. No OAuth. Sync upserts on external_uid. External always wins on conflict.",
+      "recurring_events": "Fully expand recurring events to individual rows on import. 12-month rolling window.",
+      "colour_model": "Colour on calendar_sources.color_hex. Filter chips per source not per person.",
+      "wall_auth": "/wall is public, no auth.",
+      "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
+      "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
+      "repo": "GitHub public. GHCR images. GitHub Actions CI.",
+      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+    },
+    "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
+    "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
+    "sync_pattern": "APScheduler AsyncIOScheduler. Each calendar_source has sync_interval_hours. Sync job checks source.last_synced_at + interval on each scheduler tick. Upsert on (source_id, external_uid). Delete rows where external_uid no longer in feed."
+  },
+  "repo_structure": {
+    "backend/app/main.py": "FastAPI app, lifespan hooks, CORS, routers, StaticFiles mount",
+    "backend/app/core/config.py": "pydantic-settings Settings",
+    "backend/app/core/database.py": "async engine, WAL+FK pragmas, get_db dependency",
+    "backend/app/core/security.py": "JWT, bcrypt, get_current_user, require_role, PIN rate limiter",
+    "backend/app/models/": "SQLAlchemy ORM models",
+    "backend/app/schemas/": "Pydantic request/response models",
+    "backend/app/routers/": "FastAPI route handlers",
+    "backend/app/services/": "Business logic",
+    "backend/app/jobs/": "APScheduler jobs",
+    "backend/app/integrations/ical_feed.py": "ICS fetch, parse, expand, upsert",
+    "backend/alembic/": "Migrations",
+    "frontend/src/pages/": "Route-level page components",
+    "frontend/src/components/": "Shared UI components",
+    "frontend/src/wall/": "Wall display components (isolated, no auth guard)",
+    "frontend/src/api/": "TanStack Query hooks + axios client",
+    "frontend/src/stores/auth.ts": "Zustand auth store",
+    "config/Caddyfile": "LAN-only tls internal config",
+    "docker-compose.yml": "api + web + caddy services",
+    "scripts/setup-wall-pi.sh": "Pi OS kiosk boot configuration"
+  },
+  "env_vars": {
+    "FAMILY_NAME": "Household display name",
+    "TIMEZONE": "IANA timezone e.g. America/New_York",
+    "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
+    "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
+    "ALLOWED_ORIGINS": "https://homehub.local",
+    "BACKUP_RETENTION_DAYS": "30",
+    "BACKUP_TIME": "03:00",
+    "WALL_IDLE_TIMEOUT_SECONDS": "300",
+    "DISCORD_WEBHOOK_URL": "Discord webhook URL for notifications. Create at: discord.com/developers/applications \u2192 your server \u2192 Integrations \u2192 Webhooks",
+    "SMTP_HOST": "SMTP server hostname e.g. smtp.gmail.com",
+    "SMTP_PORT": "587",
+    "SMTP_USER": "SMTP username / email address",
+    "SMTP_PASSWORD": "SMTP password or app-specific password. For Gmail generate at: myaccount.google.com \u2192 Security \u2192 App passwords",
+    "SMTP_FROM": "From address for notification emails e.g. homehub@gmail.com",
+    "SMTP_TO": "Recipient address for admin alerts e.g. your@email.com",
+    "DATA_PATH": "./data  # Change to NAS mount point e.g. /mnt/nas/homehub",
+    "STAGING_HOST": "homehub-staging.local  # Hostname of staging server",
+    "APP_VERSION": "0.01  # Do not edit manually \u2014 updated by release checklist"
+  },
+  "execution_rules": {
+    "rule_1": "Complete tasks in the exact order listed. Do not start a task until all tasks in depends_on are verified passing.",
+    "rule_2": "Tasks marked is_blocker:true must have all acceptance_check commands passing before you proceed.",
+    "rule_3": "Write every file completely. No stubs, no truncation, no TODOs.",
+    "rule_4": "After completing ALL tasks in this sprint, run the sprint_exit_verification commands below."
+  },
+  "tasks": [
+    {
+      "id": "T5.1",
+      "title": "WebSocket endpoint for real-time wall updates",
+      "type": "BE",
+      "is_blocker": false,
+      "depends_on": [
+        "T3.2"
+      ],
+      "files_to_create": [
+        {
+          "path": "backend/app/core/events.py",
+          "spec": "EventBus class with a list of async listener callbacks. subscribe(callback) adds to list and returns an unsubscribe function that removes it. async emit(event_type: str, payload: dict) broadcasts {type, data} to all listeners, removing dead ones on exception."
+        },
+        {
+          "path": "backend/app/routers/ws.py",
+          "spec": "APIRouter. ConnectionManager class: connect(ws) accepts and appends, disconnect(ws) removes, async broadcast(message dict) sends JSON to all active connections removing failed ones. Module-level manager instance. Module-level event_bus = EventBus(). WS /api/ws/wall: connect the websocket, subscribe manager.broadcast to event_bus, enter receive loop (await websocket.receive_text() to keep alive), on WebSocketDisconnect unsubscribe and disconnect. Import event_bus in calendar service and emit calendar_updated after any event write."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "backend/app/main.py",
+          "change": "Include ws router"
+        },
+        {
+          "path": "backend/app/routers/calendar.py",
+          "change": "After any successful event create/patch/delete, call await event_bus.emit('calendar_updated', {source_id: ...})"
+        }
+      ],
+      "acceptance_check": [
+        "curl -sk -N 'wss://homehub.local/api/ws/wall' --http1.1 2>&1 | head -5 || echo 'WS endpoint exists \u2014 test with wscat if available'",
+        "docker compose logs api | grep -i 'websocket\\|ws' | tail -3 && echo WS_ROUTE_REGISTERED"
+      ]
+    },
+    {
+      "id": "T5.2",
+      "title": "Wall display components: layout, clock, 7-day strip, idle mode",
+      "type": "FE",
+      "is_blocker": true,
+      "depends_on": [
+        "T3.3",
+        "T5.1"
+      ],
+      "files_to_create": [
+        {
+          "path": "frontend/src/wall/WallLayout.tsx",
+          "spec": "Root wall component. Full-screen fixed div covering 100vw 100vh, overflow hidden, dark background (#0f172a), no scrollbars. CSS grid: 2 columns, left column 380px (clock + date + family members panel), right column fills remaining (~1540px) for the 7-day strip. Idle timer: module-level constant IDLE_MS from env or 300000ms default. useEffect attaches touchstart and mousemove listeners calling resetIdle(). resetIdle clears and restarts a setTimeout that sets isIdle=true. When isIdle: render full-screen WallPhotoPlaceholder with clock overlaid bottom-right, click/touch exits idle. Left panel: WallClock at top, below it a WallMemberList showing each family member's name and colour dot. Right panel: WallSevenDayStrip. All text white. No navigation chrome. No auth guard. Auto-refresh calendar data every 60 seconds via TanStack Query refetchInterval."
+        },
+        {
+          "path": "frontend/src/wall/WallClock.tsx",
+          "spec": "useState(new Date()), setInterval updating every 1000ms. Display: time as HH:MM using toLocaleTimeString hour 2-digit minute 2-digit hour12 false \u2014 font-mono text-8xl font-bold tracking-tight text-white. Below it: full date as weekday long month long day numeric \u2014 text-2xl text-slate-400. Props: className optional string."
+        },
+        {
+          "path": "frontend/src/wall/WallSevenDayStrip.tsx",
+          "spec": "Fetch events for today through today+6 days using useCalendarEvents with refetchInterval 60000. Also open WebSocket to /api/ws/wall \u2014 on calendar_updated message call queryClient.invalidateQueries(['calendar-events']). WebSocket fallback: if WS fails, rely on the 60s polling. Display 7 columns. Each column: header (Mon 5, Tue 6 etc \u2014 day abbrev + date number) at top with today highlighted (white bg, dark text vs transparent others). Below header: list of event pills for that day sorted by start_dt. Each pill: coloured left border matching source color_hex, event title truncated, start time. Max 5 pills per day then '+N more' indicator. Columns have equal width filling the container. Text is readable from 2m \u2014 min pill font 16px, column header 20px. Column borders: thin slate-700 vertical dividers."
+        },
+        {
+          "path": "frontend/src/wall/WallMemberList.tsx",
+          "spec": "Load family members from useQuery GET /api/users. Display each member as a row: coloured circle (20px diameter, filled with member.color_hex) + display_name text-lg text-slate-300. Stack vertically with 12px gap."
+        },
+        {
+          "path": "frontend/src/wall/WallPhotoPlaceholder.tsx",
+          "spec": "Full-screen div with dark background. Centred HomeHub text in large muted font. Later phases will replace this with a real photo slideshow. Props: fullscreen bool."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "frontend/src/App.tsx",
+          "change": "Route /wall renders WallLayout directly \u2014 no nav wrapper, no auth guard"
+        }
+      ],
+      "acceptance_check": [
+        "Navigate to https://homehub.local/wall at 1920x1080 \u2014 no scrollbars, clock visible, 7 day columns visible",
+        "Wait idle timeout \u2014 screen transitions to placeholder",
+        "Touch screen \u2014 returns to wall layout",
+        "Create an event on /calendar \u2014 wall updates within 60 seconds"
+      ]
+    },
+    {
+      "id": "T5.3",
+      "title": "Dashboard (MVP version) + navigation shell",
+      "type": "FE",
+      "is_blocker": false,
+      "depends_on": [
+        "T3.3"
+      ],
+      "files_to_create": [
+        {
+          "path": "frontend/src/pages/Dashboard.tsx",
+          "spec": "Role-aware dashboard. Get user from useAuthStore. For all roles: greeting (Good morning/afternoon/evening, {name}). TodaysEventsWidget: useQuery events for today, show as compact agenda list. For admin/co_admin: also show sync status summary (number of sources, any errors). Each widget is in its own Suspense boundary with a skeleton fallback so slow queries don't block others."
+        },
+        {
+          "path": "frontend/src/components/NavShell.tsx",
+          "spec": "Wrapper component with responsive navigation. Mobile (<768px): bottom navigation bar with 4 icons: Home (/dashboard), Calendar (/calendar), Lists (placeholder /lists), Settings (/admin/settings for admin else hidden). Desktop (>=768px): left sidebar 240px with navigation links, app name at top, user avatar + name at bottom with logout button. Does not render when pathname starts with /wall. Active link is highlighted."
+        }
+      ],
+      "files_to_modify": [
+        {
+          "path": "frontend/src/App.tsx",
+          "change": "Wrap all routes except /wall, /login, /setup in NavShell"
+        }
+      ],
+      "acceptance_check": [
+        "Navigate to https://homehub.local/dashboard \u2014 greeting visible, today's events widget loads",
+        "Resize browser to 375px wide \u2014 bottom navigation bar appears with Home/Calendar icons",
+        "Resize to 1024px+ \u2014 left sidebar navigation appears"
+      ]
+    },
+    {
+      "id": "T5.4",
+      "title": "PWA: complete service worker, install prompts, offline banner",
+      "type": "FE",
+      "is_blocker": true,
+      "depends_on": [
+        "T1.4"
+      ],
+      "notes": "The Caddy cert must be trusted on test devices before this can be tested. See docs/cert-trust.md.",
+      "files_to_create": [
+        {
+          "path": "docs/cert-trust.md",
+          "spec": "Instructions for trusting the Caddy self-signed cert on: macOS (docker compose exec caddy cat /data/caddy/pki/authorities/local/root.crt > caddy-root.crt, Keychain Access, Always Trust), iOS (serve cert file via python3 -m http.server, Safari download, Settings profile install, Certificate Trust Settings full trust), Pi OS (copy to /usr/local/share/ca-certificates, update-ca-certificates), Android Chrome (device Settings Security install from storage)."
+        }
+      ],
+      "acceptance_check": [
+        "Chrome DevTools Application Manifest \u2014 all icons present, display standalone",
+        "Chrome on Android \u2014 install prompt appears after page load",
+        "iOS Safari \u2014 tapping Share shows Add to Home Screen option",
+        "Turn off server \u2014 app loads from cache, yellow offline banner appears",
+        "Turn server back on \u2014 banner disappears, data refreshes"
+      ]
+    }
+  ],
+  "sprint_exit_verification": [
+    "All 4 tasks in S5 completed",
+    "All blocker tasks verified with acceptance_check commands",
+    "Sprint goal achieved: Wall screen shows 7-day calendar strip at 1920x1080. PWA installs on Android and iOS. Idle slideshow activates."
+  ]
+}
