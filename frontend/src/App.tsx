@@ -5,6 +5,7 @@ import { useAuthStore } from './stores/auth'
 import SetupWizard from './pages/SetupWizard'
 import Login from './pages/Login'
 import ManageUsers from './pages/ManageUsers'
+import CalendarPage from './pages/CalendarPage'
 
 function AppRoutes() {
   const navigate = useNavigate()
@@ -32,7 +33,7 @@ function AppRoutes() {
       <Route path="/setup" element={<SetupWizard />} />
       <Route path="/login" element={<Login />} />
       <Route path="/dashboard" element={<div className="min-h-screen bg-gray-950 flex items-center justify-center text-white text-xl">Dashboard</div>} />
-      <Route path="/calendar" element={<div className="min-h-screen bg-gray-950 flex items-center justify-center text-white text-xl">Calendar</div>} />
+      <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/wall" element={<div className="min-h-screen bg-gray-950 flex items-center justify-center text-white text-xl">Wall Display</div>} />
       <Route path="/admin/users" element={<ManageUsers />} />
       <Route path="/admin/calendars" element={<div className="min-h-screen bg-gray-950 flex items-center justify-center text-white text-xl">Calendar Settings</div>} />

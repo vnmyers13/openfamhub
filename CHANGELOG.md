@@ -1,3 +1,24 @@
+## [0.13] - 2026-05-15
+
+### Added
+- Sprint 3: Calendar data model — CalendarSource, CalendarEvent, SyncLog tables
+- Sprint 3: Calendar API — full CRUD for events and sources (GET/POST/PATCH/DELETE)
+- Sprint 3: Calendar UI — Month/Week/Day/Agenda views with react-big-calendar
+- Source filter chips with color-coded visibility toggles
+- Swipe gesture navigation via @use-gesture/react
+- Event detail modal with admin delete capability
+
+### Changed
+- Event color is driven by source color_hex throughout the stack
+- Version bump 0.12 → 0.13
+
+### Fixed
+- passlib/bcrypt 4.x compatibility — pinned bcrypt to 4.0.1
+- Response datetime serialization in Pydantic schemas (datetime → ISO string)
+- SQLAlchemy async MissingGreenlet errors in calendar PATCH/DELETE (using sql_update)
+
+---
+
 ## [0.12] - 2026-05-15
 
 ### Added

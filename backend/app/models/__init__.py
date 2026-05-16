@@ -3,3 +3,4 @@ from app.models.user import User
 from app.models.auth import Session
 from app.models.calendar_event import CalendarEvent
 from app.models.calendar_source import CalendarSource
+from app.models.calendar_sync_log import SyncLog

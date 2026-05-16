@@ -16,6 +16,7 @@ from app.core.database import Base
 import app.models.user
 import app.models.calendar_source
 import app.models.calendar_event
+import app.models.calendar_sync_log
 import app.models.family
 
 config = context.config
