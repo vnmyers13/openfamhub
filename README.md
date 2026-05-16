@@ -2,7 +2,7 @@
 
 Self-hosted family calendar and organisation hub.
 
-**Version:** 0.10
+**Version:** 0.11
 
 ## Quick Start
 

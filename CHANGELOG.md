@@ -1,3 +1,15 @@
+## [0.11] - 2026-05-15
+
+### Added
+- Sprint 1: Infrastructure scaffold — Docker Compose (api + web + caddy), FastAPI skeleton with health endpoint, React/Vite/Tailwind frontend with PWA, CI workflow (AMD64 only)
+- GitHub repo renamed from HomeHub to OpenFamHub, pushed to vnmyers13/openfamhub
+- All documentation updated to reflect new project name and repo URL
+
+### Changed
+- Renamed project from HomeHub to OpenFamHub across all docs, config, and UI
+
+---
+
 # Changelog
 
 All notable changes to OpenFamHub are documented here.

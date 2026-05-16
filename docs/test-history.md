@@ -2,3 +2,10 @@
 - pytest: 0 tests (no test files yet)
 - Frontend build: OK
 - Migration round-trip: OK (upgrade → downgrade → upgrade)
+
+## Release 0.11 — Test Run — 2026-05-15T20:24:36.598815
+- pytest: 0 passed 0 failed
+- Frontend build: OK
+- Docker build: OK
+- Smoke test: OK
+- Migration round-trip: OK

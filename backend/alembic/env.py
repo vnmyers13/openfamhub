@@ -1,5 +1,9 @@
 import asyncio
+import sys
+from pathlib import Path
 from logging.config import fileConfig
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from alembic import context
 from sqlalchemy import pool
