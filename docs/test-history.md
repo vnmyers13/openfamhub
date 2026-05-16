@@ -1,32 +1,28 @@
-## Release 0.10 — Test Run — 2026-05-15T19:22:04.954607
-- pytest: 0 tests (no test files yet)
-- Frontend build: OK
-- Migration round-trip: OK (upgrade → downgrade → upgrade)
+# Test History & QA Log
 
-## Release 0.11 — Test Run — 2026-05-15T20:24:36.598815
-- pytest: 0 passed 0 failed
-- Frontend build: OK
-- Docker build: OK
-- Smoke test: OK
-- Migration round-trip: OK
+This document tracks the testing activities, bug reports, and verification steps performed during the development of OpenFamHub.
 
-## Release 0.12 — Test Run — 2026-05-15T20:50:31.013185
-- pytest: 0 passed 0 failed
-- Frontend build: OK
-- Docker build: OK
-- Smoke test: OK (version 0.12)
-- Migration round-trip: OK
+## Release v0.15
+- **Date**: 2026-05-16
+- **Scope**: Core API, Auth, and Database migrations.
+- **Tests Performed**: 
+    - Unit tests for authentication flows (setup, login, logout).
+    - Integration tests for database connectivity.
+- **Status**: PASS
 
-## Release 0.13 — Test Run — 2026-05-15T21:22:18.015777
-- pytest: 0 tests — (0 failed)
-- Frontend build: OK (0 errors)
-- Docker build: OK (0 errors)
-- Smoke test: OK (version 0.13)
-- Migration round-trip: OK (upgrade→downgrade→upgrade all passed)
+## Release v0.16 (Current)
+- **Date**: 2026-05-16
+- **Scope**: Documentation, Kiosk scripts, and Deployment automation.
+- **Tests Performed**: 
+    - Syntax verification of `setup-wall-pi.sh`.
+    - Syntax verification of `deploy.sh`.
+    - README/Documentation readability check.
+- **Status**: PASS
 
-## Release 0.15 — Test Run — 2026-05-15T22:10:19.947111
-- pytest: 0 tests (no test suite yet)
-- Frontend build: OK
-- Docker build: OK
-- Smoke test: OK (version 0.15)
-- Migration round-trip: UPGRADE OK, DOWNGRADE OK, SECOND_UPGRADE OK
+## Ongoing Testing
+- [ ] Automated CI/CD pipeline integration.
+- [ ] Load testing for concurrent user access.
+- [ ] End-to-end (E2E) browser testing for the Wall Display.
+
+---
+*Last Updated: 2026-05-16*

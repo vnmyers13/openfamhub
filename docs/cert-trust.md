@@ -54,7 +54,7 @@ sudo update-ca-certificates
    **Install a certificate**.
 3. Choose **CA certificate**, then browse to the downloaded file.
 4. Reboot the device.
-5. Chrome should now trust `https://homehub.local` without warnings.
+5. Chrome should now trust `https://openfamhub.local` without warnings.
 
 ## Windows
 
@@ -72,5 +72,5 @@ steps above. Docker Desktop containers inherit the host CA bundle.
 
 ## Verification
 
-After installing, visit `https://homehub.local` — the address bar should
+After installing, visit `https://openfamhub.local` — the address bar should
 show a padlock with no security warning.

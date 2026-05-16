@@ -51,7 +51,7 @@
       "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
       "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
       "repo": "GitHub public. GHCR images. GitHub Actions CI.",
-      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+      "dev_machine": "Mac Intel + Docker Desktop. openfamhub.local via Bonjour."
     },
     "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
     "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
@@ -83,7 +83,7 @@
     "TIMEZONE": "IANA timezone e.g. America/New_York",
     "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
     "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
-    "ALLOWED_ORIGINS": "https://homehub.local",
+    "ALLOWED_ORIGINS": "https://openfamhub.local",
     "BACKUP_RETENTION_DAYS": "30",
     "BACKUP_TIME": "03:00",
     "WALL_IDLE_TIMEOUT_SECONDS": "300",
@@ -134,7 +134,7 @@
         }
       ],
       "acceptance_check": [
-        "curl -sk -N 'wss://homehub.local/api/ws/wall' --http1.1 2>&1 | head -5 || echo 'WS endpoint exists \u2014 test with wscat if available'",
+        "curl -sk -N 'wss://openfamhub.local/api/ws/wall' --http1.1 2>&1 | head -5 || echo 'WS endpoint exists \u2014 test with wscat if available'",
         "docker compose logs api | grep -i 'websocket\\|ws' | tail -3 && echo WS_ROUTE_REGISTERED"
       ]
     },
@@ -176,7 +176,7 @@
         }
       ],
       "acceptance_check": [
-        "Navigate to https://homehub.local/wall at 1920x1080 \u2014 no scrollbars, clock visible, 7 day columns visible",
+        "Navigate to https://openfamhub.local/wall at 1920x1080 \u2014 no scrollbars, clock visible, 7 day columns visible",
         "Wait idle timeout \u2014 screen transitions to placeholder",
         "Touch screen \u2014 returns to wall layout",
         "Create an event on /calendar \u2014 wall updates within 60 seconds"
@@ -207,7 +207,7 @@
         }
       ],
       "acceptance_check": [
-        "Navigate to https://homehub.local/dashboard \u2014 greeting visible, today's events widget loads",
+        "Navigate to https://openfamhub.local/dashboard \u2014 greeting visible, today's events widget loads",
         "Resize browser to 375px wide \u2014 bottom navigation bar appears with Home/Calendar icons",
         "Resize to 1024px+ \u2014 left sidebar navigation appears"
       ]

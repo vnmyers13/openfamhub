@@ -51,7 +51,7 @@
       "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
       "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
       "repo": "GitHub public. GHCR images. GitHub Actions CI.",
-      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+      "dev_machine": "Mac Intel + Docker Desktop. openfamhub.local via Bonjour."
     },
     "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
     "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
@@ -83,7 +83,7 @@
     "TIMEZONE": "IANA timezone e.g. America/New_York",
     "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
     "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
-    "ALLOWED_ORIGINS": "https://homehub.local",
+    "ALLOWED_ORIGINS": "https://openfamhub.local",
     "BACKUP_RETENTION_DAYS": "30",
     "BACKUP_TIME": "03:00",
     "WALL_IDLE_TIMEOUT_SECONDS": "300",
@@ -167,8 +167,8 @@
       ],
       "acceptance_check": [
         "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
-        "curl -sk -X POST https://homehub.local/api/auth/setup -H 'Content-Type: application/json' -d '{\"family_name\":\"Test\",\"timezone\":\"UTC\",\"admin_display_name\":\"Admin\",\"admin_password\":\"password123\"}' | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d.get('display_name')=='Admin'\" && echo SETUP_PASS",
-        "curl -sk https://homehub.local/api/auth/setup/status | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['setup_complete']==True\" && echo STATUS_PASS"
+        "curl -sk -X POST https://openfamhub.local/api/auth/setup -H 'Content-Type: application/json' -d '{\"family_name\":\"Test\",\"timezone\":\"UTC\",\"admin_display_name\":\"Admin\",\"admin_password\":\"password123\"}' | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d.get('display_name')=='Admin'\" && echo SETUP_PASS",
+        "curl -sk https://openfamhub.local/api/auth/setup/status | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['setup_complete']==True\" && echo STATUS_PASS"
       ]
     },
     {
@@ -205,7 +205,7 @@
       ],
       "acceptance_check": [
         "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
-        "curl -sk https://homehub.local/api/users/public | python3 -c \"import sys,json; d=json.load(sys.stdin); assert isinstance(d,list) and 'pin_hash' not in str(d)\" && echo PUBLIC_PASS"
+        "curl -sk https://openfamhub.local/api/users/public | python3 -c \"import sys,json; d=json.load(sys.stdin); assert isinstance(d,list) and 'pin_hash' not in str(d)\" && echo PUBLIC_PASS"
       ]
     },
     {
@@ -244,7 +244,7 @@
         }
       ],
       "acceptance_check": [
-        "Navigate to https://homehub.local -> redirects to /setup",
+        "Navigate to https://openfamhub.local -> redirects to /setup",
         "Complete 3-step setup -> lands on /dashboard",
         "Navigate to /login -> shows family member cards",
         "Enter wrong PIN 5 times -> lockout message appears"

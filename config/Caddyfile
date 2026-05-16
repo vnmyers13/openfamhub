@@ -1,4 +1,4 @@
-homehub.local {
+openfamhub.local {
   tls internal
 
   handle /api/* {

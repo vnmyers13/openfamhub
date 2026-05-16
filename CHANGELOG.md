@@ -1,3 +1,29 @@
+## [0.17] - 2026-05-16
+
+### Added
+- Notification service framework with Email and Discord webhook support (stub implementations)
+- Test history documentation
+
+### Fixed
+- README branding: `OpenFamhub` → `OpenFamHub`
+
+---
+
+## [0.16] - 2026-05-16
+
+### Added
+- Deploy script (`scripts/deploy.sh`) for streamlined releases
+- Raspberry Pi wall display setup script (`scripts/setup-wall-pi.sh`)
+- Wall screen setup guide (`docs/wall-screen-setup.md`)
+- MVP readiness checklist (`docs/mvp-checklist.md`)
+- Backend test infrastructure: `conftest.py` fixtures, `test_auth.py`
+- Test history documentation (`docs/test-history.md`)
+
+### Changed
+- README expanded with hardware setup, deployment, and wall display sections
+
+---
+
 ## [0.15] - 2026-05-15
 
 ### Added

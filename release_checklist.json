@@ -164,7 +164,7 @@
             "# Files that contain the version string",
             "files_to_update = {",
             "    'backend/app/core/config.py': (f\"'{old_ver}'\", f\"'{new_ver}'\"),",
-            "    'backend/Dockerfile': (f'VERSION={old_ver}', f'VERSION={new_ver}'),",
+            "    'backend/Dockerfile': (f'version=\"{old_ver}\"', f'version=\"{new_ver}\"'),",
             "    'README.md': (old_ver, new_ver),",
             "    'CHANGELOG.md': None,  # Will append, not replace",
             "}",
@@ -490,11 +490,12 @@
           "title": "Push commits and tags to origin",
           "type": "SHELL",
           "commands": [
-            "git push origin main",
+            "CUR_BRANCH=$(git rev-parse --abbrev-ref HEAD)",
+            "git push origin \"$CUR_BRANCH\"",
             "git push origin --tags",
             "echo 'Push complete'"
           ],
-          "verify": "git log origin/main --oneline -1 | grep 'release:' && echo PUSH_OK"
+          "verify": "CUR_BRANCH=$(git rev-parse --abbrev-ref HEAD) && git log \"origin/$CUR_BRANCH\" --oneline -1 | grep 'release:' && echo PUSH_OK"
         },
         {
           "id": "P6.2",
@@ -593,10 +594,10 @@
             "# Quick sanity check: API image starts and returns health",
             "docker run --rm -d --name fh_test_api -e SECRET_KEY=testsecretkey12345678901234567890123456789012 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db -p 8099:8000 vnmyers13/openfamhub-api:${NEW_VER}",
             "sleep 6",
-            "curl -s http://localhost:8099/api/health",
+            "curl -s http://localhost:8099/api/health && echo ''",
             "docker stop fh_test_api"
           ],
-          "verify": "docker run --rm -d --name fh_ver_check -e SECRET_KEY=testsecretkey12345678901234567890123456789012 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db -p 8098:8000 ${DOCKERHUB_USERNAME}/openfamhub-api:latest && sleep 6 && curl -s http://localhost:8098/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Docker image smoke test PASS, version:', d.get('version','?'))\" && docker stop fh_ver_check"
+          "verify": "NEW_VER=$(cat /tmp/new_version.txt) && docker run --rm -d --name fh_ver_check -e SECRET_KEY=testsecretkey12345678901234567890123456789012 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db -p 8098:8000 vnmyers13/openfamhub-api:${NEW_VER} && sleep 6 && curl -s http://localhost:8098/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Docker image smoke test PASS, version:', d.get('version','?'))\" && docker stop fh_ver_check"
         },
         {
           "id": "P7.4",
@@ -720,8 +721,8 @@
           "type": "SHELL",
           "commands": [
             "git add TODO.md FUTURE_ENHANCEMENTS.md docs/test-history.md docs/releases/",
-            "git commit -m 'chore: post-release housekeeping [skip ci]'",
-            "git push origin main",
+            "git commit -m 'chore: post-release housekeeping'",
+            "CUR_BRANCH=$(git rev-parse --abbrev-ref HEAD) && git push origin \"$CUR_BRANCH\"",
             "echo 'Housekeeping commit pushed'"
           ],
           "verify": "git log --oneline -1 | grep 'housekeeping' && echo HOUSEKEEPING_COMMITTED"

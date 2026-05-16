@@ -51,7 +51,7 @@
       "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
       "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
       "repo": "GitHub public. GHCR images. GitHub Actions CI.",
-      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+      "dev_machine": "Mac Intel + Docker Desktop. openfamhub.local via Bonjour."
     },
     "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
     "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
@@ -83,7 +83,7 @@
     "TIMEZONE": "IANA timezone e.g. America/New_York",
     "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
     "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
-    "ALLOWED_ORIGINS": "https://homehub.local",
+    "ALLOWED_ORIGINS": "https://openfamhub.local",
     "BACKUP_RETENTION_DAYS": "30",
     "BACKUP_TIME": "03:00",
     "WALL_IDLE_TIMEOUT_SECONDS": "300",
@@ -160,7 +160,7 @@
       "files_to_create": [
         {
           "path": "scripts/setup-wall-pi.sh",
-          "spec": "Bash script targeting Raspberry Pi OS Desktop (Debian-based). Steps: check running on Pi OS (check /etc/os-release for Raspbian or Debian). sudo apt update && sudo apt install -y chromium-browser unclutter. Disable LXDE screensaver by appending to /etc/xdg/lxsession/LXDE-pi/autostart: @xset s off, @xset -dpms, @xset s noblank, @unclutter -idle 0.5 -root. Write /etc/xdg/autostart/homehub-kiosk.desktop with [Desktop Entry] Type=Application Name=OpenFamHub Kiosk Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 https://homehub.local/wall. Print instructions: 1) Trust the server cert using docs/cert-trust.md Pi OS steps. 2) Reboot. The wall display will launch automatically."
+          "spec": "Bash script targeting Raspberry Pi OS Desktop (Debian-based). Steps: check running on Pi OS (check /etc/os-release for Raspbian or Debian). sudo apt update && sudo apt install -y chromium-browser unclutter. Disable LXDE screensaver by appending to /etc/xdg/lxsession/LXDE-pi/autostart: @xset s off, @xset -dpms, @xset s noblank, @unclutter -idle 0.5 -root. Write /etc/xdg/autostart/homehub-kiosk.desktop with [Desktop Entry] Type=Application Name=OpenFamHub Kiosk Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 https://openfamhub.local/wall. Print instructions: 1) Trust the server cert using docs/cert-trust.md Pi OS steps. 2) Reboot. The wall display will launch automatically."
         },
         {
           "path": "docs/wall-screen-setup.md",
@@ -184,7 +184,7 @@
       "files_to_create": [
         {
           "path": "README.md",
-          "spec": "Title OpenFamHub. Short description: self-hosted family calendar and organiser. Requirements section: Docker + Docker Compose, a Linux server or NAS, an Apple ID or Google account for ICS exports, a Raspberry Pi for the wall display (optional). Quick start: 5 steps (clone, cp .env.example .env, fill in SECRET_KEY and FAMILY_NAME and TIMEZONE, docker compose up -d, navigate to https://homehub.local and complete setup wizard). Trust the cert section (link to docs/cert-trust.md). Wall display section (link to docs/wall-screen-setup.md). Adding calendar feeds section: explain ICS export from Google Calendar, iCloud, sports apps like TeamSnap. Update section (git pull, docker compose pull, docker compose up -d). Backup section (automatic daily to ./data/backups, manual restore via sqlite3 copy). Contributing: link to GitHub issues."
+          "spec": "Title OpenFamHub. Short description: self-hosted family calendar and organiser. Requirements section: Docker + Docker Compose, a Linux server or NAS, an Apple ID or Google account for ICS exports, a Raspberry Pi for the wall display (optional). Quick start: 5 steps (clone, cp .env.example .env, fill in SECRET_KEY and FAMILY_NAME and TIMEZONE, docker compose up -d, navigate to https://openfamhub.local and complete setup wizard). Trust the cert section (link to docs/cert-trust.md). Wall display section (link to docs/wall-screen-setup.md). Adding calendar feeds section: explain ICS export from Google Calendar, iCloud, sports apps like TeamSnap. Update section (git pull, docker compose pull, docker compose up -d). Backup section (automatic daily to ./data/backups, manual restore via sqlite3 copy). Contributing: link to GitHub issues."
         },
         {
           "path": "frontend/src/pages/admin/AdminSettings.tsx",
@@ -192,7 +192,7 @@
         }
       ],
       "acceptance_check": [
-        "test -f README.md && grep -q 'homehub.local' README.md && echo README_OK",
+        "test -f README.md && grep -q 'openfamhub.local' README.md && echo README_OK",
         "test -f .env.example && grep -q 'DISCORD_WEBHOOK_URL' .env.example && echo ENV_EXAMPLE_OK",
         "test -f frontend/src/pages/admin/AdminSettings.tsx && echo ADMIN_SETTINGS_OK"
       ]
@@ -209,7 +209,7 @@
       "files_to_create": [
         {
           "path": "docs/mvp-hardware-checklist.md",
-          "spec": "Manual checklist with checkbox format. Items: docker compose up -d on Linux server boots within 3 minutes. https://homehub.local/api/health returns 200. Setup wizard completes successfully. Admin can add family member with PIN. ICS feed URL added in admin -> events appear in calendar. Internal event created in OpenFamHub -> visible in all 4 calendar views. Source filter chip toggles events on/off. Wall display at https://homehub.local/wall shows clock and 7-day strip at 1920x1080. Idle mode activates after 5 min. Touch exits idle. New event created on phone -> wall updates within 60 seconds. PWA install prompt on Android Chrome. iOS Safari Add to Home Screen works. Turn off server -> app loads from cache and shows offline banner. Turn server back on -> banner disappears. Pi kiosk boots directly to /wall after running setup-wall-pi.sh and reboot. Backup file appears in ./data/backups/. docker compose restart -> no data loss. All pytest tests pass."
+          "spec": "Manual checklist with checkbox format. Items: docker compose up -d on Linux server boots within 3 minutes. https://openfamhub.local/api/health returns 200. Setup wizard completes successfully. Admin can add family member with PIN. ICS feed URL added in admin -> events appear in calendar. Internal event created in OpenFamHub -> visible in all 4 calendar views. Source filter chip toggles events on/off. Wall display at https://openfamhub.local/wall shows clock and 7-day strip at 1920x1080. Idle mode activates after 5 min. Touch exits idle. New event created on phone -> wall updates within 60 seconds. PWA install prompt on Android Chrome. iOS Safari Add to Home Screen works. Turn off server -> app loads from cache and shows offline banner. Turn server back on -> banner disappears. Pi kiosk boots directly to /wall after running setup-wall-pi.sh and reboot. Backup file appears in ./data/backups/. docker compose restart -> no data loss. All pytest tests pass."
         }
       ],
       "acceptance_check": [
@@ -257,15 +257,15 @@
       "files_to_create": [
         {
           "path": "scripts/deploy.sh",
-          "spec": "Bash deploy script. Usage: ./scripts/deploy.sh [staging|production] [version_tag]. Defaults: environment=production, version_tag=latest. Reads SERVER_HOST from first arg: staging uses STAGING_HOST (default homehub-staging.local), production uses PROD_HOST (default homehub.local). SSH user always deploy. Steps executed over SSH: 1) cd ~/homehub (or ~/homehub-staging for staging). 2) git pull origin main. 3) docker compose pull. 4) docker compose up -d --remove-orphans. 5) sleep 5. 6) curl -sf http://localhost:8000/api/health | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d[\"status\"]==\"ok\"; print(\"Health check PASS version:\", d[\"version\"])'. Print coloured status: green for success, red for failure. On health check failure: automatically roll back by running docker compose up -d with the previous image tag (stored before pull as PREV_TAG). Require SSH key auth (no password prompts). Print the full deploy log to stdout. Add --dry-run flag that prints all SSH commands without executing them."
+          "spec": "Bash deploy script. Usage: ./scripts/deploy.sh [staging|production] [version_tag]. Defaults: environment=production, version_tag=latest. Reads SERVER_HOST from first arg: staging uses STAGING_HOST (default homehub-staging.local), production uses PROD_HOST (default openfamhub.local). SSH user always deploy. Steps executed over SSH: 1) cd ~/homehub (or ~/homehub-staging for staging). 2) git pull origin main. 3) docker compose pull. 4) docker compose up -d --remove-orphans. 5) sleep 5. 6) curl -sf http://localhost:8000/api/health | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d[\"status\"]==\"ok\"; print(\"Health check PASS version:\", d[\"version\"])'. Print coloured status: green for success, red for failure. On health check failure: automatically roll back by running docker compose up -d with the previous image tag (stored before pull as PREV_TAG). Require SSH key auth (no password prompts). Print the full deploy log to stdout. Add --dry-run flag that prints all SSH commands without executing them."
         },
         {
           "path": "scripts/setup-server.sh",
-          "spec": "Server first-time setup script run on the Linux production server. Steps: 1) Update system: apt update && apt upgrade -y. 2) Install Docker: curl -fsSL https://get.docker.com | sh. 3) Install Docker Compose plugin: apt install -y docker-compose-plugin. 4) Create deploy user: useradd -m -s /bin/bash deploy. 5) Add deploy to docker group: usermod -aG docker deploy. 6) Create ~/homehub directory as deploy user. 7) Create NAS mount point at /mnt/nas/homehub. 8) Print instructions for: SSH key setup (ssh-copy-id deploy@homehub.local from Mac), configuring NFS or SMB mount (link to docs/server-setup.md), and cloning the repo as the deploy user."
+          "spec": "Server first-time setup script run on the Linux production server. Steps: 1) Update system: apt update && apt upgrade -y. 2) Install Docker: curl -fsSL https://get.docker.com | sh. 3) Install Docker Compose plugin: apt install -y docker-compose-plugin. 4) Create deploy user: useradd -m -s /bin/bash deploy. 5) Add deploy to docker group: usermod -aG docker deploy. 6) Create ~/homehub directory as deploy user. 7) Create NAS mount point at /mnt/nas/homehub. 8) Print instructions for: SSH key setup (ssh-copy-id deploy@openfamhub.local from Mac), configuring NFS or SMB mount (link to docs/server-setup.md), and cloning the repo as the deploy user."
         },
         {
           "path": "docs/server-setup.md",
-          "spec": "Complete server setup guide. Sections: 1) Prerequisites (Linux server on LAN, Docker installed via scripts/setup-server.sh). 2) SSH key setup from Mac: ssh-keygen -t ed25519 -C 'openfamhub-deploy', ssh-copy-id deploy@homehub.local. 3) NAS Mount \u2014 NFS: sudo apt install nfs-common, add /etc/fstab entry nas-host:/volume1/homehub /mnt/nas/homehub nfs defaults,_netdev 0 0, sudo mount -a. 4) NAS Mount \u2014 SMB/CIFS: sudo apt install cifs-utils, store credentials in /etc/samba/homehub-creds (username= password= domain=), add /etc/fstab entry //nas-host/homehub /mnt/nas/homehub cifs credentials=/etc/samba/homehub-creds,uid=deploy,gid=deploy,_netdev 0 0. 5) Set DATA_PATH=/mnt/nas/homehub in .env. 6) First deploy: as deploy user, git clone https://github.com/vnmyers13/openfamhub.git ~/openfamhub, cp .env.example .env, fill in required vars, docker compose up -d. 7) Verify: curl http://localhost:8000/api/health. 8) Caddy cert trust on server for homehub.local (link to docs/cert-trust.md). 9) Set up Pi kiosk (link to docs/wall-screen-setup.md). 10) Troubleshooting: NAS mount permission denied (check uid/gid), Caddy cert errors, Docker permission denied."
+          "spec": "Complete server setup guide. Sections: 1) Prerequisites (Linux server on LAN, Docker installed via scripts/setup-server.sh). 2) SSH key setup from Mac: ssh-keygen -t ed25519 -C 'openfamhub-deploy', ssh-copy-id deploy@openfamhub.local. 3) NAS Mount \u2014 NFS: sudo apt install nfs-common, add /etc/fstab entry nas-host:/volume1/homehub /mnt/nas/homehub nfs defaults,_netdev 0 0, sudo mount -a. 4) NAS Mount \u2014 SMB/CIFS: sudo apt install cifs-utils, store credentials in /etc/samba/homehub-creds (username= password= domain=), add /etc/fstab entry //nas-host/homehub /mnt/nas/homehub cifs credentials=/etc/samba/homehub-creds,uid=deploy,gid=deploy,_netdev 0 0. 5) Set DATA_PATH=/mnt/nas/homehub in .env. 6) First deploy: as deploy user, git clone https://github.com/vnmyers13/openfamhub.git ~/openfamhub, cp .env.example .env, fill in required vars, docker compose up -d. 7) Verify: curl http://localhost:8000/api/health. 8) Caddy cert trust on server for openfamhub.local (link to docs/cert-trust.md). 9) Set up Pi kiosk (link to docs/wall-screen-setup.md). 10) Troubleshooting: NAS mount permission denied (check uid/gid), Caddy cert errors, Docker permission denied."
         },
         {
           "path": "docker-compose.staging.yml",

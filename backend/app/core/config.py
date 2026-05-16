@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
-APP_VERSION = "0.15"
+APP_VERSION = "0.17"
 
 
 class Settings(BaseSettings):
@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     timezone: str = "UTC"
     secret_key: str
     database_url: str = "sqlite+aiosqlite:////data/db/homehub.db"
-    allowed_origins: str = "https://homehub.local"
+    allowed_origins: str = "https://openfamhub.local"
     backup_retention_days: int = 30
     backup_time: str = "03:00"
     wall_idle_timeout_seconds: int = 300

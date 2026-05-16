@@ -3,7 +3,7 @@
   "project": "OpenFamHub",
   "sprint_id": "S1",
   "sprint_title": "Infrastructure Scaffold",
-  "sprint_goal": "Empty repo \u2192 Docker stack boots \u2192 https://homehub.local/api/health returns 200",
+  "sprint_goal": "Empty repo \u2192 Docker stack boots \u2192 https://openfamhub.local/api/health returns 200",
   "sprint_duration": "Week 1",
   "agent_instructions": {
     "role": "You are a senior full-stack engineer building OpenFamHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
@@ -51,7 +51,7 @@
       "wall_display": "7-day strip (today + 6 days). 1920x1080. Base 22px, clock 96px.",
       "host": "AMD64 Linux server. Pi is display-only device pointing at server.",
       "repo": "GitHub public. GHCR images. GitHub Actions CI.",
-      "dev_machine": "Mac Intel + Docker Desktop. homehub.local via Bonjour."
+      "dev_machine": "Mac Intel + Docker Desktop. openfamhub.local via Bonjour."
     },
     "db_pattern": "UUID TEXT primary keys. All timestamps UTC. Soft deletes via is_deleted. WAL mode + foreign_keys=ON pragmas on connect.",
     "auth_pattern": "JWT in httpOnly SameSite=Strict cookie. get_current_user FastAPI dependency. PIN rate limit: 5 attempts per 60s window.",
@@ -83,7 +83,7 @@
     "TIMEZONE": "IANA timezone e.g. America/New_York",
     "SECRET_KEY": "64-char hex. Generate: openssl rand -hex 32",
     "DATABASE_URL": "sqlite+aiosqlite:////data/db/homehub.db",
-    "ALLOWED_ORIGINS": "https://homehub.local",
+    "ALLOWED_ORIGINS": "https://openfamhub.local",
     "BACKUP_RETENTION_DAYS": "30",
     "BACKUP_TIME": "03:00",
     "WALL_IDLE_TIMEOUT_SECONDS": "300",
@@ -159,11 +159,11 @@
         },
         {
           "path": "config/Caddyfile",
-          "complete_content": "homehub.local {\n  tls internal\n\n  handle /api/* {\n    reverse_proxy api:8000\n  }\n\n  handle /photos/* {\n    reverse_proxy api:8000\n  }\n\n  handle /ws/* {\n    reverse_proxy api:8000\n  }\n\n  handle {\n    reverse_proxy web:3000\n  }\n}\n"
+          "complete_content": "openfamhub.local {\n  tls internal\n\n  handle /api/* {\n    reverse_proxy api:8000\n  }\n\n  handle /photos/* {\n    reverse_proxy api:8000\n  }\n\n  handle /ws/* {\n    reverse_proxy api:8000\n  }\n\n  handle {\n    reverse_proxy web:3000\n  }\n}\n"
         },
         {
           "path": ".env.example",
-          "spec": "Document every env var with inline comments. FAMILY_NAME=My Family. TIMEZONE=America/New_York (with note: find yours at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). SECRET_KEY=REPLACE_WITH_64_CHAR_HEX (with note: generate with openssl rand -hex 32, back this up in a password manager). DATABASE_URL=sqlite+aiosqlite:////data/db/homehub.db. ALLOWED_ORIGINS=https://homehub.local. BACKUP_RETENTION_DAYS=30. BACKUP_TIME=03:00. WALL_IDLE_TIMEOUT_SECONDS=300."
+          "spec": "Document every env var with inline comments. FAMILY_NAME=My Family. TIMEZONE=America/New_York (with note: find yours at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). SECRET_KEY=REPLACE_WITH_64_CHAR_HEX (with note: generate with openssl rand -hex 32, back this up in a password manager). DATABASE_URL=sqlite+aiosqlite:////data/db/homehub.db. ALLOWED_ORIGINS=https://openfamhub.local. BACKUP_RETENTION_DAYS=30. BACKUP_TIME=03:00. WALL_IDLE_TIMEOUT_SECONDS=300."
         }
       ],
       "shell_commands": [
@@ -213,7 +213,7 @@
         },
         {
           "path": "backend/app/core/config.py",
-          "spec": "pydantic-settings BaseSettings. Fields: family_name str default OpenFamHub, timezone str default UTC, secret_key str (required), database_url str default sqlite+aiosqlite:////data/db/homehub.db, allowed_origins str default https://homehub.local, backup_retention_days int default 30, backup_time str default 03:00, wall_idle_timeout_seconds int default 300. Config: env_file=.env, env_file_encoding=utf-8. Expose a cached settings singleton via get_settings() using @lru_cache and module-level settings = get_settings()."
+          "spec": "pydantic-settings BaseSettings. Fields: family_name str default OpenFamHub, timezone str default UTC, secret_key str (required), database_url str default sqlite+aiosqlite:////data/db/homehub.db, allowed_origins str default https://openfamhub.local, backup_retention_days int default 30, backup_time str default 03:00, wall_idle_timeout_seconds int default 300. Config: env_file=.env, env_file_encoding=utf-8. Expose a cached settings singleton via get_settings() using @lru_cache and module-level settings = get_settings()."
         },
         {
           "path": "backend/app/core/database.py",
@@ -251,7 +251,7 @@
       ],
       "acceptance_check": [
         "source backend/.venv/bin/activate && python -c \"import sys; print('venv:', sys.prefix)\" | grep .venv && echo VENV_OK",
-        "curl -sk https://homehub.local/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'\" && echo PASS",
+        "curl -sk https://openfamhub.local/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'\" && echo PASS",
         "docker compose logs api | grep 'Application startup complete' && echo PASS"
       ]
     },
@@ -313,7 +313,7 @@
       ],
       "acceptance_check": [
         "cd frontend && npm run build && echo BUILD_PASS",
-        "docker compose up -d --build web && curl -sk https://homehub.local | grep -i 'OpenFamHub\\|root' && echo PASS"
+        "docker compose up -d --build web && curl -sk https://openfamhub.local | grep -i 'OpenFamHub\\|root' && echo PASS"
       ]
     },
     {
@@ -340,6 +340,6 @@
   "sprint_exit_verification": [
     "All 5 tasks in S1 completed",
     "All blocker tasks verified with acceptance_check commands",
-    "Sprint goal achieved: Empty repo \u2192 Docker stack boots \u2192 https://homehub.local/api/health returns 200"
+    "Sprint goal achieved: Empty repo \u2192 Docker stack boots \u2192 https://openfamhub.local/api/health returns 200"
   ]
 }

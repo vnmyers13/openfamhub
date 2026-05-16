@@ -9,7 +9,7 @@ This document is the single entry point for starting development. Read it comple
 
 ## 1. What You're Building
 
-OpenFamHub is a self-hosted family calendar and organisation hub. It runs on a Linux server/NAS at `homehub.local` on your home network. A Raspberry Pi runs Chromium in kiosk mode pointing at the wall display (`/wall`). Family members install it as a PWA on their phones.
+OpenFamHub is a self-hosted family calendar and organisation hub. It runs on a Linux server/NAS at `openfamhub.local` on your home network. A Raspberry Pi runs Chromium in kiosk mode pointing at the wall display (`/wall`). Family members install it as a PWA on their phones.
 
 **MVP scope:** Shared family calendar + ICS feed imports (sports, school) + wall 7-day display + mobile PWA. No Google/Apple OAuth — external calendars import via ICS URL.
 
@@ -22,7 +22,7 @@ OpenFamHub is a self-hosted family calendar and organisation hub. It runs on a L
 | GitHub repo | `vnmyers13/openfamhub` |
 | Docker Hub | `vnmyers13/openfamhub-api`, `vnmyers13/openfamhub-web` |
 | Starting version | `0.01` |
-| Production server | `homehub.local` (deploy user: `deploy`) |
+| Production server | `openfamhub.local` (deploy user: `deploy`) |
 | Staging server | `homehub-staging.local` |
 | Wall display | 1920×1080, Raspberry Pi, Chromium kiosk |
 | Calendar sync | ICS feed URLs only (no OAuth) |
@@ -122,7 +122,7 @@ docker compose ps        # All three services should show "running"
 docker compose logs api  # Watch for "Application startup complete"
 
 # --- Verify ---
-curl -sk https://homehub.local/api/health
+curl -sk https://openfamhub.local/api/health
 # Expected: {"status":"ok","version":"0.01"}
 ```
 
@@ -147,7 +147,7 @@ cd backend && uvicorn app.main:app --reload --port 8000
 
 # Frontend (Vite dev server with HMR)
 cd frontend && npm run dev
-# Access at https://homehub.local (proxied through Caddy)
+# Access at https://openfamhub.local (proxied through Caddy)
 # Or directly at http://localhost:5173 (Vite, no HTTPS)
 ```
 
@@ -178,7 +178,7 @@ Work through the sprint JSON files in order. Each is self-contained with context
 
 | File | Sprint | Duration | Goal |
 |---|---|---|---|
-| `sprint_s1.json` | S1 — Infrastructure | Week 1 | Stack boots at homehub.local |
+| `sprint_s1.json` | S1 — Infrastructure | Week 1 | Stack boots at openfamhub.local |
 | `sprint_s2.json` | S2 — Auth & Profiles | Week 2 | Family can log in |
 | `sprint_s3.json` | S3 — Internal Calendar | Week 3 | Events visible in all views |
 | `sprint_s4.json` | S4 — ICS Feed Sync | Week 4 | Sports/school feeds working |
@@ -236,10 +236,10 @@ curl -fsSL https://raw.githubusercontent.com/vnmyers13/openfamhub/main/scripts/s
 
 # Then from your Mac — copy your SSH key
 ssh-keygen -t ed25519 -C "openfamhub-deploy"
-ssh-copy-id deploy@homehub.local
+ssh-copy-id deploy@openfamhub.local
 
 # Test the connection
-ssh deploy@homehub.local "echo SSH OK"
+ssh deploy@openfamhub.local "echo SSH OK"
 
 # First deploy
 ./scripts/deploy.sh production
@@ -251,7 +251,7 @@ Full server setup instructions including NAS mount (NFS and SMB): `docs/server-s
 
 ## 10. Wall Display Setup (Raspberry Pi)
 
-After the server is running and accessible at `homehub.local`:
+After the server is running and accessible at `openfamhub.local`:
 
 ```bash
 # SSH into the Pi
@@ -265,7 +265,7 @@ curl -fsSL https://raw.githubusercontent.com/vnmyers13/openfamhub/main/scripts/s
 sudo reboot
 ```
 
-The Pi will boot directly to `https://homehub.local/wall`.
+The Pi will boot directly to `https://openfamhub.local/wall`.
 
 ---
 
@@ -342,7 +342,7 @@ OpenFamHub/
 | Problem | Fix |
 |---|---|
 | `venv not active` error | Run `source backend/.venv/bin/activate` |
-| `https://homehub.local` cert warning | Follow `docs/cert-trust.md` for your device |
+| `https://openfamhub.local` cert warning | Follow `docs/cert-trust.md` for your device |
 | Docker images not found | Run `docker compose build` first |
 | Alembic `No such table` | Run `alembic upgrade head` with venv active |
 | Port 80/443 already in use | Stop any other web server: `sudo lsof -i :80` |
