@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: 'icons/*.png',
       manifest: {
-        name: 'HomeHub',
-        short_name: 'HomeHub',
+        name: 'OpenFamHub',
+        short_name: 'OpenFamHub',
         theme_color: '#4F46E5',
         background_color: '#ffffff',
         display: 'standalone',

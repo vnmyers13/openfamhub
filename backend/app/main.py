@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="HomeHub",
+    title="OpenFamHub",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",

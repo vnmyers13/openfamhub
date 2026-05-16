@@ -1,12 +1,12 @@
 {
   "manifest_version": "1.0-MVP",
-  "project": "HomeHub",
+  "project": "OpenFamHub",
   "sprint_id": "S6",
   "sprint_title": "Hardening & Kiosk Setup",
   "sprint_goal": "Pi boots directly to wall display. Tests pass. Backup runs. README is complete.",
   "sprint_duration": "Week 7",
   "agent_instructions": {
-    "role": "You are a senior full-stack engineer building HomeHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
+    "role": "You are a senior full-stack engineer building OpenFamHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
     "working_directory": "/home/dev/homehub",
     "python_environment": {
       "policy": "ALL Python work must use the project virtual environment at backend/.venv. Never use the system Python or pip directly for project dependencies.",
@@ -33,7 +33,7 @@
     "version_rule": "The application version is stored in ONE canonical location: backend/app/core/config.py as APP_VERSION = '0.1.0'. The Dockerfile, README badge, and API health endpoint all read from this. Never hardcode the version string in more than one place.",
     "theme_default": "dark \u2014 the <html> element ships with class='dark' by default. Users can toggle per-profile. Stored in users.settings_json.theme (light|dark).",
     "user_switch": "Shared devices (wall, kitchen tablet) need a quick user-switch. NavShell must include a 'Switch User' button that shows the family member avatar grid and requires PIN to switch \u2014 without a full logout/login cycle.",
-    "project_name": "HomeHub (not FamilyHub \u2014 project was renamed)",
+    "project_name": "OpenFamHub (not FamilyHub \u2014 project was renamed)",
     "notifications": "Backend must send both email (SMTP) and Discord webhook notifications for: sync job failures, backup job errors, and release announcements. Both channels are wired up via backend/app/services/notifications.py"
   },
   "context": {
@@ -160,7 +160,7 @@
       "files_to_create": [
         {
           "path": "scripts/setup-wall-pi.sh",
-          "spec": "Bash script targeting Raspberry Pi OS Desktop (Debian-based). Steps: check running on Pi OS (check /etc/os-release for Raspbian or Debian). sudo apt update && sudo apt install -y chromium-browser unclutter. Disable LXDE screensaver by appending to /etc/xdg/lxsession/LXDE-pi/autostart: @xset s off, @xset -dpms, @xset s noblank, @unclutter -idle 0.5 -root. Write /etc/xdg/autostart/homehub-kiosk.desktop with [Desktop Entry] Type=Application Name=HomeHub Kiosk Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 https://homehub.local/wall. Print instructions: 1) Trust the server cert using docs/cert-trust.md Pi OS steps. 2) Reboot. The wall display will launch automatically."
+          "spec": "Bash script targeting Raspberry Pi OS Desktop (Debian-based). Steps: check running on Pi OS (check /etc/os-release for Raspbian or Debian). sudo apt update && sudo apt install -y chromium-browser unclutter. Disable LXDE screensaver by appending to /etc/xdg/lxsession/LXDE-pi/autostart: @xset s off, @xset -dpms, @xset s noblank, @unclutter -idle 0.5 -root. Write /etc/xdg/autostart/homehub-kiosk.desktop with [Desktop Entry] Type=Application Name=OpenFamHub Kiosk Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 https://homehub.local/wall. Print instructions: 1) Trust the server cert using docs/cert-trust.md Pi OS steps. 2) Reboot. The wall display will launch automatically."
         },
         {
           "path": "docs/wall-screen-setup.md",
@@ -184,7 +184,7 @@
       "files_to_create": [
         {
           "path": "README.md",
-          "spec": "Title HomeHub. Short description: self-hosted family calendar and organiser. Requirements section: Docker + Docker Compose, a Linux server or NAS, an Apple ID or Google account for ICS exports, a Raspberry Pi for the wall display (optional). Quick start: 5 steps (clone, cp .env.example .env, fill in SECRET_KEY and FAMILY_NAME and TIMEZONE, docker compose up -d, navigate to https://homehub.local and complete setup wizard). Trust the cert section (link to docs/cert-trust.md). Wall display section (link to docs/wall-screen-setup.md). Adding calendar feeds section: explain ICS export from Google Calendar, iCloud, sports apps like TeamSnap. Update section (git pull, docker compose pull, docker compose up -d). Backup section (automatic daily to ./data/backups, manual restore via sqlite3 copy). Contributing: link to GitHub issues."
+          "spec": "Title OpenFamHub. Short description: self-hosted family calendar and organiser. Requirements section: Docker + Docker Compose, a Linux server or NAS, an Apple ID or Google account for ICS exports, a Raspberry Pi for the wall display (optional). Quick start: 5 steps (clone, cp .env.example .env, fill in SECRET_KEY and FAMILY_NAME and TIMEZONE, docker compose up -d, navigate to https://homehub.local and complete setup wizard). Trust the cert section (link to docs/cert-trust.md). Wall display section (link to docs/wall-screen-setup.md). Adding calendar feeds section: explain ICS export from Google Calendar, iCloud, sports apps like TeamSnap. Update section (git pull, docker compose pull, docker compose up -d). Backup section (automatic daily to ./data/backups, manual restore via sqlite3 copy). Contributing: link to GitHub issues."
         },
         {
           "path": "frontend/src/pages/admin/AdminSettings.tsx",
@@ -209,7 +209,7 @@
       "files_to_create": [
         {
           "path": "docs/mvp-hardware-checklist.md",
-          "spec": "Manual checklist with checkbox format. Items: docker compose up -d on Linux server boots within 3 minutes. https://homehub.local/api/health returns 200. Setup wizard completes successfully. Admin can add family member with PIN. ICS feed URL added in admin -> events appear in calendar. Internal event created in HomeHub -> visible in all 4 calendar views. Source filter chip toggles events on/off. Wall display at https://homehub.local/wall shows clock and 7-day strip at 1920x1080. Idle mode activates after 5 min. Touch exits idle. New event created on phone -> wall updates within 60 seconds. PWA install prompt on Android Chrome. iOS Safari Add to Home Screen works. Turn off server -> app loads from cache and shows offline banner. Turn server back on -> banner disappears. Pi kiosk boots directly to /wall after running setup-wall-pi.sh and reboot. Backup file appears in ./data/backups/. docker compose restart -> no data loss. All pytest tests pass."
+          "spec": "Manual checklist with checkbox format. Items: docker compose up -d on Linux server boots within 3 minutes. https://homehub.local/api/health returns 200. Setup wizard completes successfully. Admin can add family member with PIN. ICS feed URL added in admin -> events appear in calendar. Internal event created in OpenFamHub -> visible in all 4 calendar views. Source filter chip toggles events on/off. Wall display at https://homehub.local/wall shows clock and 7-day strip at 1920x1080. Idle mode activates after 5 min. Touch exits idle. New event created on phone -> wall updates within 60 seconds. PWA install prompt on Android Chrome. iOS Safari Add to Home Screen works. Turn off server -> app loads from cache and shows offline banner. Turn server back on -> banner disappears. Pi kiosk boots directly to /wall after running setup-wall-pi.sh and reboot. Backup file appears in ./data/backups/. docker compose restart -> no data loss. All pytest tests pass."
         }
       ],
       "acceptance_check": [
@@ -228,7 +228,7 @@
       "files_to_create": [
         {
           "path": "backend/app/services/notifications.py",
-          "spec": "Notification service supporting both email (SMTP) and Discord webhook. async send_notification(subject: str, body: str, level: str = 'info') -> None: reads settings for SMTP and DISCORD_WEBHOOK_URL. If SMTP configured: send via smtplib.SMTP with STARTTLS to SMTP_HOST:SMTP_PORT, auth with SMTP_USER/SMTP_PASSWORD, from SMTP_FROM to SMTP_TO. If DISCORD_WEBHOOK_URL configured: POST to the webhook URL with a JSON payload containing username='HomeHub', embeds=[{title: subject, description: body, color: 0x00ff00 for info / 0xff0000 for error}]. Both channels run in asyncio.to_thread to avoid blocking. Errors in notification sending are logged but never raise \u2014 notifications must never crash the calling code. Expose: notify_info(subject, body), notify_error(subject, body), notify_sync_failure(source_name, error), notify_backup_failure(error), notify_release(version)."
+          "spec": "Notification service supporting both email (SMTP) and Discord webhook. async send_notification(subject: str, body: str, level: str = 'info') -> None: reads settings for SMTP and DISCORD_WEBHOOK_URL. If SMTP configured: send via smtplib.SMTP with STARTTLS to SMTP_HOST:SMTP_PORT, auth with SMTP_USER/SMTP_PASSWORD, from SMTP_FROM to SMTP_TO. If DISCORD_WEBHOOK_URL configured: POST to the webhook URL with a JSON payload containing username='OpenFamHub', embeds=[{title: subject, description: body, color: 0x00ff00 for info / 0xff0000 for error}]. Both channels run in asyncio.to_thread to avoid blocking. Errors in notification sending are logged but never raise \u2014 notifications must never crash the calling code. Expose: notify_info(subject, body), notify_error(subject, body), notify_sync_failure(source_name, error), notify_backup_failure(error), notify_release(version)."
         }
       ],
       "files_to_modify": [
@@ -265,7 +265,7 @@
         },
         {
           "path": "docs/server-setup.md",
-          "spec": "Complete server setup guide. Sections: 1) Prerequisites (Linux server on LAN, Docker installed via scripts/setup-server.sh). 2) SSH key setup from Mac: ssh-keygen -t ed25519 -C 'homehub-deploy', ssh-copy-id deploy@homehub.local. 3) NAS Mount \u2014 NFS: sudo apt install nfs-common, add /etc/fstab entry nas-host:/volume1/homehub /mnt/nas/homehub nfs defaults,_netdev 0 0, sudo mount -a. 4) NAS Mount \u2014 SMB/CIFS: sudo apt install cifs-utils, store credentials in /etc/samba/homehub-creds (username= password= domain=), add /etc/fstab entry //nas-host/homehub /mnt/nas/homehub cifs credentials=/etc/samba/homehub-creds,uid=deploy,gid=deploy,_netdev 0 0. 5) Set DATA_PATH=/mnt/nas/homehub in .env. 6) First deploy: as deploy user, git clone https://github.com/vnmyers13/HomeHub.git ~/homehub, cp .env.example .env, fill in required vars, docker compose up -d. 7) Verify: curl http://localhost:8000/api/health. 8) Caddy cert trust on server for homehub.local (link to docs/cert-trust.md). 9) Set up Pi kiosk (link to docs/wall-screen-setup.md). 10) Troubleshooting: NAS mount permission denied (check uid/gid), Caddy cert errors, Docker permission denied."
+          "spec": "Complete server setup guide. Sections: 1) Prerequisites (Linux server on LAN, Docker installed via scripts/setup-server.sh). 2) SSH key setup from Mac: ssh-keygen -t ed25519 -C 'openfamhub-deploy', ssh-copy-id deploy@homehub.local. 3) NAS Mount \u2014 NFS: sudo apt install nfs-common, add /etc/fstab entry nas-host:/volume1/homehub /mnt/nas/homehub nfs defaults,_netdev 0 0, sudo mount -a. 4) NAS Mount \u2014 SMB/CIFS: sudo apt install cifs-utils, store credentials in /etc/samba/homehub-creds (username= password= domain=), add /etc/fstab entry //nas-host/homehub /mnt/nas/homehub cifs credentials=/etc/samba/homehub-creds,uid=deploy,gid=deploy,_netdev 0 0. 5) Set DATA_PATH=/mnt/nas/homehub in .env. 6) First deploy: as deploy user, git clone https://github.com/vnmyers13/openfamhub.git ~/openfamhub, cp .env.example .env, fill in required vars, docker compose up -d. 7) Verify: curl http://localhost:8000/api/health. 8) Caddy cert trust on server for homehub.local (link to docs/cert-trust.md). 9) Set up Pi kiosk (link to docs/wall-screen-setup.md). 10) Troubleshooting: NAS mount permission denied (check uid/gid), Caddy cert errors, Docker permission denied."
         },
         {
           "path": "docker-compose.staging.yml",
@@ -287,7 +287,7 @@
       "files_to_create": [
         {
           "path": "docs/test-history.md",
-          "complete_content": "# HomeHub \u2014 Test History\n\nThis file is appended automatically by the release checklist (Phase P4.7) after every full test run.\n\n---\n\n*No test runs recorded yet \u2014 will be populated on first release.*\n"
+          "complete_content": "# OpenFamHub \u2014 Test History\n\nThis file is appended automatically by the release checklist (Phase P4.7) after every full test run.\n\n---\n\n*No test runs recorded yet \u2014 will be populated on first release.*\n"
         },
         {
           "path": "docs/releases/.gitkeep",

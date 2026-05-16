@@ -12,7 +12,7 @@ APP_VERSION = "0.10"
 
 class Settings(BaseSettings):
     app_version: str = APP_VERSION
-    family_name: str = "HomeHub"
+    family_name: str = "OpenFamHub"
     timezone: str = "UTC"
     secret_key: str
     database_url: str = "sqlite+aiosqlite:////data/db/homehub.db"

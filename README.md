@@ -1,4 +1,4 @@
-# HomeHub
+# OpenFamHub
 
 Self-hosted family calendar and organisation hub.
 

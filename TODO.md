@@ -1,4 +1,4 @@
-# HomeHub — TODO
+# OpenFamHub — TODO
 
 This file tracks known bugs and immediate action items. It is updated before every release by running Phase 1 of the release checklist, which fetches open GitHub issues automatically.
 

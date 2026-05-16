@@ -34,8 +34,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/homehub-api:latest
-            ghcr.io/${{ github.repository }}/homehub-api:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/openfamhub-api:latest
+            ghcr.io/${{ github.repository }}/openfamhub-api:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - uses: docker/build-push-action@v6
@@ -44,7 +44,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/homehub-web:latest
-            ghcr.io/${{ github.repository }}/homehub-web:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/openfamhub-web:latest
+            ghcr.io/${{ github.repository }}/openfamhub-web:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

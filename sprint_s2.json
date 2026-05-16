@@ -1,12 +1,12 @@
 {
   "manifest_version": "1.0-MVP",
-  "project": "HomeHub",
+  "project": "OpenFamHub",
   "sprint_id": "S2",
   "sprint_title": "Auth, Profiles & Setup Wizard",
   "sprint_goal": "Family can create accounts, log in with PIN or password, admin can manage members",
   "sprint_duration": "Week 2",
   "agent_instructions": {
-    "role": "You are a senior full-stack engineer building HomeHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
+    "role": "You are a senior full-stack engineer building OpenFamHub from scratch. You write complete, production-quality code. Never produce stubs or TODO placeholders \u2014 every file you create must be fully functional. Work through tasks in the exact order listed. A task marked is_blocker:true must have all acceptance_check commands passing before you proceed to the next task. After each task run the commands in acceptance_check before marking it done.",
     "working_directory": "/home/dev/homehub",
     "python_environment": {
       "policy": "ALL Python work must use the project virtual environment at backend/.venv. Never use the system Python or pip directly for project dependencies.",
@@ -33,7 +33,7 @@
     "version_rule": "The application version is stored in ONE canonical location: backend/app/core/config.py as APP_VERSION = '0.1.0'. The Dockerfile, README badge, and API health endpoint all read from this. Never hardcode the version string in more than one place.",
     "theme_default": "dark \u2014 the <html> element ships with class='dark' by default. Users can toggle per-profile. Stored in users.settings_json.theme (light|dark).",
     "user_switch": "Shared devices (wall, kitchen tablet) need a quick user-switch. NavShell must include a 'Switch User' button that shows the family member avatar grid and requires PIN to switch \u2014 without a full logout/login cycle.",
-    "project_name": "HomeHub (not FamilyHub \u2014 project was renamed)",
+    "project_name": "OpenFamHub (not FamilyHub \u2014 project was renamed)",
     "notifications": "Backend must send both email (SMTP) and Discord webhook notifications for: sync job failures, backup job errors, and release announcements. Both channels are wired up via backend/app/services/notifications.py"
   },
   "context": {

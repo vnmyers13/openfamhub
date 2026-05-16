@@ -1,18 +1,18 @@
 {
-  "document": "OpenHomeHub Release Checklist",
+  "document": "OpenFamHub Release Checklist",
   "version": "1.0",
   "description": "Complete step-by-step release process. Every release — no matter how small — follows every step in order. No step is optional.",
   "agent_instructions": {
-    "role": "You are a release engineer executing the OpenHomeHub release process. Work through every phase and every step in exact order. Do not proceed to the next step until the current step's verify command returns the expected output. If any step fails, stop and report the failure before continuing.",
-    "working_directory": "/home/dev/openhomehub",
+    "role": "You are a release engineer executing the OpenFamHub release process. Work through every phase and every step in exact order. Do not proceed to the next step until the current step's verify command returns the expected output. If any step fails, stop and report the failure before continuing.",
+    "working_directory": "/home/dev/openfamhub",
     "python_environment": "source backend/.venv/bin/activate before any Python/alembic/pytest command",
     "version_format": "MAJOR.MINOR — always two decimal places e.g. 0.10, 0.11, 1.00. Increment MINOR by 1 per release (0.10 → 0.11). A MAJOR bump resets MINOR to 0.",
     "canonical_version_file": "backend/app/core/config.py — the APP_VERSION constant is the single source of truth",
     "abort_rule": "If any test fails or any verify command returns unexpected output, STOP the release. Fix the issue and restart from Phase 3 (tests).",
-    "project_name": "OpenHomeHub (repo: vnmyers13/openhomehub)",
+    "project_name": "OpenFamHub (repo: vnmyers13/openfamhub)",
     "dockerhub_username": "vnmyers13",
-    "staging_host": "openhomehub-staging.local",
-    "production_host": "openhomehub.local",
+    "staging_host": "openfamhub-staging.local",
+    "production_host": "openfamhub.local",
     "deploy_user": "deploy"
   },
   "phases": [
@@ -26,8 +26,8 @@
           "title": "Fetch open GitHub issues via API",
           "type": "SHELL",
           "commands": [
-            "# Fetch all open issues from the repo (replace vnmyers13/openhomehub)",
-            "curl -s 'https://api.github.com/repos/vnmyers13/openhomehub/issues?state=open&per_page=100' -H 'Accept: application/vnd.github.v3+json' > /tmp/gh_issues.json",
+            "# Fetch all open issues from the repo (replace vnmyers13/openfamhub)",
+            "curl -s 'https://api.github.com/repos/vnmyers13/openfamhub/issues?state=open&per_page=100' -H 'Accept: application/vnd.github.v3+json' > /tmp/gh_issues.json",
             "python3 -c \"import json; issues=json.load(open('/tmp/gh_issues.json')); [print(f\\\"#{i['number']} [{i['labels'][0]['name'] if i['labels'] else 'unlabeled'}] {i['title']} — {i['html_url']}\\\") for i in issues]\""
           ],
           "verify": "cat /tmp/gh_issues.json | python3 -c \"import json,sys; d=json.load(sys.stdin); print(f'Fetched {len(d)} open issues')\"",
@@ -281,7 +281,7 @@
           "id": "P3.4",
           "title": "Check that GitHub repo description and topics are current",
           "type": "MANUAL",
-          "instruction": "Navigate to https://github.com/vnmyers13/openhomehub. Click the gear icon next to About. Verify: (1) Description is accurate, (2) Website field is correct if applicable, (3) Topics include: self-hosted, docker, raspberry-pi, family-calendar, fastapi, react, pwa. Update any that are stale. Screenshot or note the current description for the release notes.",
+          "instruction": "Navigate to https://github.com/vnmyers13/openfamhub. Click the gear icon next to About. Verify: (1) Description is accurate, (2) Website field is correct if applicable, (3) Topics include: self-hosted, docker, raspberry-pi, family-calendar, fastapi, react, pwa. Update any that are stale. Screenshot or note the current description for the release notes.",
           "verify": "echo 'MANUAL_STEP — confirm GitHub description reviewed before continuing'"
         },
         {
@@ -388,10 +388,10 @@
           "commands": [
             "docker compose up -d",
             "sleep 8",
-            "curl -sk https://openhomehub.local/api/health",
+            "curl -sk https://openfamhub.local/api/health",
             "docker compose down"
           ],
-          "verify": "docker compose up -d && sleep 8 && curl -sk https://openhomehub.local/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Smoke test OK — version:', d.get('version','?'))\" && docker compose down"
+          "verify": "docker compose up -d && sleep 8 && curl -sk https://openfamhub.local/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Smoke test OK — version:', d.get('version','?'))\" && docker compose down"
         },
         {
           "id": "P4.7",
@@ -508,11 +508,11 @@
             "# Get the latest commit SHA",
             "sha = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()",
             "print(f'Waiting for CI on commit: {sha}')",
-            "print('Check status at: https://github.com/vnmyers13/openhomehub/actions')",
+            "print('Check status at: https://github.com/vnmyers13/openfamhub/actions')",
             "print('Wait for the build workflow to complete before proceeding.')",
             "PYEOF"
           ],
-          "verify": "echo 'MANUAL_CHECK: Navigate to https://github.com/vnmyers13/openhomehub/actions and confirm the latest workflow run shows a green checkmark before proceeding'"
+          "verify": "echo 'MANUAL_CHECK: Navigate to https://github.com/vnmyers13/openfamhub/actions and confirm the latest workflow run shows a green checkmark before proceeding'"
         },
         {
           "id": "P6.3",
@@ -542,9 +542,9 @@
             "",
             "# Create the release using GitHub CLI (if installed)",
             "NEW_VER=$(cat /tmp/new_version.txt)",
-            "gh release create \"v${NEW_VER}\" --title \"OpenHomeHub v${NEW_VER}\" --notes-file /tmp/release_notes.md 2>/dev/null || echo 'gh CLI not found — create the release manually at https://github.com/vnmyers13/openhomehub/releases/new'"
+            "gh release create \"v${NEW_VER}\" --title \"OpenFamHub v${NEW_VER}\" --notes-file /tmp/release_notes.md 2>/dev/null || echo 'gh CLI not found — create the release manually at https://github.com/vnmyers13/openfamhub/releases/new'"
           ],
-          "verify": "echo 'Verify GitHub Release is visible at https://github.com/vnmyers13/openhomehub/releases'"
+          "verify": "echo 'Verify GitHub Release is visible at https://github.com/vnmyers13/openfamhub/releases'"
         }
       ]
     },
@@ -570,17 +570,17 @@
           "type": "SHELL",
           "commands": [
             "NEW_VER=$(cat /tmp/new_version.txt)",
-            "REPO=${DOCKERHUB_USERNAME}/openhomehub",
+            "REPO=${DOCKERHUB_USERNAME}/openfamhub",
             "",
             "# Build API image",
-            "docker build -t vnmyers13/openhomehub-api:${NEW_VER} -t vnmyers13/openhomehub-api:latest ./backend",
-            "echo \"Built vnmyers13/openhomehub-api:${NEW_VER}\"",
+            "docker build -t vnmyers13/openfamhub-api:${NEW_VER} -t vnmyers13/openfamhub-api:latest ./backend",
+            "echo \"Built vnmyers13/openfamhub-api:${NEW_VER}\"",
             "",
             "# Build Web image",
-            "docker build -t vnmyers13/openhomehub-web:${NEW_VER} -t vnmyers13/openhomehub-web:latest ./frontend",
-            "echo \"Built vnmyers13/openhomehub-web:${NEW_VER}\""
+            "docker build -t vnmyers13/openfamhub-web:${NEW_VER} -t vnmyers13/openfamhub-web:latest ./frontend",
+            "echo \"Built vnmyers13/openfamhub-web:${NEW_VER}\""
           ],
-          "verify": "NEW_VER=$(cat /tmp/new_version.txt) && docker images | grep openhomehub | grep ${NEW_VER} && echo IMAGES_BUILT_OK"
+          "verify": "NEW_VER=$(cat /tmp/new_version.txt) && docker images | grep openfamhub | grep ${NEW_VER} && echo IMAGES_BUILT_OK"
         },
         {
           "id": "P7.3",
@@ -588,15 +588,15 @@
           "type": "SHELL",
           "commands": [
             "NEW_VER=$(cat /tmp/new_version.txt)",
-            "REPO=${DOCKERHUB_USERNAME}/openhomehub",
+            "REPO=${DOCKERHUB_USERNAME}/openfamhub",
             "",
             "# Quick sanity check: API image starts and returns health",
-            "docker run --rm -d --name fh_test_api -e SECRET_KEY=testsecretkey12345678901234567890123456789012 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db -p 8099:8000 vnmyers13/openhomehub-api:${NEW_VER}",
+            "docker run --rm -d --name fh_test_api -e SECRET_KEY=testsecretkey12345678901234567890123456789012 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db -p 8099:8000 vnmyers13/openfamhub-api:${NEW_VER}",
             "sleep 6",
             "curl -s http://localhost:8099/api/health",
             "docker stop fh_test_api"
           ],
-          "verify": "docker run --rm -d --name fh_ver_check -e SECRET_KEY=testsecretkey12345678901234567890123456789012 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db -p 8098:8000 ${DOCKERHUB_USERNAME}/openhomehub-api:latest && sleep 6 && curl -s http://localhost:8098/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Docker image smoke test PASS, version:', d.get('version','?'))\" && docker stop fh_ver_check"
+          "verify": "docker run --rm -d --name fh_ver_check -e SECRET_KEY=testsecretkey12345678901234567890123456789012 -e DATABASE_URL=sqlite+aiosqlite:////tmp/test.db -p 8098:8000 ${DOCKERHUB_USERNAME}/openfamhub-api:latest && sleep 6 && curl -s http://localhost:8098/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Docker image smoke test PASS, version:', d.get('version','?'))\" && docker stop fh_ver_check"
         },
         {
           "id": "P7.4",
@@ -604,19 +604,19 @@
           "type": "SHELL",
           "commands": [
             "NEW_VER=$(cat /tmp/new_version.txt)",
-            "REPO=${DOCKERHUB_USERNAME}/openhomehub",
+            "REPO=${DOCKERHUB_USERNAME}/openfamhub",
             "",
-            "docker push vnmyers13/openhomehub-api:${NEW_VER}",
-            "docker push vnmyers13/openhomehub-api:latest",
+            "docker push vnmyers13/openfamhub-api:${NEW_VER}",
+            "docker push vnmyers13/openfamhub-api:latest",
             "echo 'API image pushed'",
             "",
-            "docker push vnmyers13/openhomehub-web:${NEW_VER}",
-            "docker push vnmyers13/openhomehub-web:latest",
+            "docker push vnmyers13/openfamhub-web:${NEW_VER}",
+            "docker push vnmyers13/openfamhub-web:latest",
             "echo 'Web image pushed'",
             "",
             "echo \"All images pushed for v${NEW_VER}\""
           ],
-          "verify": "NEW_VER=$(cat /tmp/new_version.txt) && echo 'Verify at: https://hub.docker.com/r/'${DOCKERHUB_USERNAME}'/openhomehub-api/tags'"
+          "verify": "NEW_VER=$(cat /tmp/new_version.txt) && echo 'Verify at: https://hub.docker.com/r/'${DOCKERHUB_USERNAME}'/openfamhub-api/tags'"
         },
         {
           "id": "P7.5",
@@ -633,12 +633,12 @@
             "",
             "if not token:",
             "    print('DOCKERHUB_TOKEN not set — update Docker Hub description manually at:')",
-            "    print(f'  https://hub.docker.com/r/{username}/openhomehub-api')",
+            "    print(f'  https://hub.docker.com/r/{username}/openfamhub-api')",
             "    exit(0)",
             "",
             "readme_content = pathlib.Path('README.md').read_text()",
             "",
-            "for repo_name in ['openhomehub-api', 'openhomehub-web']:",
+            "for repo_name in ['openfamhub-api', 'openfamhub-web']:",
             "    url = f'https://hub.docker.com/v2/repositories/{username}/{repo_name}/'",
             "    data = json.dumps({'full_description': readme_content}).encode()",
             "    req = urllib.request.Request(url, data=data, method='PATCH')",
@@ -690,9 +690,9 @@
             "**Date:** {date}",
             "",
             "## Release Assets",
-            "- GitHub Release: https://github.com/vnmyers13/openhomehub/releases/tag/v{ver}",
-            "- Docker Hub API: https://hub.docker.com/r/vnmyers13/openhomehub-api/tags",
-            "- Docker Hub Web: https://hub.docker.com/r/vnmyers13/openhomehub-web/tags",
+            "- GitHub Release: https://github.com/vnmyers13/openfamhub/releases/tag/v{ver}",
+            "- Docker Hub API: https://hub.docker.com/r/vnmyers13/openfamhub-api/tags",
+            "- Docker Hub Web: https://hub.docker.com/r/vnmyers13/openfamhub-web/tags",
             "",
             "## Test Results",
             "See docs/test-history.md for full test output.",

@@ -1,5 +1,5 @@
-# HomeHub — Getting Started Guide
-**Project:** vnmyers13/HomeHub
+# OpenFamHub — Getting Started Guide
+**Project:** vnmyers13/openfamhub
 **Version:** 0.10
 **Last Updated:** 2026-05-03
 
@@ -9,7 +9,7 @@ This document is the single entry point for starting development. Read it comple
 
 ## 1. What You're Building
 
-HomeHub is a self-hosted family calendar and organisation hub. It runs on a Linux server/NAS at `homehub.local` on your home network. A Raspberry Pi runs Chromium in kiosk mode pointing at the wall display (`/wall`). Family members install it as a PWA on their phones.
+OpenFamHub is a self-hosted family calendar and organisation hub. It runs on a Linux server/NAS at `homehub.local` on your home network. A Raspberry Pi runs Chromium in kiosk mode pointing at the wall display (`/wall`). Family members install it as a PWA on their phones.
 
 **MVP scope:** Shared family calendar + ICS feed imports (sports, school) + wall 7-day display + mobile PWA. No Google/Apple OAuth — external calendars import via ICS URL.
 
@@ -19,8 +19,8 @@ HomeHub is a self-hosted family calendar and organisation hub. It runs on a Linu
 
 | Decision | Value |
 |---|---|
-| GitHub repo | `vnmyers13/HomeHub` |
-| Docker Hub | `vnmyers13/homehub-api`, `vnmyers13/homehub-web` |
+| GitHub repo | `vnmyers13/openfamhub` |
+| Docker Hub | `vnmyers13/openfamhub-api`, `vnmyers13/openfamhub-web` |
 | Starting version | `0.01` |
 | Production server | `homehub.local` (deploy user: `deploy`) |
 | Staging server | `homehub-staging.local` |
@@ -80,11 +80,11 @@ docker login --username vnmyers13
 
 ```bash
 # Create the public repo
-gh repo create vnmyers13/HomeHub --public --description "Self-hosted family calendar and organisation hub"
+gh repo create vnmyers13/openfamhub --public --description "Self-hosted family calendar and organisation hub"
 
 # Clone it
-git clone https://github.com/vnmyers13/HomeHub.git
-cd HomeHub
+git clone https://github.com/vnmyers13/openfamhub.git
+cd OpenFamHub
 ```
 
 ---
@@ -95,7 +95,7 @@ Run these in order exactly once:
 
 ```bash
 # --- Backend venv (REQUIRED before any Python work) ---
-cd HomeHub
+cd OpenFamHub
 python3.12 -m venv backend/.venv
 source backend/.venv/bin/activate
 # Your prompt should now show (.venv)
@@ -133,7 +133,7 @@ curl -sk https://homehub.local/api/health
 ### Always activate the venv first
 
 ```bash
-cd HomeHub
+cd OpenFamHub
 source backend/.venv/bin/activate
 # Every terminal session that touches Python needs this
 ```
@@ -213,7 +213,7 @@ ICS feeds are public URLs — no registration required. Test with:
 ```bash
 # Docker Hub access token
 # 1. Go to: https://hub.docker.com/settings/security
-# 2. New Access Token → name: homehub-deploy → Read/Write scope
+# 2. New Access Token → name: openfamhub-deploy → Read/Write scope
 # 3. Add to .env: (do not commit)
 #    DOCKERHUB_TOKEN=your_token_here
 
@@ -232,10 +232,10 @@ Run once on the Linux production server before first deploy:
 
 ```bash
 # On the server (SSH in first)
-curl -fsSL https://raw.githubusercontent.com/vnmyers13/HomeHub/main/scripts/setup-server.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vnmyers13/openfamhub/main/scripts/setup-server.sh | bash
 
 # Then from your Mac — copy your SSH key
-ssh-keygen -t ed25519 -C "homehub-deploy"
+ssh-keygen -t ed25519 -C "openfamhub-deploy"
 ssh-copy-id deploy@homehub.local
 
 # Test the connection
@@ -258,7 +258,7 @@ After the server is running and accessible at `homehub.local`:
 ssh pi@raspberrypi.local
 
 # Run the kiosk setup script
-curl -fsSL https://raw.githubusercontent.com/vnmyers13/HomeHub/main/scripts/setup-wall-pi.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vnmyers13/openfamhub/main/scripts/setup-wall-pi.sh | bash
 
 # Trust the cert (see docs/cert-trust.md — Pi section)
 # Then reboot
@@ -292,7 +292,7 @@ The full release process is in `release_checklist.json`. Quick summary:
 ## 12. File Reference
 
 ```
-HomeHub/
+OpenFamHub/
 ├── sprint_s1.json          ← Start here — agent task manifest for Sprint 1
 ├── sprint_s2.json          ← Sprint 2 tasks
 ├── sprint_s3.json          ← Sprint 3 tasks
@@ -353,4 +353,4 @@ HomeHub/
 ---
 
 *This guide is updated automatically when all sprint files are regenerated.*
-*For questions: https://github.com/vnmyers13/HomeHub/issues*
+*For questions: https://github.com/vnmyers13/openfamhub/issues*

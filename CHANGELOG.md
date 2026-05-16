@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to HomeHub are documented here.
+All notable changes to OpenFamHub are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Version numbers follow `MAJOR.MINOR` format. MINOR increments by 1 each release.
