@@ -25,6 +25,31 @@ interface CreateEventData {
   description?: string
 }
 
+export interface CalendarSource {
+  id: string
+  family_id: string
+  provider: string
+  display_name: string
+  color_hex: string
+  ics_url: string | null
+  sync_interval_hours: number
+  last_synced_at: string | null
+  sync_error: string | null
+  enabled: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface SyncLogEntry {
+  id: string
+  source_id: string
+  synced_at: string
+  events_upserted: number
+  events_deleted: number
+  duration_ms: number
+  error: string | null
+}
+
 export function useCalendarEvents(start: Date, end: Date) {
   return useQuery({
     queryKey: ['calendar-events', start.toISOString(), end.toISOString()],
@@ -80,7 +105,56 @@ export function useCalendarSources() {
     queryKey: ['calendar-sources'],
     queryFn: async () => {
       const res = await apiClient.get('/calendar/sources')
-      return res.data as Array<{ id: string; display_name: string; color_hex: string; provider: string }>
+      return res.data as CalendarSource[]
     },
+  })
+}
+
+export function useAddIcalSource() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: { ics_url: string; display_name: string; color_hex: string; sync_interval_hours: number }) => {
+      const res = await apiClient.post('/integrations/ical', data)
+      return res.data as CalendarSource
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-sources'] })
+    },
+  })
+}
+
+export function useSyncSource() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (sourceId: string) => {
+      const res = await apiClient.post(`/calendar/sources/${sourceId}/sync`)
+      return res.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-sources'] })
+    },
+  })
+}
+
+export function useDeleteCalendarSource() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (sourceId: string) => {
+      await apiClient.delete(`/calendar/sources/${sourceId}`)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-sources'] })
+    },
+  })
+}
+
+export function useSourceLogs(sourceId: string | null) {
+  return useQuery({
+    queryKey: ['source-logs', sourceId],
+    queryFn: async () => {
+      const res = await apiClient.get(`/calendar/sources/${sourceId}/log`)
+      return res.data as SyncLogEntry[]
+    },
+    enabled: !!sourceId,
   })
 }

@@ -1,3 +1,20 @@
+## [0.14] - 2026-05-15
+
+### Added
+- Sprint 4: ICS feed integration — fetch, parse, expand recurring events, upsert
+- Sprint 4: Calendar sync job — APScheduler runs every 15min, syncs due sources
+- Sprint 4: Daily database backup job with retention-based pruning
+- Sprint 4: POST /api/integrations/ical endpoint — admin adds ICS URL with color/interval
+- Sprint 4: Calendar Settings admin page — connected sources list, Sync Now, sync log drawer, Add ICS Feed form
+
+### Fixed
+- Pydantic response datetime serialization for last_synced_at and synced_at fields
+
+### Changed
+- Version bump 0.13 → 0.14
+
+---
+
 ## [0.13] - 2026-05-15
 
 ### Added

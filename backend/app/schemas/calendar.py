@@ -12,7 +12,7 @@ class CalendarSourceResponse(BaseModel):
     color_hex: str
     ics_url: Optional[str] = None
     sync_interval_hours: float
-    last_synced_at: Optional[str] = None
+    last_synced_at: Optional[datetime] = None
     sync_error: Optional[str] = None
     enabled: bool
     created_at: Optional[datetime] = None
@@ -93,7 +93,7 @@ class PatchEventRequest(BaseModel):
 class SyncLogResponse(BaseModel):
     id: str
     source_id: str
-    synced_at: str
+    synced_at: datetime
     events_upserted: int
     events_deleted: int
     duration_ms: int
