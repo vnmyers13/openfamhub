@@ -1,5 +1,5 @@
 FROM python:3.12-slim
-LABEL version="0.11"
+LABEL version="0.12"
 
 WORKDIR /app
 

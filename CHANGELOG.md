@@ -1,3 +1,13 @@
+## [0.12] - 2026-05-15
+
+### Added
+- Sprint 2: Auth system (setup, login, PIN login, logout, /me)
+- Sprint 2: User management (CRUD, PIN set, role-based access)
+- Sprint 2: Database migrations (sessions table, user timestamps)
+- Frontend: Setup wizard, login page, manage users page
+
+---
+
 ## [0.11] - 2026-05-15
 
 ### Added

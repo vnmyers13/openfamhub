@@ -9,3 +9,10 @@
 - Docker build: OK
 - Smoke test: OK
 - Migration round-trip: OK
+
+## Release 0.12 — Test Run — 2026-05-15T20:50:31.013185
+- pytest: 0 passed 0 failed
+- Frontend build: OK
+- Docker build: OK
+- Smoke test: OK (version 0.12)
+- Migration round-trip: OK

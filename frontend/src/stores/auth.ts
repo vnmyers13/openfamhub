@@ -3,9 +3,9 @@ import { create } from 'zustand'
 export interface User {
   id: string
   display_name: string
-  role: 'admin' | 'co_admin' | 'teen' | 'child' | 'guest'
+  role: string
   color_hex: string
-  ui_mode: 'standard' | 'child' | 'kiosk'
+  ui_mode: string
   avatar_type: string | null
   avatar_value: string | null
   family_id: string
