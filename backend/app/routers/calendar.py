@@ -20,6 +20,7 @@ from app.schemas.calendar import (
     SyncLogResponse,
 )
 from app.services.calendar import get_events_in_range, get_or_create_internal_source, get_source_logs
+from app.routers.ws import event_bus
 
 router = APIRouter()
 
@@ -84,6 +85,7 @@ async def create_event(
     )
     db.add(event)
     await db.flush()
+    await event_bus.emit("calendar_updated", {"source_id": source.id})
     return CalendarEventResponse(
         id=event.id,
         source_id=event.source_id,
@@ -145,6 +147,7 @@ async def update_event(
     event, color_hex = await _load_event_with_source(db, event_id, current_user.family_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
+    await event_bus.emit("calendar_updated", {"source_id": event.source_id})
     return _build_event_response(event, color_hex)
 
 
@@ -163,6 +166,7 @@ async def delete_event(
         .values(is_deleted=True)
     )
     await db.flush()
+    await event_bus.emit("calendar_updated", {"source_id": event.source_id})
     return {"ok": True}
 
 

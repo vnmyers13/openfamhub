@@ -23,3 +23,10 @@
 - Docker build: OK (0 errors)
 - Smoke test: OK (version 0.13)
 - Migration round-trip: OK (upgrade→downgrade→upgrade all passed)
+
+## Release 0.15 — Test Run — 2026-05-15T22:10:19.947111
+- pytest: 0 tests (no test suite yet)
+- Frontend build: OK
+- Docker build: OK
+- Smoke test: OK (version 0.15)
+- Migration round-trip: UPGRADE OK, DOWNGRADE OK, SECOND_UPGRADE OK

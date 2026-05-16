@@ -1,3 +1,14 @@
+## [0.15] - 2026-05-15
+
+### Added
+- Sprint 5: Wall display at /wall — full-screen 1920x1080 layout, live clock, 7-day calendar strip with color-coded event pills, family member list, idle mode with photo placeholder
+- Sprint 5: WebSocket endpoint `/api/ws/wall` with EventBus + ConnectionManager for real-time calendar updates pushed to wall clients
+- Sprint 5: Dashboard with time-based greeting, today's events widget (Suspense-wrapped), sync status summary for admins
+- Sprint 5: Navigation shell — desktop left sidebar (240px) with user avatar/logout, mobile bottom nav bar, layout route pattern via `<Outlet>`
+- Sprint 5: PWA service worker + install manifest + cert-trust documentation for macOS/iOS/Android/Pi OS/Windows
+- Recurring event expansion from ICS feeds now handles RRULE, EXDATE, RDATE across a 12-month window
+
+---
 ## [0.14] - 2026-05-15
 
 ### Added
