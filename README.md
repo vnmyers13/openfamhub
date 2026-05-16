@@ -1,55 +1,116 @@
 # OpenFamHub
 
-Self-hosted family calendar and organizer. Designed to run on a central server (like a NAS or Linux box) with optional Raspberry Pi wall displays.
+[![Version](https://img.shields.io/badge/version-0.17-blue)]()
+[![License](https://img.shields.io/badge/license-MIT-green)]()
+[![CI](https://github.com/vnmyers13/openfamhub/actions/workflows/build.yml/badge.svg)](https://github.com/vnmyers13/openfamhub/actions)
 
-## Requirements
-- **Docker + Docker Compose**: For running the core services (API, Web, Caddy).
-- **Linux Server or NAS**: To host the application.
-- **ICS Export URL**: An Apple ID or Google account to export calendar feeds via ICS.
-- **Raspberry Pi (Optional)**: For the wall display feature.
+Self-hosted family calendar and organizer with Raspberry Pi wall display support. Designed to run on a NAS or Linux server on your home network.
+
+## Features
+
+- **Shared Family Calendar** — Month, Week, Day, and Agenda views with color-coded sources
+- **ICS Feed Integration** — Import calendars from Google, iCloud, TeamSnap, and any ICS URL
+- **Family Member Profiles** — Role-based access (admin/member), password and PIN login
+- **Wall Display** — Full-screen 1920×1080 kiosk mode on a Raspberry Pi with live clock and 7-day calendar strip
+- **PWA Support** — Install on Android/iOS phones as a native app with offline read capability
+- **Dashboard** — Time-based greeting, today's events, sync status
+- **Real-Time Updates** — WebSocket push to wall displays when events change
+- **Automated Backups** — Daily SQLite backup with configurable retention
 
 ## Quick Start
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/vnmyers13/openfamhub.git
-   cd openfamhub
-   ```
+### Requirements
+- Docker + Docker Compose
+- A Linux server or NAS on your local network
 
-2. **Configure Environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your unique SECRET_KEY, FAMILY_NAME, and TIMEZONE
-   ```
+### Setup
 
-3. **Launch**:
-   ```bash
-   docker compose up -d
-   ```
+```bash
+git clone https://github.com/vnmyers13/openfamhub.git
+cd openfamhub
+cp .env.example .env
+# Edit .env — set a unique SECRET_KEY, FAMILY_NAME, and TIMEZONE
+docker compose up -d
+```
 
-4. **Initial Setup**:
-   Navigate to `https://openfamhub.local` in your browser and follow the setup wizard to create your admin account.
+Navigate to `https://openfamhub.local` and complete the setup wizard to create your admin account.
+
+### Trust the Certificate
+
+Caddy generates a self-signed CA cert for local HTTPS. Trust it on each device:
+- [macOS / Windows / Linux / iOS / Android / Pi OS](./docs/cert-trust.md)
 
 ## Wall Display
-To set up a dedicated wall display using a Raspberry Pi, follow our [Wall Screen Setup Guide](./docs/wall-screen-setup.md).
+
+Set up a dedicated wall display on a Raspberry Pi:
+
+```bash
+# On the Pi
+curl -fsSL https://raw.githubusercontent.com/vnmyers13/openfamhub/main/scripts/setup-wall-pi.sh | bash
+# Reboot — the Pi boots directly to the wall display
+```
+
+See the [Wall Screen Setup Guide](./docs/wall-screen-setup.md).
 
 ## Adding Calendar Feeds
-OpenFamHub supports ICS feeds. To sync your personal calendars:
-- **Google Calendar**: Go to Settings > Integrate Calendar > Export to ICS. Copy the URL.
-- **iCloud**: Use a unique calendar and copy its public/private ICS link.
-- **Sports Apps (e.g., TeamSnap)**: Use the provided ICS export links.
+
+OpenFamHub imports external calendars via ICS URLs. Supported sources:
+- **Google Calendar** — Settings → Integrate Calendar → Export to ICS
+- **iCloud** — Use a calendar's public/private ICS link
+- **Sports Apps** (TeamSnap, etc.) — ICS export links from the app
 
 ## Updates
-To update your installation to the latest version:
+
 ```bash
 git pull origin master
 docker compose pull
 docker compose up -d
 ```
 
+## Architecture
+
+```
+openfamhub.local
+      │
+  ┌───┴───┐
+  │ Caddy │  (reverse proxy, internal TLS)
+  └───┬───┘
+      │
+  ┌───┴───┐
+  │  API  │  Python/FastAPI async, SQLAlchemy 2.0 + aiosqlite
+  └───────┘
+      │
+  ┌───┴───┐
+  │  Web  │  React 19 / Vite / TypeScript (served via nginx)
+  └───────┘
+```
+
+- **Backend**: Python 3.12, FastAPI, SQLAlchemy 2.0 async, APScheduler, JWT auth
+- **Frontend**: React 19, Vite 8, TypeScript 6, Tailwind CSS 3, Zustand, TanStack Query
+- **Database**: SQLite with WAL mode, foreign keys on, Alembic migrations
+- **Infra**: Docker Compose, Caddy 2 with internal TLS, GitHub Actions CI
+
+## Docker Images
+
+Images are published to both GitHub Container Registry and Docker Hub:
+
+| Component | Image |
+|---|---|
+| API | `ghcr.io/vnmyers13/openfamhub/openfamhub-api` / `vnmyers13/openfamhub-api` |
+| Web | `ghcr.io/vnmyers13/openfamhub/openfamhub-web` / `vnmyers13/openfamhub-web` |
+
 ## Backups
-Backups are automatically performed daily to the `./data/backups` directory. 
-- **Manual Restore**: To restore, copy your backup file and use `sqlite3` to import it into your database.
+
+Daily backups are stored in `./data/backups`. To manually restore:
+
+```bash
+sqlite3 ./data/db/homehub.db ".restore './data/backups/homehub_YYYY-MM-DD.db'"
+```
 
 ## Contributing
-Please report issues or suggest features at [GitHub Issues](https://github.com/anomalyco/opencode/issues).
+
+Report issues or suggest features at [GitHub Issues](https://github.com/vnmyers13/openfamhub/issues).
+
+## License
+
+MIT

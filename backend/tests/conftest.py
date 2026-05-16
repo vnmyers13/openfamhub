@@ -41,15 +41,12 @@ async def setup_db(db_engine, db_session):
         await conn.run_sync(Base.metadata.drop_all)
 
 @pytest.fixture
-def client(db_session):
+def client(setup_db):
     """Provides an AsyncClient with the test database session injected via dependency override."""
-    from fastapi.testclient import TestClient
-    from httpx import AsyncClient
+    from httpx import ASGITransport, AsyncClient
     from app.main import app
     from app.core.database import get_db
 
-    # Override the dependency to use our test session
-    app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_db] = lambda: setup_db
 
-    # We use AsyncClient for async testing
-    return AsyncClient(app=app, base_url="http://test")
+    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")

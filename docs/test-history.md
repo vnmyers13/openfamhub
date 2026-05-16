@@ -26,3 +26,8 @@ This document tracks the testing activities, bug reports, and verification steps
 
 ---
 *Last Updated: 2026-05-16*
+
+## Release 0.17 — Test Run — 2026-05-16T12:11:37.296711
+- pytest: 5 passed 0 failed
+- Frontend build: OK
+- Migration round-trip: OK
