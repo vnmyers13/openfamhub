@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Text, Boolean, DateTime
+from datetime import datetime, timezone
+
+from sqlalchemy import Column, Text, Boolean, DateTime, func
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -7,8 +9,8 @@ class Base(DeclarativeBase):
 
 
 class TimestampMixin:
-    created_at = Column(DateTime, nullable=False)
-    updated_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), server_default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), server_default=func.now(), onupdate=lambda: datetime.now(timezone.utc))
 
 
 class SoftDeleteMixin:
