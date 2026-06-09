@@ -12,23 +12,54 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'OpenFamHub',
+        name: 'OpenFamHub - Family Hub',
         short_name: 'FamHub',
         description: 'Family Hub — Calendar, Announcements, Wall Display',
         theme_color: '#1a1a2e',
         background_color: '#1a1a2e',
         display: 'fullscreen',
         orientation: 'landscape',
+        icons: [
+          {
+            src: 'pwa-64x64.png',
+            sizes: '64x64',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
+        ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/openfamhub\.local\/api\/.*/i,
             handler: 'NetworkFirst',
             options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 60 } },
           },
+          {
+            urlPattern: /^https:\/\/openfamhub\.local\/ws\/.*/i,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'ws-cache', expiration: { maxEntries: 10, maxAgeSeconds: 30 } },
+          },
         ],
+      },
+      devOptions: {
+        enabled: false,
       },
     }),
   ],
