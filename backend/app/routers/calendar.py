@@ -129,11 +129,18 @@ async def trigger_sync(
     if source is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source not found")
 
-    from datetime import datetime, timezone
-    source.last_synced_at = datetime.now(timezone.utc).isoformat()
-    await db.flush()
+    from app.services.calendar_service import sync_calendar_source
+    sync_log = await sync_calendar_source(db, source)
+    await db.commit()
 
-    return {"message": "Sync triggered", "source_id": source_id}
+    return {
+        "message": "Sync completed",
+        "source_id": source_id,
+        "events_imported": sync_log.events_imported,
+        "events_deleted": sync_log.events_deleted,
+        "status": sync_log.status,
+        "errors": sync_log.errors,
+    }
 
 
 @router.get("/sync-log", response_model=list[SyncLogResponse])
