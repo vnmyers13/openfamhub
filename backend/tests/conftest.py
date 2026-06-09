@@ -5,12 +5,15 @@ import pytest
 from unittest.mock import patch, AsyncMock
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy import event
+from sqlalchemy import event, insert
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from app.core.security import get_current_user
+from app.core.security import get_current_user, hash_pin
 from app.main import app
+
+# Test user ID used in overrides
+TEST_USER_ID = "test-user-id"
 
 # Create in-memory SQLite engine for tests
 test_engine = create_async_engine(
@@ -46,7 +49,7 @@ async def override_get_db():
 
 
 def override_get_current_user():
-    return {"sub": "test-user-id", "role": "admin"}
+    return {"sub": TEST_USER_ID, "role": "admin"}
 
 
 app.dependency_overrides[get_current_user] = override_get_current_user
@@ -54,12 +57,26 @@ app.dependency_overrides[get_current_user] = override_get_current_user
 
 @pytest.fixture(scope="function", autouse=True)
 async def setup_db():
-    """Create tables before each test and drop after."""
+    """Create tables and default test user before each test."""
     from app.models.base import Base
-    from app.models import User, Event, CalendarSource, CalendarEvent, SyncLog, Announcement
+    from app.models import User
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Create default test user
+    async with TestSessionLocal() as session:
+        stmt = insert(User).values(
+            id=TEST_USER_ID,
+            name="Test Admin",
+            avatar_emoji="👨‍💼",
+            pin_hash=hash_pin("0000"),
+            role="admin",
+            settings_json="{}",
+            is_active=True,
+        )
+        await session.execute(stmt)
+        await session.commit()
 
     yield
 
