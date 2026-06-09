@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import CalendarPage from './pages/CalendarPage'
 import WallDisplay from './pages/WallDisplay'
 import ManageUsers from './pages/ManageUsers'
+import AnnouncementsPage from './pages/AnnouncementsPage'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <Route path="/dashboard" element={<Dashboard />}>
         <Route index element={<Dashboard />} />
         <Route path="manage-users" element={<ManageUsers />} />
+        <Route path="announcements" element={<AnnouncementsPage />} />
       </Route>
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/wall" element={<WallDisplay />} />

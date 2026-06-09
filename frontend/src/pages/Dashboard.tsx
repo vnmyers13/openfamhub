@@ -1,6 +1,6 @@
 import { useAuthStore } from '../stores/auth'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { FaCalendarAlt, FaHome, FaSignOutAlt, FaUsers } from 'react-icons/fa'
+import { FaCalendarAlt, FaHome, FaSignOutAlt, FaUsers, FaBullhorn } from 'react-icons/fa'
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const navItems = [
     { path: '/dashboard', label: 'Home', icon: <FaHome /> },
     { path: '/calendar', label: 'Calendar', icon: <FaCalendarAlt /> },
+    { path: '/dashboard/announcements', label: 'Announcements', icon: <FaBullhorn /> },
     ...(user?.role === 'admin' ? [{ path: '/dashboard/manage-users', label: 'Manage Users', icon: <FaUsers /> }] : []),
   ]
 
