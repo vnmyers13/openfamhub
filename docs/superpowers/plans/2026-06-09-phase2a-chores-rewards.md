@@ -34,6 +34,7 @@ class Chore(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     assignment_mode: Mapped[str] = mapped_column(Text, nullable=False, default="assigned")  # assigned | claimable
     recurrence_rule: Mapped[str] = mapped_column(Text, nullable=False)
+    default_assigned_to_id: Mapped[str | None] = mapped_column(Text, ForeignKey("users.id"), nullable=True)
     point_value: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_by_id: Mapped[str] = mapped_column(Text, ForeignKey("users.id"), nullable=False)
@@ -225,6 +226,7 @@ class ChoreCreate(BaseModel):
     description: Optional[str] = None
     assignment_mode: str = Field(default="assigned", pattern=r"^(assigned|claimable)$")
     recurrence_rule: str = Field(..., min_length=1, max_length=50)
+    default_assigned_to_id: Optional[str] = None
     point_value: int = Field(default=10, ge=1, le=1000)
 
 
@@ -233,6 +235,7 @@ class ChoreUpdate(BaseModel):
     description: Optional[str] = None
     assignment_mode: Optional[str] = Field(None, pattern=r"^(assigned|claimable)$")
     recurrence_rule: Optional[str] = None
+    default_assigned_to_id: Optional[str] = None
     point_value: Optional[int] = Field(None, ge=1, le=1000)
     is_active: Optional[bool] = None
 
@@ -243,6 +246,7 @@ class ChoreResponse(BaseModel):
     description: Optional[str] = None
     assignment_mode: str
     recurrence_rule: str
+    default_assigned_to_id: Optional[str] = None
     point_value: int
     is_active: bool
     created_by_id: str
@@ -498,6 +502,7 @@ async def create_chore_template(
         description=req.description,
         assignment_mode=req.assignment_mode,
         recurrence_rule=req.recurrence_rule,
+        default_assigned_to_id=req.default_assigned_to_id,
         point_value=req.point_value,
         created_by_id=admin["sub"],
     )
@@ -511,6 +516,7 @@ async def create_chore_template(
         description=template.description,
         assignment_mode=template.assignment_mode,
         recurrence_rule=template.recurrence_rule,
+        default_assigned_to_id=template.default_assigned_to_id,
         point_value=template.point_value,
         is_active=template.is_active,
         created_by_id=template.created_by_id,
@@ -535,6 +541,7 @@ async def list_chore_templates(
             description=t.description,
             assignment_mode=t.assignment_mode,
             recurrence_rule=t.recurrence_rule,
+            default_assigned_to_id=t.default_assigned_to_id,
             point_value=t.point_value,
             is_active=t.is_active,
             created_by_id=t.created_by_id,
@@ -571,6 +578,7 @@ async def update_chore_template(
         description=template.description,
         assignment_mode=template.assignment_mode,
         recurrence_rule=template.recurrence_rule,
+        default_assigned_to_id=template.default_assigned_to_id,
         point_value=template.point_value,
         is_active=template.is_active,
         created_by_id=template.created_by_id,
@@ -1782,14 +1790,17 @@ async def generate_chore_instances(db: AsyncSession):
                 continue
 
             # Generate instance
-            if template.assignment_mode == "assigned":
-                # For assigned mode, we need to know who to assign to
-                # For now, skip (needs template-level assigned_to_id or admin assignment)
-                # This is a simplified version - in production, templates would have
-                # a default assigned_to_id or a mapping table
-                continue
+            if template.assignment_mode == "assigned" and template.default_assigned_to_id:
+                # Assigned mode - assign to the default user
+                instance = ChoreInstance(
+                    chore_template_id=template.id,
+                    assigned_to_id=template.default_assigned_to_id,
+                    due_date=due_date,
+                    status="pending",
+                )
+                db.add(instance)
             else:
-                # Claimable mode - create pending instance
+                # Claimable mode (or assigned without default user - skip)
                 instance = ChoreInstance(
                     chore_template_id=template.id,
                     assigned_to_id=None,
