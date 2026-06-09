@@ -1,16 +1,24 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/auth'
+
+interface Profile {
+  id: string
+  name: string
+  avatar_emoji: string
+  role: string
+  is_active: boolean
+}
 
 export default function Login() {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
-  const [profiles, setProfiles] = useState([])
-  const [selectedProfile, setSelectedProfile] = useState(null)
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null)
   const login = useAuthStore((s) => s.login)
   const navigate = useNavigate()
 
-  useState(() => {
+  useEffect(() => {
     fetch('/api/auth/profiles')
       .then((r) => r.json())
       .then((data) => {
@@ -19,9 +27,9 @@ export default function Login() {
           setSelectedProfile(data[0])
         }
       })
-  })
+  }, [])
 
-  const handlePinSubmit = async (e) => {
+  const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedProfile) {
       setError('Please select a profile')
@@ -40,8 +48,12 @@ export default function Login() {
       const data = await res.json()
       login(data.access_token, data.user)
       navigate('/dashboard')
-    } catch (err) {
-      setError(err.message)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('Login failed')
+      }
       setPin('')
     }
   }

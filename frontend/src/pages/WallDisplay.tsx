@@ -1,8 +1,22 @@
 import { useState, useEffect } from 'react'
 
+interface WallEvent {
+  id: string
+  title: string
+  start_time: string
+  end_time: string
+  color_hex?: string
+}
+
+interface Announcement {
+  id: string
+  content: string
+  is_pinned: boolean
+}
+
 export default function WallDisplay() {
-  const [events, setEvents] = useState([])
-  const [announcements, setAnnouncements] = useState([])
+  const [events, setEvents] = useState<WallEvent[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
 
   useEffect(() => {
     Promise.all([
@@ -21,7 +35,7 @@ export default function WallDisplay() {
   const todayEvents = events.filter((e) => {
     const start = new Date(e.start_time)
     return start.toDateString() === now.toDateString()
-  }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+  }).sort((a: WallEvent, b: WallEvent) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
 
   return (
     <div className="h-screen w-screen bg-[#1a1a2e] flex flex-col overflow-hidden">
