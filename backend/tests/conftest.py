@@ -90,3 +90,8 @@ db_module.engine = test_engine
 db_module.async_session_factory = TestSessionLocal
 
 client = TestClient(app)
+
+
+@pytest.fixture
+def test_client():
+    return client
