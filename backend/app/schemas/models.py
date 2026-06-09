@@ -145,3 +145,191 @@ class AnnouncementResponse(BaseModel):
     is_pinned: bool
     created_at: str
     updated_at: str
+
+
+# Chore schemas
+class ChoreCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+    assignment_mode: str = Field(default="assigned", pattern=r"^(assigned|claimable)$")
+    recurrence_rule: str = Field(..., min_length=1, max_length=500)
+    default_assigned_to_id: Optional[str] = None
+    point_value: int = Field(default=10, ge=1, le=1000)
+
+
+class ChoreUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = None
+    assignment_mode: Optional[str] = Field(None, pattern=r"^(assigned|claimable)$")
+    recurrence_rule: Optional[str] = None
+    default_assigned_to_id: Optional[str] = None
+    point_value: Optional[int] = Field(None, ge=1, le=1000)
+    is_active: Optional[bool] = None
+
+
+class ChoreResponse(BaseModel):
+    id: str
+    title: str
+    description: Optional[str] = None
+    assignment_mode: str
+    recurrence_rule: str
+    default_assigned_to_id: Optional[str] = None
+    point_value: int
+    is_active: bool
+    created_by_id: str
+    created_at: str
+    updated_at: str
+
+
+class ChoreInstanceResponse(BaseModel):
+    id: str
+    chore_template_id: str
+    assigned_to_id: Optional[str] = None
+    due_date: str
+    status: str
+    claimed_by_id: Optional[str] = None
+    claimed_at: Optional[str] = None
+    completed_by_id: Optional[str] = None
+    completed_at: Optional[str] = None
+    created_at: str
+
+
+class ChoreCompletionLogResponse(BaseModel):
+    id: str
+    instance_id: str
+    completed_by_id: str
+    completed_at: str
+    points_earned: int
+
+
+class ChoreStatsResponse(BaseModel):
+    total_completed: int
+    current_streak: int
+    longest_streak: int
+    points_earned: int
+
+
+# Reward schemas
+class RewardPointsLedgerEntry(BaseModel):
+    id: str
+    user_id: str
+    points: int
+    type: str
+    reference_id: Optional[str] = None
+    description: Optional[str] = None
+    created_at: str
+
+
+class AllowanceLedgerEntry(BaseModel):
+    id: str
+    user_id: str
+    amount: str
+    type: str
+    reference_id: Optional[str] = None
+    description: Optional[str] = None
+    created_at: str
+
+
+class RewardCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+    point_cost: int = Field(..., ge=1, le=100000)
+    is_auto_fulfill: bool = False
+
+
+class RewardUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = None
+    point_cost: Optional[int] = Field(None, ge=1, le=100000)
+    is_auto_fulfill: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class RewardResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    point_cost: int
+    is_auto_fulfill: bool
+    is_active: bool
+    created_by_id: str
+    created_at: str
+    updated_at: str
+
+
+class RewardRequestCreate(BaseModel):
+    pass
+
+
+class RewardRequestResponse(BaseModel):
+    id: str
+    user_id: str
+    reward_id: str
+    status: str
+    requested_at: str
+    approved_at: Optional[str] = None
+    approved_by_id: Optional[str] = None
+    rejection_reason: Optional[str] = None
+
+
+class RewardResponseDetail(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    point_cost: int
+    is_auto_fulfill: bool
+    is_active: bool
+    created_by_id: str
+    created_at: str
+    updated_at: str
+    user_points_balance: int
+    can_purchase: bool
+
+
+class StreakResponse(BaseModel):
+    user_id: str
+    current_streak: int
+    longest_streak: int
+    last_completion_date: Optional[str] = None
+    grace_days: int
+
+
+class BadgeDefinitionCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    trigger_type: str = Field(..., pattern=r"^(streak|milestone)$")
+    trigger_value: int = Field(..., ge=1, le=10000)
+    points_reward: int = Field(default=0, ge=0, le=100000)
+
+
+class BadgeDefinitionUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    trigger_type: Optional[str] = Field(None, pattern=r"^(streak|milestone)$")
+    trigger_value: Optional[int] = Field(None, ge=1, le=10000)
+    points_reward: Optional[int] = Field(None, ge=0, le=100000)
+
+
+class BadgeDefinitionResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    trigger_type: str
+    trigger_value: int
+    points_reward: int
+    created_at: str
+    updated_at: str
+
+
+class UserBadgeResponse(BaseModel):
+    id: str
+    user_id: str
+    badge_definition_id: str
+    earned_at: str
+
+
+class AllowanceConfigUpdate(BaseModel):
+    weekly_amount: str = Field(..., pattern=r"^\d+(\.\d{1,2})?$")

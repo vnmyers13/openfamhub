@@ -8,6 +8,8 @@ import {
   FaUsers,
   FaTv,
   FaClock,
+  FaTasks,
+  FaGift,
 } from "react-icons/fa";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
@@ -44,6 +46,30 @@ export default function DashboardHome() {
     queryFn: async () => {
       const res = await axios.get(`${API_BASE}/announcements`);
       return res.data as Announcement[];
+    },
+  });
+
+  const { data: choreStats } = useQuery({
+    queryKey: ["chores", "stats"],
+    queryFn: async () => {
+      const res = await axios.get(`${API_BASE}/chores/stats`);
+      return res.data;
+    },
+  });
+
+  const { data: pointsBalance } = useQuery({
+    queryKey: ["rewards", "points", "balance"],
+    queryFn: async () => {
+      const res = await axios.get(`${API_BASE}/rewards/points/balance`);
+      return res.data;
+    },
+  });
+
+  const { data: allowanceBalance } = useQuery({
+    queryKey: ["rewards", "allowance", "balance"],
+    queryFn: async () => {
+      const res = await axios.get(`${API_BASE}/rewards/allowance/balance`);
+      return res.data;
     },
   });
 
@@ -152,6 +178,50 @@ export default function DashboardHome() {
             </p>
           </div>
 
+          {choreStats && (
+            <div
+              className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700 cursor-pointer hover:border-slate-600 transition"
+              onClick={() => navigate("/chores")}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <FaTasks className="text-xl text-orange-400" />
+                <h3 className="text-lg font-semibold text-white">Chores</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-orange-500/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-orange-400">{choreStats.total_completed || 0}</p>
+                  <p className="text-slate-400 text-xs mt-1">Completed</p>
+                </div>
+                <div className="bg-green-500/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-400">{choreStats.current_streak || 0}</p>
+                  <p className="text-slate-400 text-xs mt-1">Day Streak</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {pointsBalance && allowanceBalance && (
+            <div
+              className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700 cursor-pointer hover:border-slate-600 transition"
+              onClick={() => navigate("/rewards")}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <FaGift className="text-xl text-pink-400" />
+                <h3 className="text-lg font-semibold text-white">Rewards</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-pink-500/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-pink-400">{pointsBalance.balance || 0}</p>
+                  <p className="text-slate-400 text-xs mt-1">Points</p>
+                </div>
+                <div className="bg-blue-500/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-blue-400">{allowanceBalance.balance || 0}</p>
+                  <p className="text-slate-400 text-xs mt-1">Allowance</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {user?.role === "admin" && (
             <div
               className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700 cursor-pointer hover:border-slate-600 transition"
@@ -190,7 +260,7 @@ export default function DashboardHome() {
       </div>
 
       <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div
             className="text-center p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 cursor-pointer hover:bg-blue-500/20 transition"
             onClick={() => navigate("/calendar")}
@@ -211,6 +281,30 @@ export default function DashboardHome() {
               {announcements.length} total
             </p>
           </div>
+          {choreStats && (
+            <div
+              className="text-center p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 cursor-pointer hover:bg-orange-500/20 transition"
+              onClick={() => navigate("/chores")}
+            >
+              <FaTasks className="text-3xl text-orange-400 mx-auto mb-2" />
+              <p className="text-white font-medium">Chores</p>
+              <p className="text-slate-400 text-sm mt-1">
+                {choreStats.total_completed || 0} done
+              </p>
+            </div>
+          )}
+          {pointsBalance && allowanceBalance && (
+            <div
+              className="text-center p-4 rounded-lg bg-pink-500/10 border border-pink-500/20 cursor-pointer hover:bg-pink-500/20 transition"
+              onClick={() => navigate("/rewards")}
+            >
+              <FaGift className="text-3xl text-pink-400 mx-auto mb-2" />
+              <p className="text-white font-medium">Rewards</p>
+              <p className="text-slate-400 text-sm mt-1">
+                {pointsBalance.balance || 0} pts
+              </p>
+            </div>
+          )}
           {user?.role === "admin" && (
             <div
               className="text-center p-4 rounded-lg bg-green-500/10 border border-green-500/20 cursor-pointer hover:bg-green-500/20 transition"
