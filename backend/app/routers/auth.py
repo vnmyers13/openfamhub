@@ -7,7 +7,7 @@ from app.core.security import (
     verify_pin, create_access_token, get_current_user, check_pin_rate_limit
 )
 from app.schemas.models import LoginRequest, TokenResponse, UserResponse, ProfileResponse
-from app.models.user import User
+from app.models import User
 
 router = APIRouter()
 

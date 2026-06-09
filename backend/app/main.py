@@ -1,4 +1,4 @@
-import { FastAPI } from "fastapi"
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, users, events, calendar, announcements, wall
 
@@ -30,8 +30,9 @@ async def health_check():
     return {"status": "ok", "version": "0.1.0"}
 
 
-from app.core.database import engine, Base
-from app.models import user, event
+from app.core.database import engine
+from app.models.base import Base
+from app.models import User, Event, CalendarSource, CalendarEvent, SyncLog, Announcement
 
 
 @app.on_event("startup")
