@@ -70,6 +70,17 @@ async def require_admin(
     return current_user
 
 
+def require_role(*roles: str):
+    def role_checker(current_user: dict = Depends(get_current_user)) -> dict:
+        if current_user.get("role") not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role not authorized. Required: {', '.join(roles)}",
+            )
+        return current_user
+    return role_checker
+
+
 def check_pin_rate_limit(user_id: str, max_attempts: int = 5, window_seconds: int = 60) -> bool:
     now = time.time()
     if user_id not in _pin_attempts:

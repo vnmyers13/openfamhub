@@ -10,6 +10,7 @@ import {
   FaClock,
   FaTasks,
   FaGift,
+  FaUtensils,
 } from "react-icons/fa";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
@@ -70,6 +71,20 @@ export default function DashboardHome() {
     queryFn: async () => {
       const res = await axios.get(`${API_BASE}/rewards/allowance/balance`);
       return res.data;
+    },
+  });
+
+  const { data: weekDinners } = useQuery({
+    queryKey: ["meals", "week-dinners"],
+    queryFn: async () => {
+      const today = new Date();
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - today.getDay() + 1);
+      const weekStart = monday.toISOString().split("T")[0];
+      const res = await axios.get(`${API_BASE}/meals/plans`, { params: { week_start: weekStart } });
+      return (res.data as { meals: Array<{ date: string; title: string; meal_type: string; recipe?: { title: string } }> }).meals
+        .filter(m => m.meal_type === "dinner")
+        .sort((a, b) => a.date.localeCompare(b.date));
     },
   });
 
@@ -219,6 +234,29 @@ export default function DashboardHome() {
                   <p className="text-slate-400 text-xs mt-1">Allowance</p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {weekDinners && weekDinners.length > 0 && (
+            <div
+              className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-emerald-500/30 cursor-pointer hover:border-emerald-400 transition"
+              onClick={() => navigate("/meals")}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <FaUtensils className="text-xl text-emerald-400" />
+                <h3 className="text-lg font-semibold text-white">This Week's Dinners</h3>
+              </div>
+              <div className="space-y-2">
+                {weekDinners.slice(0, 5).map(dinner => (
+                  <div key={dinner.date} className="flex justify-between text-sm">
+                    <span className="text-slate-400">
+                      {new Date(dinner.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" })}
+                    </span>
+                    <span className="text-white font-medium">{dinner.recipe?.title || dinner.title}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-emerald-400 text-xs mt-3">View Full Planner →</p>
             </div>
           )}
 

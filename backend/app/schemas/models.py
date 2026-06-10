@@ -333,3 +333,133 @@ class UserBadgeResponse(BaseModel):
 
 class AllowanceConfigUpdate(BaseModel):
     weekly_amount: str = Field(..., pattern=r"^\d+(\.\d{1,2})?$")
+
+
+# DietaryTag schemas
+class DietaryTagCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
+    color_hex: str = Field(default="#94a3b8", pattern=r"^#[0-9a-fA-F]{6}$")
+
+
+class DietaryTagUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=50)
+    color_hex: Optional[str] = Field(None, pattern=r"^#[0-9a-fA-F]{6}$")
+    is_active: Optional[bool] = None
+
+
+class DietaryTagResponse(BaseModel):
+    id: str
+    name: str
+    color_hex: str
+    is_active: bool = True
+    created_at: str
+
+
+# Recipe schemas
+class RecipeCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    content_text: str = Field(..., min_length=1)
+    ingredients_raw: Optional[str] = None
+    steps_raw: Optional[str] = None
+    dietary_tag_ids: list[str] = Field(default_factory=list)
+    prep_time_min: Optional[int] = Field(None, ge=0)
+    cook_time_min: Optional[int] = Field(None, ge=0)
+    servings: Optional[int] = Field(None, ge=1)
+    imported_from: Optional[str] = None
+
+
+class RecipeUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    content_text: Optional[str] = None
+    ingredients_raw: Optional[str] = None
+    steps_raw: Optional[str] = None
+    dietary_tag_ids: Optional[list[str]] = None
+    prep_time_min: Optional[int] = None
+    cook_time_min: Optional[int] = None
+    servings: Optional[int] = None
+
+
+class RecipeResponse(BaseModel):
+    id: str
+    title: str
+    content_text: str
+    ingredients_raw: Optional[str] = None
+    steps_raw: Optional[str] = None
+    dietary_tag_ids: list[str]
+    dietary_tags: list[dict]
+    prep_time_min: Optional[int] = None
+    cook_time_min: Optional[int] = None
+    servings: Optional[int] = None
+    imported_from: Optional[str] = None
+    created_by_id: str
+    created_at: str
+    updated_at: str
+
+
+class RecipeImportRequest(BaseModel):
+    url: Optional[str] = None
+    text: Optional[str] = None
+
+
+# MealPlan schemas
+class MealPlanCreate(BaseModel):
+    meal_type: str = Field(..., pattern=r"^(breakfast|lunch|dinner|snack)$")
+    date: str
+    recipe_id: Optional[str] = None
+    title: str = Field(..., min_length=1, max_length=200)
+    notes: Optional[str] = None
+
+
+class MealPlanUpdate(BaseModel):
+    meal_type: Optional[str] = None
+    date: Optional[str] = None
+    recipe_id: Optional[str] = None
+    title: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class MealPlanResponse(BaseModel):
+    id: str
+    meal_type: str
+    date: str
+    recipe_id: Optional[str] = None
+    title: str
+    notes: Optional[str] = None
+    recipe: Optional[dict] = None
+    created_at: str
+    updated_at: str
+
+
+class MealPlanWeekResponse(BaseModel):
+    week_start: str
+    week_end: str
+    meals: list[MealPlanResponse]
+
+
+# ShoppingList schemas
+class ShoppingListItemCreate(BaseModel):
+    item: str = Field(..., min_length=1, max_length=200)
+    quantity: Optional[str] = None
+    is_persistent: bool = False
+    meal_plan_id: Optional[str] = None
+
+
+class ShoppingListItemUpdate(BaseModel):
+    item: Optional[str] = None
+    quantity: Optional[str] = None
+    is_checked: Optional[bool] = None
+    is_persistent: Optional[bool] = None
+
+
+class ShoppingListItemResponse(BaseModel):
+    id: str
+    item: str
+    quantity: Optional[str] = None
+    is_checked: bool
+    is_persistent: bool
+    source: str
+    meal_plan_id: Optional[str] = None
+    created_by_id: str
+    week_start_date: str
+    checked_at: Optional[str] = None
+    created_at: str

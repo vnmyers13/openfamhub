@@ -8,6 +8,7 @@ import ManageUsers from './pages/ManageUsers'
 import AnnouncementsPage from './pages/AnnouncementsPage'
 import RewardsPage from './pages/RewardsPage'
 import ChoresPage from './pages/ChoresPage'
+import MealsPage from './pages/MealsPage'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="announcements" element={<AnnouncementsPage />} />
       </Route>
       <Route path="/calendar" element={<CalendarPage />} />
+      <Route path="/meals" element={<MealsPage />} />
       <Route path="/wall" element={<WallDisplay />} />
       <Route path="/rewards" element={<RewardsPage />} />
       <Route path="/chores" element={<ChoresPage />} />

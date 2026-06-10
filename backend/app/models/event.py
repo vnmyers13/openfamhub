@@ -114,6 +114,60 @@ class ChoreInstance(Base, TimestampMixin):
     completed_at: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class DietaryTag(Base, TimestampMixin):
+    """Admin-defined dietary tag (vegetarian, gluten-free, nut-free, etc.)"""
+    __tablename__ = "dietary_tags"
+    
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=lambda: str(uuid4()))
+    name: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    color_hex: Mapped[str] = mapped_column(Text, nullable=False, default="#94a3b8")
+
+
+class Recipe(Base, TimestampMixin):
+    """Recipe with parsed ingredients and steps"""
+    __tablename__ = "recipes"
+    
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=lambda: str(uuid4()))
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    content_text: Mapped[str] = mapped_column(Text, nullable=False)  # Raw pasted/fetched text
+    ingredients_raw: Mapped[str | None] = mapped_column(Text, nullable=True)  # Parsed or manual
+    steps_raw: Mapped[str | None] = mapped_column(Text, nullable=True)  # Parsed or manual
+    dietary_tags_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")  # JSON array of tag IDs
+    prep_time_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cook_time_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    servings: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    imported_from: Mapped[str | None] = mapped_column(Text, nullable=True)  # "website_paste" or None
+    created_by_id: Mapped[str] = mapped_column(Text, ForeignKey("users.id"), nullable=False)
+
+
+class MealPlan(Base, TimestampMixin):
+    """Family-wide weekly meal plan entry"""
+    __tablename__ = "meal_plans"
+    
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=lambda: str(uuid4()))
+    meal_type: Mapped[str] = mapped_column(Text, nullable=False)  # "breakfast"|"lunch"|"dinner"|"snack"
+    date: Mapped[str] = mapped_column(Text, nullable=False)  # DATE format YYYY-MM-DD
+    recipe_id: Mapped[str | None] = mapped_column(Text, ForeignKey("recipes.id"), nullable=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)  # Recipe title or manual entry
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ShoppingListItem(Base, TimestampMixin):
+    """Shopping list item"""
+    __tablename__ = "shopping_list"
+    
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=lambda: str(uuid4()))
+    item: Mapped[str] = mapped_column(Text, nullable=False)
+    quantity: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_checked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_persistent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False)  # "meal_generated" or "manual"
+    meal_plan_id: Mapped[str | None] = mapped_column(Text, ForeignKey("meal_plans.id"), nullable=True)
+    created_by_id: Mapped[str] = mapped_column(Text, ForeignKey("users.id"), nullable=False)
+    week_start_date: Mapped[str] = mapped_column(Text, nullable=False)  # DATE format, Monday of current week
+    checked_at: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class ChoreCompletionLog(Base):
     __tablename__ = "chore_completion_logs"
 
