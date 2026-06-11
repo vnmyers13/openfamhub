@@ -85,4 +85,7 @@ export const choreAPI = {
 
   getStats: () =>
     api.get('/chores/stats').then(r => r.data),
+
+  quickAdd: (data: { title: string; description?: string; point_value: number; assigned_to_id: string; recurrence_rule: string }) =>
+    api.post('/chores/quick-add', data).then(r => r.data),
 };
