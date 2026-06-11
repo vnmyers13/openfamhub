@@ -35,6 +35,11 @@ class ProfileResponse(BaseModel):
     is_active: bool
 
 
+class SetupRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    pin: str = Field(..., min_length=4, max_length=6, pattern=r"^\d+$")
+
+
 class LoginRequest(BaseModel):
     pin: str = Field(..., min_length=4, max_length=6, pattern=r"^\d+$")
 
@@ -165,6 +170,14 @@ class ChoreUpdate(BaseModel):
     default_assigned_to_id: Optional[str] = None
     point_value: Optional[int] = Field(None, ge=1, le=1000)
     is_active: Optional[bool] = None
+
+
+class ChoreQuickAdd(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+    point_value: int = Field(default=10, ge=1, le=1000)
+    assigned_to_id: str
+    recurrence_rule: str = "none"
 
 
 class ChoreResponse(BaseModel):
