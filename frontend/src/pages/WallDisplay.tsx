@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import axios from "axios";
-
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+import api from "../api/client";
 
 interface WallEvent {
   id: string;
@@ -31,8 +29,8 @@ export default function WallDisplay() {
   const fetchData = useCallback(async () => {
     try {
       const [eventsRes, announcementsRes] = await Promise.all([
-        axios.get(`${API_BASE}/events`),
-        axios.get(`${API_BASE}/announcements`),
+        api.get('/events'),
+        api.get('/announcements'),
       ]);
       setEvents(eventsRes.data as WallEvent[]);
       setAnnouncements(announcementsRes.data as WallAnnouncement[]);

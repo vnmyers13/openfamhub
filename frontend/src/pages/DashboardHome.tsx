@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../stores/auth";
-import axios from "axios";
+import api from "../api/client";
 import {
   FaCalendarAlt,
   FaBullhorn,
@@ -12,8 +12,6 @@ import {
   FaGift,
   FaUtensils,
 } from "react-icons/fa";
-
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 interface Event {
   id: string;
@@ -37,7 +35,7 @@ export default function DashboardHome() {
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      const res = await axios.get(`${API_BASE}/events`);
+      const res = await api.get('/events');
       return res.data as Event[];
     },
   });
@@ -45,7 +43,7 @@ export default function DashboardHome() {
   const { data: announcements = [] } = useQuery({
     queryKey: ["announcements"],
     queryFn: async () => {
-      const res = await axios.get(`${API_BASE}/announcements`);
+      const res = await api.get('/announcements');
       return res.data as Announcement[];
     },
   });
@@ -53,7 +51,7 @@ export default function DashboardHome() {
   const { data: choreStats } = useQuery({
     queryKey: ["chores", "stats"],
     queryFn: async () => {
-      const res = await axios.get(`${API_BASE}/chores/stats`);
+      const res = await api.get('/chores/stats');
       return res.data;
     },
   });
@@ -61,7 +59,7 @@ export default function DashboardHome() {
   const { data: pointsBalance } = useQuery({
     queryKey: ["rewards", "points", "balance"],
     queryFn: async () => {
-      const res = await axios.get(`${API_BASE}/rewards/points/balance`);
+      const res = await api.get('/rewards/points/balance');
       return res.data;
     },
   });
@@ -69,7 +67,7 @@ export default function DashboardHome() {
   const { data: allowanceBalance } = useQuery({
     queryKey: ["rewards", "allowance", "balance"],
     queryFn: async () => {
-      const res = await axios.get(`${API_BASE}/rewards/allowance/balance`);
+      const res = await api.get('/rewards/allowance/balance');
       return res.data;
     },
   });
@@ -81,7 +79,7 @@ export default function DashboardHome() {
       const monday = new Date(today);
       monday.setDate(today.getDate() - today.getDay() + 1);
       const weekStart = monday.toISOString().split("T")[0];
-      const res = await axios.get(`${API_BASE}/meals/plans`, { params: { week_start: weekStart } });
+      const res = await api.get('/meals/plans', { params: { week_start: weekStart } });
       return (res.data as { meals: Array<{ date: string; title: string; meal_type: string; recipe?: { title: string } }> }).meals
         .filter(m => m.meal_type === "dinner")
         .sort((a, b) => a.date.localeCompare(b.date));

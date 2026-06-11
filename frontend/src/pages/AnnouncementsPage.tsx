@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
-
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+import api from "../api/client";
 
 interface Announcement {
   id: string;
@@ -21,14 +19,14 @@ export default function AnnouncementsPage() {
   const { data: announcements = [], isLoading } = useQuery({
     queryKey: ["announcements"],
     queryFn: async () => {
-      const res = await axios.get(`${API_BASE}/announcements`);
+      const res = await api.get('/announcements');
       return res.data as Announcement[];
     },
   });
 
   const createAnnouncement = useMutation({
     mutationFn: async (content: string) => {
-      const res = await axios.post(`${API_BASE}/announcements`, { content });
+      const res = await api.post('/announcements', { content });
       return res.data;
     },
     onSuccess: () => {
