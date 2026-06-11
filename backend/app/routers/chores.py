@@ -14,6 +14,7 @@ from app.schemas.models import (
     ChoreInstanceResponse,
     ChoreCompletionLogResponse,
     ChoreStatsResponse,
+    ChoreQuickAdd,
 )
 from app.models import Chore, ChoreInstance, ChoreCompletionLog, User, UserStreak
 
@@ -214,6 +215,92 @@ async def list_chore_instances(
         )
         for i in instances
     ]
+
+
+@router.post("/quick-add", status_code=status.HTTP_201_CREATED)
+async def quick_add_chore(
+    req: ChoreQuickAdd,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    result = await db.execute(select(User).where(User.id == req.assigned_to_id, User.is_active == True))
+    target_user = result.scalar_one_or_none()
+    if target_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assigned user not found")
+
+    template = Chore(
+        title=req.title,
+        description=req.description,
+        assignment_mode="assigned",
+        recurrence_rule=req.recurrence_rule,
+        default_assigned_to_id=req.assigned_to_id,
+        point_value=req.point_value,
+        created_by_id=current_user["sub"],
+    )
+    db.add(template)
+    await db.flush()
+    await db.refresh(template)
+
+    today = datetime.now(timezone.utc).date()
+    instances = []
+
+    if req.recurrence_rule == "none":
+        instance = ChoreInstance(
+            chore_template_id=template.id,
+            assigned_to_id=req.assigned_to_id,
+            due_date=today.isoformat(),
+            status="pending",
+        )
+        db.add(instance)
+        instances.append(instance)
+    else:
+        all_dates = _parse_recurrence_rule(req.recurrence_rule)
+        limit_date = today + timedelta(days=7)
+        for date_str in all_dates:
+            d = datetime.fromisoformat(date_str).date()
+            if d <= limit_date:
+                instance = ChoreInstance(
+                    chore_template_id=template.id,
+                    assigned_to_id=req.assigned_to_id,
+                    due_date=date_str,
+                    status="pending",
+                )
+                db.add(instance)
+                instances.append(instance)
+
+    await db.flush()
+
+    template_response = ChoreResponse(
+        id=template.id,
+        title=template.title,
+        description=template.description,
+        assignment_mode=template.assignment_mode,
+        recurrence_rule=template.recurrence_rule,
+        default_assigned_to_id=template.default_assigned_to_id,
+        point_value=template.point_value,
+        is_active=template.is_active,
+        created_by_id=template.created_by_id,
+        created_at=str(template.created_at),
+        updated_at=str(template.updated_at),
+    )
+
+    instances_response = [
+        ChoreInstanceResponse(
+            id=i.id,
+            chore_template_id=i.chore_template_id,
+            assigned_to_id=i.assigned_to_id,
+            due_date=i.due_date,
+            status=i.status,
+            claimed_by_id=i.claimed_by_id,
+            claimed_at=i.claimed_at,
+            completed_by_id=i.completed_by_id,
+            completed_at=i.completed_at,
+            created_at=str(i.created_at),
+        )
+        for i in instances
+    ]
+
+    return {"template": template_response, "instances": instances_response}
 
 
 @router.post("/instances/{instance_id}/claim", response_model=ChoreInstanceResponse)
