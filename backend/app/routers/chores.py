@@ -37,7 +37,10 @@ def _parse_recurrence_rule(rule: str) -> list[str]:
         target_day = day_map.get(rule[7:])
         if target_day is not None:
             for i in range(5):
-                target = today + timedelta(days=(target_day - today.weekday() + 7 * i) % 7)
+                days_ahead = target_day - today.weekday() + 7 * i
+                if i == 0 and days_ahead < 0:
+                    days_ahead += 7
+                target = today + timedelta(days=days_ahead)
                 dates.append(target.isoformat())
     elif rule.startswith("monthly_"):
         try:
