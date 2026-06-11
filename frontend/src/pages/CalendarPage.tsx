@@ -88,16 +88,20 @@ export default function CalendarPage() {
 
   const createSourceMutation = useMutation({
     mutationFn: async (data: CreateSourcePayload) => {
+      console.log('[CalendarPage] createSourceMutation calling API', data);
       const res = await api.post(`/calendar/sources`, data);
+      console.log('[CalendarPage] createSourceMutation response', res.data);
       return res.data;
     },
     onSuccess: () => {
+      console.log('[CalendarPage] createSourceMutation onSuccess');
       queryClient.invalidateQueries({ queryKey: ["calendar-sources"] });
       setShowSourceModal(false);
       setSourceForm({ name: "", url: "", color_hex: "#3B82F6", sync_interval_hours: 24 });
       setSourceError("");
     },
     onError: (err: any) => {
+      console.error('[CalendarPage] createSourceMutation onError', err);
       setSourceError(err.response?.data?.detail || "Failed to add calendar source");
     },
   });
@@ -193,6 +197,7 @@ export default function CalendarPage() {
   };
 
   const openAddModal = () => {
+    console.log('[CalendarPage] openAddModal called');
     setEditingSource(null);
     setSourceForm({ name: "", url: "", color_hex: "#3B82F6", sync_interval_hours: 24 });
     setShowSourceModal(true);
@@ -200,6 +205,7 @@ export default function CalendarPage() {
 
   const handleSubmitSource = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[CalendarPage] handleSubmitSource called', { editingSource: !!editingSource, sourceForm });
     if (editingSource) {
       updateSourceMutation.mutate({ id: editingSource.id, data: sourceForm });
     } else {
