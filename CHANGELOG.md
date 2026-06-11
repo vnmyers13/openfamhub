@@ -1,3 +1,32 @@
+## [0.18] - 2026-06-10
+
+### Added
+- Chore management system — templates (daily/weekly/monthly/custom), instance generation, claim/assign workflows, completion tracking with audit log
+- Reward system — points ledger, allowance ledger, reward catalog, purchase/request flows, admin approval queue
+- Badge system — definitions with criteria matching, auto-award on milestone streaks, user badge collection
+- Streak tracking — automatic daily/weekly streak monitoring with configurable grace periods
+- Dashboard widgets — chore completion stats, streak display, points/allowance balance, quick-access tiles
+- Meal planning system — 7-day planner grid, recipe catalog, shopping list management
+- Recipe import — text paste parsing (heuristic), URL import via schema.org/Recipe JSON-LD
+- Family recipe sharing — recipes scoped to family with dietary tags
+- Dietary tags — admin-defined tags (vegetarian, gluten-free, etc.) linked to recipes
+- Shopping list — persistent items with per-recipe source tracking, weekly reset job, bulk regenerate
+- ChoresPage — stats dashboard, 4 tabs (My Chores, Available, History, Templates), claim/complete mutations, admin template form
+- RewardsPage — points/allowance balance, streak display, 4 tabs (Store, My Requests, Badges, History)
+- MealsPage — 7x4 planner grid with week navigation, recipe card grid, shopping list checklist
+- Recipe parser service — text heuristic + URL JSON-LD extraction
+- Background jobs — daily chore generator (6am), weekly allowance distributor (Monday 7am), weekly shopping list reset (Monday 7am)
+- 39 new API endpoints across chores, rewards, and meals routers
+- 28 new database models (chore/reward/meal domains)
+- 38 new Pydantic schemas (request/response types)
+- 38 automated tests (chores, rewards, meals)
+- Frontend API clients for chores, rewards, and meals modules
+
+### Changed
+- Version bump 0.17 → 0.18
+
+---
+
 ## [0.17] - 2026-05-16
 
 ### Added
