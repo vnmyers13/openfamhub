@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { choreAPI } from '../api/client'
 import api from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import { useNavigate } from 'react-router-dom'
+import { FaArrowLeft } from 'react-icons/fa'
 
 type Tab = 'my' | 'available' | 'history' | 'templates'
 
@@ -43,6 +45,7 @@ interface CompletionLog {
 
 
 export default function ChoresPage() {
+  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<Tab>('my')
@@ -58,6 +61,11 @@ export default function ChoresPage() {
   const { data: templates } = useQuery({
     queryKey: ['chores-templates'],
     queryFn: choreAPI.getTemplates,
+  })
+
+  const templateMap: Record<string, string> = {}
+  templates?.forEach((t: ChoreTemplate) => {
+    templateMap[t.id] = t.title
   })
 
   const { data: instances, refetch: _refetchInstances } = useQuery({
@@ -176,7 +184,15 @@ export default function ChoresPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-4 mb-6">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition"
+          >
+            <FaArrowLeft />
+            <span>Dashboard</span>
+          </button>
+          <div className="flex-1" />
           <h1 className="text-2xl font-bold">Chores</h1>
           <button
             onClick={() => setShowQuickAddModal(true)}
@@ -235,8 +251,9 @@ export default function ChoresPage() {
               myInstances.map((instance: ChoreInstance) => (
                 <div key={instance.id} className="bg-gray-800 rounded-lg p-4 flex justify-between items-center">
                   <div>
-                    <div className="font-medium">{instance.due_date}</div>
-                    <div className="text-sm text-gray-400">
+                    <div className="font-medium">{templateMap[instance.chore_template_id] || 'Unknown Chore'}</div>
+                    <div className="text-sm text-gray-400">Due: {instance.due_date}</div>
+                    <div className="text-xs text-gray-500">
                       {instance.status === 'claimed' ? 'Claimed by you' : 'Assigned to you'}
                     </div>
                   </div>
@@ -262,8 +279,9 @@ export default function ChoresPage() {
               availableInstances.map((instance: ChoreInstance) => (
                 <div key={instance.id} className="bg-gray-800 rounded-lg p-4 flex justify-between items-center">
                   <div>
-                    <div className="font-medium">Due: {instance.due_date}</div>
-                    <div className="text-sm text-gray-400">Click to claim</div>
+                    <div className="font-medium">{templateMap[instance.chore_template_id] || 'Unknown Chore'}</div>
+                    <div className="text-sm text-gray-400">Due: {instance.due_date}</div>
+                    <div className="text-xs text-gray-500">Click to claim</div>
                   </div>
                   <button
                     onClick={() => handleClaim(instance.id)}
