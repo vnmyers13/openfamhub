@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { choreAPI } from '../api/client'
+import api from '../api/client'
 import { useAuthStore } from '../stores/auth'
 
 type Tab = 'my' | 'available' | 'history' | 'templates'
@@ -100,6 +101,50 @@ export default function ChoresPage() {
     },
   })
 
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false)
+  const [quickAddForm, setQuickAddForm] = useState({
+    title: '',
+    description: '',
+    point_value: 10,
+    assigned_to_id: '',
+    recurrence_rule: 'none',
+  })
+  const [quickAddError, setQuickAddError] = useState('')
+
+  const { data: profiles } = useQuery({
+    queryKey: ['users-profiles'],
+    queryFn: () => api.get('/users/profiles').then((r: any) => r.data),
+  })
+
+  const quickAddMutation = useMutation({
+    mutationFn: choreAPI.quickAdd,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chores-instances'] })
+      queryClient.invalidateQueries({ queryKey: ['chores-stats'] })
+      setShowQuickAddModal(false)
+      setQuickAddForm({ title: '', description: '', point_value: 10, assigned_to_id: '', recurrence_rule: 'none' })
+      setQuickAddError('')
+    },
+    onError: (err: any) => {
+      const message = err.response?.data?.detail || 'Failed to add chore'
+      setQuickAddError(message)
+    },
+  })
+
+  const handleQuickAdd = (e: React.FormEvent) => {
+    e.preventDefault()
+    setQuickAddError('')
+    if (!quickAddForm.title.trim()) {
+      setQuickAddError('Title is required')
+      return
+    }
+    if (!quickAddForm.assigned_to_id) {
+      setQuickAddError('Please select a user')
+      return
+    }
+    quickAddMutation.mutate(quickAddForm)
+  }
+
   const isAdmin = user?.role === 'admin'
 
   const myInstances = instances?.filter((i: ChoreInstance) =>
@@ -131,7 +176,15 @@ export default function ChoresPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold mb-6">Chores</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Chores</h1>
+          <button
+            onClick={() => setShowQuickAddModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg"
+          >
+            Quick Add
+          </button>
+        </div>
 
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -315,6 +368,108 @@ export default function ChoresPage() {
                   <div className="text-sm text-gray-500">{template.is_active ? 'Active' : 'Inactive'}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {showQuickAddModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowQuickAddModal(false)}>
+            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <h2 className="text-xl font-bold mb-4">Add Chore</h2>
+              {quickAddError && (
+                <div className="bg-red-900/50 text-red-300 px-4 py-2 rounded-lg mb-4">
+                  {quickAddError}
+                </div>
+              )}
+              <form onSubmit={handleQuickAdd} className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Title *</label>
+                  <input
+                    type="text"
+                    value={quickAddForm.title}
+                    onChange={e => setQuickAddForm(f => ({ ...f, title: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                    placeholder="e.g., Take out trash"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Description</label>
+                  <textarea
+                    value={quickAddForm.description}
+                    onChange={e => setQuickAddForm(f => ({ ...f, description: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                    placeholder="Optional description"
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Assign to *</label>
+                  <select
+                    value={quickAddForm.assigned_to_id}
+                    onChange={e => setQuickAddForm(f => ({ ...f, assigned_to_id: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                  >
+                    <option value="">Select a user</option>
+                    {profiles?.map((p: { id: string; name: string; avatar_emoji: string }) => (
+                      <option key={p.id} value={p.id}>
+                        {p.avatar_emoji} {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Point Value</label>
+                  <input
+                    type="number"
+                    value={quickAddForm.point_value}
+                    onChange={e => setQuickAddForm(f => ({ ...f, point_value: parseInt(e.target.value) || 10 }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                    min={1}
+                    max={1000}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Recurrence (optional)</label>
+                  <select
+                    value={quickAddForm.recurrence_rule}
+                    onChange={e => setQuickAddForm(f => ({ ...f, recurrence_rule: e.target.value }))}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                  >
+                    <option value="none">None (one-time)</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly_mon">Weekly - Monday</option>
+                    <option value="weekly_tue">Weekly - Tuesday</option>
+                    <option value="weekly_wed">Weekly - Wednesday</option>
+                    <option value="weekly_thu">Weekly - Thursday</option>
+                    <option value="weekly_fri">Weekly - Friday</option>
+                    <option value="weekly_sat">Weekly - Saturday</option>
+                    <option value="weekly_sun">Weekly - Sunday</option>
+                    <option value="every_2_days">Every 2 Days</option>
+                    <option value="every_3_days">Every 3 Days</option>
+                    <option value="every_5_days">Every 5 Days</option>
+                    <option value="monthly_1">Monthly - 1st</option>
+                    <option value="monthly_15">Monthly - 15th</option>
+                    <option value="monthly_28">Monthly - 28th</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={quickAddMutation.isPending}
+                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 px-4 py-2 rounded-lg"
+                  >
+                    {quickAddMutation.isPending ? 'Adding...' : 'Add Chore'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowQuickAddModal(false); setQuickAddError('') }}
+                    className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
