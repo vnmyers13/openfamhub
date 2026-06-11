@@ -1,0 +1,26 @@
+:443 {
+    tls /etc/caddy/ssl/openfamhub.crt /etc/caddy/ssl/openfamhub.key
+
+    route /api/* {
+        reverse_proxy api:8000
+    }
+
+    route /ws/* {
+        reverse_proxy api:8000 {
+            header_up Upgrade {http.websocket.upgrade}
+            header_up Connection {http.websocket.connection}
+        }
+    }
+
+    route /wall {
+        reverse_proxy api:8000
+    }
+
+    route /* {
+        reverse_proxy web:3000
+    }
+}
+
+:80 {
+    redir https://openfamhub.local{url} 301
+}

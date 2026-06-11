@@ -1,0 +1,49 @@
+services:
+  api:
+    platform: linux/amd64
+    image: vnmyers13/openfamhub-api:0.18
+    env_file: .env.prod
+    volumes:
+      - data_db:/data/db
+      - data_photos:/data/photos
+      - data_backups:/data/backups
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    platform: linux/amd64
+    image: vnmyers13/openfamhub-web:0.18
+    expose:
+      - "3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./config/Caddyfile.prod:/etc/caddy/Caddyfile
+      - ./ssl:/etc/caddy/ssl:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+
+volumes:
+  data_db:
+  data_photos:
+  data_backups:
+  caddy_data:
+  caddy_config:

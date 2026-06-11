@@ -10,6 +10,28 @@ from app.models import User
 router = APIRouter()
 
 
+@router.get("/profiles", response_model=list[UserResponse])
+async def list_profiles(
+    admin: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.is_active == True))  # noqa: E712
+    users = result.scalars().all()
+    return [
+        UserResponse(
+            id=u.id,
+            name=u.name,
+            avatar_emoji=u.avatar_emoji,
+            role=u.role,
+            is_active=u.is_active,
+            last_login_at=u.last_login_at,
+            created_at=str(u.created_at),
+            updated_at=str(u.updated_at),
+        )
+        for u in users
+    ]
+
+
 @router.post("/profiles", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_profile(
     req: UserCreate,

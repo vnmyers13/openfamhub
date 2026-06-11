@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar as BigCalendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
-import axios from "axios";
+import api from "../api/client";
+import "react-big-calendar/lib/css/react-big-calendar.css";
 
 const locales = {
   "en-US": enUS,
@@ -16,8 +18,6 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 });
-
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 interface CalendarEvent {
   id: string;
@@ -56,6 +56,7 @@ interface SyncResult {
 }
 
 export default function CalendarPage() {
+  const navigate = useNavigate();
   const [showSourceModal, setShowSourceModal] = useState(false);
   const [editingSource, setEditingSource] = useState<CalendarSource | null>(null);
   const [sourceForm, setSourceForm] = useState<CreateSourcePayload>({
@@ -66,12 +67,13 @@ export default function CalendarPage() {
   });
   const [syncingSource, setSyncingSource] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [sourceError, setSourceError] = useState("");
   const queryClient = useQueryClient();
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      const res = await axios.get(`${API_BASE}/events`);
+      const res = await api.get(`/events`);
       return res.data as CalendarEvent[];
     },
   });
@@ -79,38 +81,46 @@ export default function CalendarPage() {
   const { data: sources = [] } = useQuery({
     queryKey: ["calendar-sources"],
     queryFn: async () => {
-      const res = await axios.get(`${API_BASE}/calendar/sources`);
+      const res = await api.get(`/calendar/sources`);
       return res.data as CalendarSource[];
     },
   });
 
   const createSourceMutation = useMutation({
     mutationFn: async (data: CreateSourcePayload) => {
-      const res = await axios.post(`${API_BASE}/calendar/sources`, data);
+      const res = await api.post(`/calendar/sources`, data);
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-sources"] });
       setShowSourceModal(false);
       setSourceForm({ name: "", url: "", color_hex: "#3B82F6", sync_interval_hours: 24 });
+      setSourceError("");
+    },
+    onError: (err: any) => {
+      setSourceError(err.response?.data?.detail || "Failed to add calendar source");
     },
   });
 
   const updateSourceMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: CreateSourcePayload }) => {
-      const res = await axios.put(`${API_BASE}/calendar/sources/${id}`, data);
+      const res = await api.put(`/calendar/sources/${id}`, data);
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-sources"] });
       setShowSourceModal(false);
       setEditingSource(null);
+      setSourceError("");
+    },
+    onError: (err: any) => {
+      setSourceError(err.response?.data?.detail || "Failed to update calendar source");
     },
   });
 
   const deleteSourceMutation = useMutation({
     mutationFn: async (id: string) => {
-      await axios.delete(`${API_BASE}/calendar/sources/${id}`);
+      await api.delete(`/calendar/sources/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-sources"] });
@@ -119,7 +129,7 @@ export default function CalendarPage() {
 
   const syncSourceMutation = useMutation({
     mutationFn: async (sourceId: string) => {
-      const res = await axios.post(`${API_BASE}/calendar/sources/${sourceId}/sync`);
+      const res = await api.post(`/calendar/sources/${sourceId}/sync`);
       return res.data as SyncResult;
     },
     onSuccess: (data) => {
@@ -206,13 +216,27 @@ export default function CalendarPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-white">Family Calendar</h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition-colors flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </button>
+            <h1 className="text-3xl font-bold text-white">Family Calendar</h1>
+          </div>
           <div className="flex gap-3">
             <button
               onClick={openAddModal}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
             >
-              + Add Calendar Source
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Calendar Source
             </button>
           </div>
         </div>
@@ -326,6 +350,11 @@ export default function CalendarPage() {
                 {editingSource ? "Edit Calendar Source" : "Add Calendar Source"}
               </h2>
               <form onSubmit={handleSubmitSource} className="space-y-4">
+                {sourceError && (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                    {sourceError}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">Name</label>
                   <input
@@ -342,7 +371,7 @@ export default function CalendarPage() {
                     ICS URL
                   </label>
                   <input
-                    type="url"
+                    type="text"
                     value={sourceForm.url}
                     onChange={(e) => setSourceForm({ ...sourceForm, url: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"

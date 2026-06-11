@@ -27,6 +27,7 @@ export default function Login() {
           setSelectedProfile(data[0])
         }
       })
+      .catch(() => setProfiles([]))
   }, [])
 
   const handlePinSubmit = async (e: React.FormEvent) => {
@@ -63,19 +64,33 @@ export default function Login() {
       {!selectedProfile ? (
         <div className="text-center">
           <h1 className="text-4xl font-bold mb-8">Welcome to OpenFamHub</h1>
-          <p className="text-xl mb-8">Select your profile</p>
-          <div className="flex gap-8 justify-center flex-wrap">
-            {profiles.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedProfile(p)}
-                className="flex flex-col items-center gap-2 p-6 rounded-xl bg-white/5 hover:bg-white/10 transition"
+          {profiles.length === 0 ? (
+            <>
+              <p className="text-xl mb-8">No accounts found</p>
+              <a
+                href="/setup"
+                className="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-lg font-semibold transition inline-block"
               >
-                <span className="text-5xl">{p.avatar_emoji}</span>
-                <span className="text-lg">{p.name}</span>
-              </button>
-            ))}
-          </div>
+                Set up admin account
+              </a>
+            </>
+          ) : (
+            <>
+              <p className="text-xl mb-8">Select your profile</p>
+              <div className="flex gap-8 justify-center flex-wrap">
+                {profiles.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedProfile(p)}
+                    className="flex flex-col items-center gap-2 p-6 rounded-xl bg-white/5 hover:bg-white/10 transition"
+                  >
+                    <span className="text-5xl">{p.avatar_emoji}</span>
+                    <span className="text-lg">{p.name}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="text-center">

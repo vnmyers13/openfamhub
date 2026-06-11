@@ -6,10 +6,69 @@ from app.core.database import get_db
 from app.core.security import (
     verify_pin, create_access_token, get_current_user, check_pin_rate_limit
 )
-from app.schemas.models import LoginRequest, TokenResponse, UserResponse, ProfileResponse
+from app.schemas.models import LoginRequest, SetupRequest, TokenResponse, UserResponse, ProfileResponse
 from app.models import User
 
 router = APIRouter()
+
+
+@router.get("/setup-needed")
+async def check_setup_needed(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.is_active == True))
+    users = result.scalars().all()
+    return {"setup_needed": len(users) == 0}
+
+
+@router.post("/setup")
+async def create_initial_admin(req: SetupRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.is_active == True))
+    users = result.scalars().all()
+    if users:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Setup already completed",
+        )
+
+    from app.core.security import hash_pin, create_access_token
+    from app.schemas.models import UserResponse
+    from datetime import datetime, timezone
+
+    user = User(
+        name=req.name,
+        avatar_emoji="👤",
+        pin_hash=hash_pin(req.pin),
+        role="admin",
+    )
+    db.add(user)
+    await db.flush()
+    await db.refresh(user)
+    user.last_login_at = datetime.now(timezone.utc).isoformat()
+    await db.flush()
+
+    token = create_access_token(user.id, "admin")
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse(
+            id=user.id,
+            name=user.name,
+            avatar_emoji=user.avatar_emoji,
+            role=user.role,
+            is_active=user.is_active,
+            last_login_at=user.last_login_at,
+            created_at=str(user.created_at),
+            updated_at=str(user.updated_at),
+        ),
+    )
+
+
+@router.post("/reset-setup")
+async def reset_setup(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.is_active == True))
+    users = result.scalars().all()
+    for user in users:
+        user.is_active = False
+    await db.flush()
+    return {"message": "Setup reset. You can now create a new admin account."}
 
 
 @router.get("/profiles", response_model=list[ProfileResponse])

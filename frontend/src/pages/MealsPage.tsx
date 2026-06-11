@@ -83,6 +83,24 @@ export default function MealsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meals", "plans"] }),
   });
 
+  const [shoppingItemForm, setShoppingItemForm] = useState({ item: "", quantity: "" })
+  const [showAddItemForm, setShowAddItemForm] = useState(false)
+  const [addItemError, setAddItemError] = useState("")
+
+  const addShoppingItemMutation = useMutation({
+    mutationFn: (data: { item: string; quantity?: string }) =>
+      api.post(`${API}/meals/shopping-list`, data).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meals", "shopping"] });
+      setShoppingItemForm({ item: "", quantity: "" });
+      setShowAddItemForm(false);
+      setAddItemError("");
+    },
+    onError: (err: any) => {
+      setAddItemError(err.response?.data?.detail || "Failed to add item");
+    },
+  })
+
   const updateShoppingItemMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<ShoppingItem> }) =>
       api.patch(`${API}/meals/shopping-list/${id}`, data).then(r => r.data),
@@ -306,20 +324,60 @@ export default function MealsPage() {
               🔄 Regenerate
             </button>
             <button
-              onClick={() => {
-                const item = prompt("Shopping item name:");
-                if (item) {
-                  const qty = prompt("Quantity (optional):");
-                  api.post(`${API}/meals/shopping-list`, { item, quantity: qty || undefined }).then(() => {
-                    queryClient.invalidateQueries({ queryKey: ["meals", "shopping"] });
-                  });
-                }
-              }}
+              onClick={() => setShowAddItemForm(true)}
               className="px-4 py-2 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition"
             >
               + Add Item
             </button>
           </div>
+
+          {showAddItemForm && (
+            <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-600">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!shoppingItemForm.item.trim()) return;
+                  addShoppingItemMutation.mutate({
+                    item: shoppingItemForm.item.trim(),
+                    quantity: shoppingItemForm.quantity.trim() || undefined,
+                  });
+                }}
+                className="flex gap-3"
+              >
+                <input
+                  type="text"
+                  value={shoppingItemForm.item}
+                  onChange={(e) => setShoppingItemForm({ ...shoppingItemForm, item: e.target.value })}
+                  placeholder="Item name"
+                  className="flex-1 px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  required
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  value={shoppingItemForm.quantity}
+                  onChange={(e) => setShoppingItemForm({ ...shoppingItemForm, quantity: e.target.value })}
+                  placeholder="Qty (optional)"
+                  className="w-32 px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <button
+                  type="submit"
+                  disabled={addShoppingItemMutation.isPending}
+                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-400 text-white transition"
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowAddItemForm(false); setAddItemError(""); }}
+                  className="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition"
+                >
+                  Cancel
+                </button>
+              </form>
+              {addItemError && <p className="text-red-400 text-sm mt-2">{addItemError}</p>}
+            </div>
+          )}
 
           <div className="bg-slate-800/50 backdrop-blur rounded-xl border border-slate-700 divide-y divide-slate-700">
             {shoppingItems.length === 0 ? (
