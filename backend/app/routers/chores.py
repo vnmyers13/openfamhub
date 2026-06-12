@@ -15,6 +15,7 @@ from app.schemas.models import (
     ChoreCompletionLogResponse,
     ChoreStatsResponse,
     ChoreQuickAdd,
+    ChoreInstanceAdminResponse,
 )
 from app.models import Chore, ChoreInstance, ChoreCompletionLog, User, UserStreak
 
@@ -217,6 +218,50 @@ async def list_chore_instances(
             created_at=str(i.created_at),
         )
         for i in instances
+    ]
+
+
+@router.get("/admin/instances", response_model=list[ChoreInstanceAdminResponse])
+async def list_admin_chore_instances(
+    status_filter: Optional[str] = Query(None, description="Filter by status: pending, claimed, completed, expired"),
+    start_date: Optional[str] = Query(None, description="Filter by due date >= (ISO format)"),
+    end_date: Optional[str] = Query(None, description="Filter by due date <= (ISO format)"),
+    db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(require_admin),
+):
+    query = (
+        select(ChoreInstance, Chore, User)
+        .join(Chore, ChoreInstance.chore_template_id == Chore.id)
+        .outerjoin(User, ChoreInstance.assigned_to_id == User.id)
+    )
+
+    if status_filter:
+        query = query.where(ChoreInstance.status == status_filter)
+    if start_date:
+        query = query.where(ChoreInstance.due_date >= start_date)
+    if end_date:
+        query = query.where(ChoreInstance.due_date <= end_date)
+
+    query = query.order_by(ChoreInstance.due_date, ChoreInstance.status)
+    result = await db.execute(query)
+    rows = result.all()
+
+    return [
+        ChoreInstanceAdminResponse(
+            id=inst.id,
+            chore_template_id=inst.chore_template_id,
+            title=chore.title,
+            assigned_to_id=inst.assigned_to_id,
+            assigned_to_name=user.name if user else None,
+            due_date=inst.due_date,
+            status=inst.status,
+            claimed_by_id=inst.claimed_by_id,
+            claimed_at=str(inst.claimed_at) if inst.claimed_at else None,
+            completed_by_id=inst.completed_by_id,
+            completed_at=str(inst.completed_at) if inst.completed_at else None,
+            point_value=chore.point_value,
+        )
+        for inst, chore, user in rows
     ]
 
 
