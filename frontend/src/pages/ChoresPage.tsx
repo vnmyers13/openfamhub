@@ -6,7 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import { useNavigate } from 'react-router-dom'
 import { FaArrowLeft } from 'react-icons/fa'
 
-type Tab = 'my' | 'available' | 'history' | 'templates'
+type Tab = 'my' | 'available' | 'history' | 'templates' | 'admin'
 
 interface ChoreTemplate {
   id: string
@@ -82,6 +82,39 @@ export default function ChoresPage() {
   const { data: stats } = useQuery({
     queryKey: ['chores-stats'],
     queryFn: choreAPI.getStats,
+  })
+
+  const [statusFilter, setStatusFilter] = useState<string>("")
+  const [startDate, setStartDate] = useState<string>("")
+  const [endDate, setEndDate] = useState<string>("")
+  const [sortColumn, setSortColumn] = useState<string>("due_date")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+
+  interface AdminChoreItem {
+    id: string
+    title: string
+    assigned_to_name: string
+    assigned_to_id: string
+    status: string
+    due_date: string
+    completed_at?: string
+    points_awarded: number
+  }
+
+  interface AdminChoreResponse {
+    items: AdminChoreItem[]
+    total: number
+    page: number
+    page_size: number
+  }
+
+  const { data: adminData, isLoading: adminLoading } = useQuery<AdminChoreResponse>({
+    queryKey: ['admin-chores', statusFilter, startDate, endDate],
+    queryFn: () => choreAPI.getAdminInstances({
+      status_filter: statusFilter || undefined,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
+    }),
   })
 
   const createMutation = useMutation({
@@ -179,6 +212,7 @@ export default function ChoresPage() {
     { key: 'available', label: 'Available' },
     { key: 'history', label: 'History' },
     { key: 'templates', label: 'Templates', adminOnly: true },
+    { key: 'admin', label: 'Admin', adminOnly: true },
   ]
 
   return (
@@ -387,6 +421,129 @@ export default function ChoresPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'admin' && isAdmin && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-3 items-end bg-gray-800 rounded-lg p-3">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
+                >
+                  <option value="">All</option>
+                  <option value="pending">Pending</option>
+                  <option value="claimed">Claimed</option>
+                  <option value="completed">Completed</option>
+                  <option value="expired">Expired</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">From</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">To</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm"
+                />
+              </div>
+            </div>
+
+            {adminLoading ? (
+              <p className="text-gray-400 text-center py-8">Loading...</p>
+            ) : !adminData?.items || adminData.items.length === 0 ? (
+              <p className="text-gray-400 text-center py-8">No chores found</p>
+            ) : (
+              <div className="bg-gray-800 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-700">
+                      <th
+                        className="px-4 py-2 text-left cursor-pointer hover:text-gray-300"
+                        onClick={() => {
+                          if (sortColumn === 'title') setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+                          else { setSortColumn('title'); setSortDirection('asc') }
+                        }}
+                      >
+                        Title {sortColumn === 'title' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th
+                        className="px-4 py-2 text-left cursor-pointer hover:text-gray-300"
+                        onClick={() => {
+                          if (sortColumn === 'assigned_to_name') setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+                          else { setSortColumn('assigned_to_name'); setSortDirection('asc') }
+                        }}
+                      >
+                        Assigned To {sortColumn === 'assigned_to_name' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="px-4 py-2 text-left">Status</th>
+                      <th
+                        className="px-4 py-2 text-left cursor-pointer hover:text-gray-300"
+                        onClick={() => {
+                          if (sortColumn === 'due_date') setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+                          else { setSortColumn('due_date'); setSortDirection('asc') }
+                        }}
+                      >
+                        Due Date {sortColumn === 'due_date' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="px-4 py-2 text-left">Completed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...(adminData.items)]
+                      .sort((a, b) => {
+                        let aVal: string, bVal: string
+                        if (sortColumn === 'title') { aVal = a.title; bVal = b.title }
+                        else if (sortColumn === 'assigned_to_name') { aVal = a.assigned_to_name; bVal = b.assigned_to_name }
+                        else { aVal = a.due_date; bVal = b.due_date }
+                        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+                        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+                        return 0
+                      })
+                      .map((item: any) => {
+                        const statusColors: Record<string, string> = {
+                          pending: 'bg-blue-100 text-blue-800',
+                          claimed: 'bg-yellow-100 text-yellow-800',
+                          completed: 'bg-green-100 text-green-800',
+                          expired: 'bg-red-100 text-red-800',
+                        }
+                        return (
+                          <tr key={item.id} className="border-b border-gray-700">
+                            <td className="px-4 py-2 font-medium">{item.title}</td>
+                            <td className="px-4 py-2 text-gray-400">{item.assigned_to_name}</td>
+                            <td className="px-4 py-2">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${statusColors[item.status] || 'bg-gray-100 text-gray-800'}`}>
+                                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 text-gray-400">{new Date(item.due_date).toLocaleDateString()}</td>
+                            <td className="px-4 py-2 text-gray-400">{item.completed_at ? new Date(item.completed_at).toLocaleDateString() : '-'}</td>
+                          </tr>
+                        )
+                      })
+                    }
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {adminData && adminData.total > 0 && (
+              <p className="text-xs text-gray-500 text-right">
+                Showing {adminData.items?.length || 0} of {adminData.total} total
+              </p>
+            )}
           </div>
         )}
 

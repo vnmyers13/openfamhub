@@ -91,11 +91,11 @@ export const choreAPI = {
         due_date: string;
         completed_at?: string;
         points_awarded: number;
-      };
+      }[];
       total: number;
       page: number;
       page_size: number;
-    }>('/chores/admin/instances', { params }),
+    }>('/chores/admin/instances', { params }).then(r => r.data),
   claimInstance: (id: string) =>
     api.post(`/chores/instances/${id}/claim`).then(r => r.data),
   completeInstance: (id: string) =>
