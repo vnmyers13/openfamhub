@@ -1,5 +1,8 @@
 FROM python:3.12-slim
 
+LABEL version="0.19"
+LABEL description="OpenFamHub API Backend"
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

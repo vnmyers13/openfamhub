@@ -1,6 +1,6 @@
 # OpenFamHub
 
-[![Version](https://img.shields.io/badge/version-0.18-blue)]()
+[![Version](https://img.shields.io/badge/version-0.19-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 [![CI](https://github.com/vnmyers13/openfamhub/actions/workflows/build.yml/badge.svg)](https://github.com/vnmyers13/openfamhub/actions)
 
@@ -9,13 +9,20 @@ Self-hosted family calendar and organizer with Raspberry Pi wall display support
 ## Features
 
 - **Shared Family Calendar** — Month, Week, Day, and Agenda views with color-coded sources
-- **ICS Feed Integration** — Import calendars from Google, iCloud, TeamSnap, and any ICS URL
+- **ICS Feed Integration** — Import calendars from Google, iCloud, TeamSnap, and any ICS URL with auto-sync
 - **Family Member Profiles** — Role-based access (admin/member), password and PIN login
 - **Wall Display** — Full-screen 1920×1080 kiosk mode on a Raspberry Pi with live clock and 7-day calendar strip
 - **PWA Support** — Install on Android/iOS phones as a native app with offline read capability
-- **Dashboard** — Time-based greeting, today's events, sync status
+- **Dashboard** — Time-based greeting, today's events, chore/rewards stats, quick-access tiles
 - **Real-Time Updates** — WebSocket push to wall displays when events change
 - **Automated Backups** — Daily SQLite backup with configurable retention
+- **Chore Management** — Templates (daily/weekly/monthly/custom), automatic generation, claim/assign workflows, completion tracking with audit log
+- **Reward System** — Points ledger, allowance tracking, reward catalog, purchase/request flows with admin approval
+- **Badge System** — Custom badge definitions with criteria matching, auto-award on milestone streaks, user badge collections
+- **Streak Tracking** — Automatic daily/weekly streak monitoring with configurable grace periods
+- **Meal Planning** — 7-day planner grid with week navigation, recipe catalog, dietary tags
+- **Recipe Management** — Import via text paste parsing or URL import (schema.org JSON-LD), family recipe sharing
+- **Shopping List** — Persistent items with per-recipe source tracking, weekly reset, bulk regenerate
 
 ## Quick Start
 

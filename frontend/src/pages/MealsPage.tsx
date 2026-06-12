@@ -1,8 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/client";
-
-const API = import.meta.env.VITE_API_URL || "/api";
 
 type Tab = "planner" | "recipes" | "shopping";
 
@@ -39,6 +38,7 @@ interface ShoppingItem {
 }
 
 export default function MealsPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("planner");
   const [weekStart, setWeekStart] = useState(() => {
     const today = new Date();
@@ -52,34 +52,34 @@ export default function MealsPage() {
   // Queries
   const { data: _dietaryTags = [] } = useQuery({
     queryKey: ["meals", "dietary-tags"],
-    queryFn: () => api.get(`${API}/meals/dietary-tags`).then(r => r.data),
+    queryFn: () => api.get('/meals/dietary-tags').then(r => r.data),
   });
 
   const { data: recipes = [] } = useQuery({
     queryKey: ["meals", "recipes"],
-    queryFn: () => api.get(`${API}/meals/recipes`).then(r => r.data),
+    queryFn: () => api.get('/meals/recipes').then(r => r.data),
   });
 
   const { data: weekPlans } = useQuery({
     queryKey: ["meals", "plans", weekStart],
-    queryFn: () => api.get(`${API}/meals/plans`, { params: { week_start: weekStart } }).then(r => r.data),
+    queryFn: () => api.get('/meals/plans', { params: { week_start: weekStart } }).then(r => r.data),
   });
 
   const { data: shoppingItems = [] } = useQuery({
     queryKey: ["meals", "shopping", weekStart],
-    queryFn: () => api.get(`${API}/meals/shopping-list`, { params: { week_start: weekStart } }).then(r => r.data),
+    queryFn: () => api.get('/meals/shopping-list', { params: { week_start: weekStart } }).then(r => r.data),
   });
 
   // Mutations
   const createRecipeMutation = useMutation({
     mutationFn: (data: { title: string; content_text: string; ingredients_raw?: string; steps_raw?: string; dietary_tag_ids: string[] }) =>
-      api.post(`${API}/meals/recipes`, data).then(r => r.data),
+      api.post('/meals/recipes', data).then(r => r.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meals", "recipes"] }),
   });
 
   const createMealPlanMutation = useMutation({
     mutationFn: (data: { meal_type: string; date: string; recipe_id?: string; title: string; notes?: string }) =>
-      api.post(`${API}/meals/plans`, data).then(r => r.data),
+      api.post('/meals/plans', data).then(r => r.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meals", "plans"] }),
   });
 
@@ -89,7 +89,7 @@ export default function MealsPage() {
 
   const addShoppingItemMutation = useMutation({
     mutationFn: (data: { item: string; quantity?: string }) =>
-      api.post(`${API}/meals/shopping-list`, data).then(r => r.data),
+      api.post('/meals/shopping-list', data).then(r => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meals", "shopping"] });
       setShoppingItemForm({ item: "", quantity: "" });
@@ -103,12 +103,12 @@ export default function MealsPage() {
 
   const updateShoppingItemMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<ShoppingItem> }) =>
-      api.patch(`${API}/meals/shopping-list/${id}`, data).then(r => r.data),
+      api.patch(`/meals/shopping-list/${id}`, data).then(r => r.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meals", "shopping"] }),
   });
 
   const deleteMealPlanMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`${API}/meals/plans/${id}`).then(r => r.data),
+    mutationFn: (id: string) => api.delete(`/meals/plans/${id}`).then(r => r.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meals", "plans"] }),
   });
 
@@ -142,9 +142,17 @@ export default function MealsPage() {
     <div className="space-y-6">
       {/* Header with week navigation */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          🍽️ Meal Planning
-        </h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/")}
+            className="px-3 py-2 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition"
+          >
+            ←
+          </button>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            🍽️ Meal Planning
+          </h1>
+        </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => changeWeek(-1)}
@@ -314,7 +322,7 @@ export default function MealsPage() {
             <button
               onClick={() => {
                 if (confirm("Regenerate shopping list from meal plans? This will remove all non-persistent items.")) {
-                  api.post(`${API}/meals/shopping-list/regenerate`).then(() => {
+                  api.post('/meals/shopping-list/regenerate').then(() => {
                     queryClient.invalidateQueries({ queryKey: ["meals", "shopping"] });
                   });
                 }
@@ -425,7 +433,7 @@ export default function MealsPage() {
                     <button
                       onClick={() => {
                         if (confirm(`Delete "${item.item}"?`)) {
-                          api.delete(`${API}/meals/shopping-list/${item.id}`).then(() => {
+                          api.delete(`/meals/shopping-list/${item.id}`).then(() => {
                             queryClient.invalidateQueries({ queryKey: ["meals", "shopping"] });
                           });
                         }

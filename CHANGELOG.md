@@ -1,3 +1,13 @@
+## [0.19] - 2026-06-11
+
+### Fixed
+- MealsPage: Added home/back button to header navigation
+
+### Changed
+- Version bump 0.18 → 0.19
+
+---
+
 ## [0.18] - 2026-06-10
 
 ### Added
