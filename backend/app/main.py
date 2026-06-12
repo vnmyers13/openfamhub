@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from app.routers import auth, users, events, calendar, announcements, wall, chores, rewards, meals
+from app.core.config import get_settings
+from app.routers import auth, users, events, calendar, announcements, wall, chores, rewards, meals, books
 from app.jobs.chore_generator import generate_chore_instances
 from app.jobs.allowance_distributor import distribute_weekly_allowance
 
@@ -9,7 +10,7 @@ scheduler = None
 
 app = FastAPI(
     title="OpenFamHub",
-    version="0.1.0",
+    version=get_settings().app_version,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
@@ -31,11 +32,12 @@ app.include_router(wall.router, prefix="/wall", tags=["wall"])
 app.include_router(chores.router, prefix="/api/chores", tags=["chores"])
 app.include_router(rewards.router, prefix="/api/rewards", tags=["rewards"])
 app.include_router(meals.router, prefix="/api/meals", tags=["meals"])
+app.include_router(books.router, prefix="/api/books", tags=["books"])
 
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": get_settings().app_version}
 
 
 from app.core.database import engine
@@ -57,6 +59,7 @@ from app.models import (
     BadgeDefinition,
     UserBadge,
     UserStreak,
+    Book,
 )
 
 
