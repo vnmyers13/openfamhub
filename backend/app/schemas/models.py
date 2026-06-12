@@ -207,6 +207,21 @@ class ChoreInstanceResponse(BaseModel):
     created_at: str
 
 
+class ChoreInstanceAdminResponse(BaseModel):
+    id: str
+    chore_template_id: str
+    title: str
+    assigned_to_id: Optional[str] = None
+    assigned_to_name: Optional[str] = None
+    due_date: str
+    status: str
+    claimed_by_id: Optional[str] = None
+    claimed_at: Optional[str] = None
+    completed_by_id: Optional[str] = None
+    completed_at: Optional[str] = None
+    point_value: int
+
+
 class ChoreCompletionLogResponse(BaseModel):
     id: str
     instance_id: str
