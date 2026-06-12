@@ -476,3 +476,32 @@ class ShoppingListItemResponse(BaseModel):
     week_start_date: str
     checked_at: Optional[str] = None
     created_at: str
+
+
+# Book schemas
+class BookCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=300)
+    author: Optional[str] = Field(None, max_length=200)
+    status: str = Field(default="want_to_read", pattern=r"^(reading|want_to_read|completed)$")
+    notes: Optional[str] = None
+
+
+class BookUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=300)
+    author: Optional[str] = Field(None, max_length=200)
+    notes: Optional[str] = None
+
+
+class BookStatusUpdate(BaseModel):
+    status: str = Field(pattern=r"^(reading|want_to_read|completed)$")
+
+
+class BookResponse(BaseModel):
+    id: str
+    title: str
+    author: Optional[str] = None
+    status: str
+    notes: Optional[str] = None
+    created_by_id: str
+    created_at: str
+    updated_at: str
