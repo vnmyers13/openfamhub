@@ -69,7 +69,7 @@ class BookStatusUpdate(BaseModel):
 
 When a book's status changes to "completed" via `/api/books/{id}/status`, the endpoint inserts a row into the existing `RewardPointsLedger` table with:
 - `user_id`: the book owner
-- `points`: 50 (fixed value, configurable via settings)
+- `points`: 50 (fixed value)
 - `description`: "Completed book: {title}"
 - `created_at`: current UTC time
 

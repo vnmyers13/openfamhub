@@ -73,7 +73,7 @@ export default function CalendarPage() {
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      const res = await api.get(`/events`);
+      const res = await api.get(`/calendar/events`);
       return res.data as CalendarEvent[];
     },
   });

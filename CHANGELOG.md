@@ -1,3 +1,16 @@
+## [0.20] - 2026-06-12
+
+### Added
+- Book tracking — personal reading lists, family library view, auto-award 50 reward points on completion
+- BooksPage — My Books and Family Library tabs, add/edit/delete books, status management
+- Family Reading widget on Dashboard — shows currently reading books from family members
+- Books navigation tab in Dashboard sidebar
+
+### Fixed
+- Event model: added default value for RewardPointsLedger.created_at column
+
+---
+
 ## [0.19] - 2026-06-11
 
 ### Fixed

@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-LABEL version="0.19"
+LABEL version="0.20"
 LABEL description="OpenFamHub API Backend"
 
 WORKDIR /app

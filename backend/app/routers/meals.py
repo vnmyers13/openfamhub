@@ -520,7 +520,7 @@ async def get_shopping_list(
             is_checked=i.is_checked, is_persistent=i.is_persistent,
             source=i.source, meal_plan_id=i.meal_plan_id,
             created_by_id=i.created_by_id, week_start_date=i.week_start_date,
-            checked_at=i.checked_at, created_at=i.created_at,
+            checked_at=str(i.checked_at) if i.checked_at else None, created_at=str(i.created_at),
         )
         for i in items
     ]

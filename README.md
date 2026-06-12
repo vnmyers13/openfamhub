@@ -1,6 +1,6 @@
 # OpenFamHub
 
-[![Version](https://img.shields.io/badge/version-0.19-blue)]()
+[![Version](https://img.shields.io/badge/version-0.20-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 [![CI](https://github.com/vnmyers13/openfamhub/actions/workflows/build.yml/badge.svg)](https://github.com/vnmyers13/openfamhub/actions)
 
@@ -23,6 +23,7 @@ Self-hosted family calendar and organizer with Raspberry Pi wall display support
 - **Meal Planning** — 7-day planner grid with week navigation, recipe catalog, dietary tags
 - **Recipe Management** — Import via text paste parsing or URL import (schema.org JSON-LD), family recipe sharing
 - **Shopping List** — Persistent items with per-recipe source tracking, weekly reset, bulk regenerate
+- **Book Tracking** — Personal reading lists, family library view, auto-award reward points on completion
 
 ## Quick Start
 
