@@ -129,3 +129,10 @@ export const bookAPI = {
   deleteBookByAdmin: (id: string) =>
     api.delete(`/books/shared/${id}`).then(r => r.data),
 };
+
+export const weatherAPI = {
+  getWeather: () => api.get('/weather').then(r => r.data),
+  getSettings: () => api.get('/weather/settings').then(r => r.data),
+  updateSettings: (data: { lat: number; lon: number; location_name?: string }) =>
+    api.put('/weather/settings', data).then(r => r.data),
+};
