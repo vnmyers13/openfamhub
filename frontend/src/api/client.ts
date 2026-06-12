@@ -75,6 +75,27 @@ export const choreAPI = {
 
   getInstances: (statusFilter?: string, dueDate?: string) =>
     api.get('/chores/instances', { params: { status_filter: statusFilter, due_date: dueDate } }).then(r => r.data),
+
+  getAdminInstances: (params?: {
+    status_filter?: string;
+    start_date?: string;
+    end_date?: string;
+  }) =>
+    api.get<{
+      items: {
+        id: string;
+        title: string;
+        assigned_to_name: string;
+        assigned_to_id: string;
+        status: string;
+        due_date: string;
+        completed_at?: string;
+        points_awarded: number;
+      };
+      total: number;
+      page: number;
+      page_size: number;
+    }>('/chores/admin/instances', { params }),
   claimInstance: (id: string) =>
     api.post(`/chores/instances/${id}/claim`).then(r => r.data),
   completeInstance: (id: string) =>
