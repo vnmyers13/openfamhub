@@ -89,3 +89,22 @@ export const choreAPI = {
   quickAdd: (data: { title: string; description?: string; point_value: number; assigned_to_id: string; recurrence_rule: string }) =>
     api.post('/chores/quick-add', data).then(r => r.data),
 };
+
+export const bookAPI = {
+  getMyBooks: () => api.get('/books/').then(r => r.data),
+  getSharedBooks: () => api.get('/books/shared').then(r => r.data),
+  createBook: (data: { title: string; author?: string; status: string; notes?: string }) =>
+    api.post('/books/', data).then(r => r.data),
+  updateBook: (id: string, data: { title?: string; author?: string; notes?: string }) =>
+    api.patch(`/books/${id}`, data).then(r => r.data),
+  updateBookStatus: (id: string, data: { status: string }) =>
+    api.patch(`/books/${id}/status`, data).then(r => r.data),
+  deleteBook: (id: string) =>
+    api.delete(`/books/${id}`).then(r => r.data),
+  createBookForUser: (data: { title: string; author?: string; status: string; notes?: string; user_id: string }) =>
+    api.post('/books/shared', data).then(r => r.data),
+  updateBookByAdmin: (id: string, data: { title?: string; author?: string; notes?: string }) =>
+    api.patch(`/books/shared/${id}`, data).then(r => r.data),
+  deleteBookByAdmin: (id: string) =>
+    api.delete(`/books/shared/${id}`).then(r => r.data),
+};
