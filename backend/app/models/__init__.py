@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.book import Book
 from app.models.event import (
     User,
     Event,
@@ -20,6 +21,7 @@ from app.models.event import (
 
 __all__ = [
     "Base",
+    "Book",
     "User",
     "Event",
     "CalendarSource",
