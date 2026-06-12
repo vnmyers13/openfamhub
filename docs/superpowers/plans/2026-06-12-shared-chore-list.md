@@ -13,7 +13,7 @@
 ### Task 1: Add ChoreInstanceAdminResponse schema
 
 **Files:**
-- Modify: `backend/app/schemas/models.py:207-208` (after ChoreInstanceResponse)
+- Modify: `backend/app/schemas/models.py` (after ChoreInstanceResponse class)
 
 - [ ] **Step 1: Add the new schema class**
 
@@ -91,49 +91,6 @@ async def list_admin_chore_instances(
     db: AsyncSession = Depends(get_db),
     admin: dict = Depends(require_admin),
 ):
-    query = select(ChoreInstance).join(Chore, ChoreInstance.chore_template_id == Chore.id).outerjoin(User, ChoreInstance.assigned_to_id == User.id)
-
-    if status_filter:
-        query = query.where(ChoreInstance.status == status_filter)
-    if start_date:
-        query = query.where(ChoreInstance.due_date >= start_date)
-    if end_date:
-        query = query.where(ChoreInstance.due_date <= end_date)
-
-    query = query.order_by(ChoreInstance.due_date, ChoreInstance.status)
-    result = await db.execute(query)
-    instances = result.scalars().all()
-
-    return [
-        ChoreInstanceAdminResponse(
-            id=i.id,
-            chore_template_id=i.chore_template_id,
-            title=t.title,
-            assigned_to_id=i.assigned_to_id,
-            assigned_to_name=u.name if u else None,
-            due_date=i.due_date,
-            status=i.status,
-            claimed_by_id=i.claimed_by_id,
-            claimed_at=str(i.claimed_at) if i.claimed_at else None,
-            completed_by_id=i.completed_by_id,
-            completed_at=str(i.completed_at) if i.completed_at else None,
-            point_value=t.point_value,
-        )
-        for i, t, u in [(inst, chore, usr) for inst, chore, usr in result.statement.left_join(Chore, ChoreInstance.chore_template_id == Chore.id).outerjoin(User, ChoreInstance.assigned_to_id == User.id).scalars()]
-    ]
-```
-
-Wait — the above approach with the list comprehension won't work with SQLAlchemy 2.0. Let me use the correct approach:
-
-```python
-@router.get("/admin/instances", response_model=list[ChoreInstanceAdminResponse])
-async def list_admin_chore_instances(
-    status_filter: Optional[str] = Query(None, description="Filter by status: pending, claimed, completed, expired"),
-    start_date: Optional[str] = Query(None, description="Filter by due date >= (ISO format)"),
-    end_date: Optional[str] = Query(None, description="Filter by due date <= (ISO format)"),
-    db: AsyncSession = Depends(get_db),
-    admin: dict = Depends(require_admin),
-):
     query = (
         select(ChoreInstance, Chore, User)
         .join(Chore, ChoreInstance.chore_template_id == Chore.id)
@@ -185,6 +142,8 @@ git commit -m "feat: add admin instances endpoint with status and date filters"
 - Create: `backend/tests/test_chores_admin.py`
 
 - [ ] **Step 1: Write the test file**
+
+Create `backend/tests/test_chores_admin.py`:
 
 ```python
 import pytest
@@ -252,27 +211,20 @@ async def test_admin_can_get_all_instances(
     db_session.add(chore_instance)
     await db_session.commit()
 
-    # Override auth to admin
-    app.dependency_overrides[get_db] = lambda: db_session
-    original_auth = app.dependency_overrides.get(app.dependency_overrides)
-    
-    # Use admin token
     from app.core.security import create_token
     token = create_token(admin_user["id"], admin_user["name"], admin_user["role"])
-    
+
     response = client.get(
         "/api/chores/admin/instances",
         headers={"Cookie": f"token={token}"},
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 1
     assert data[0]["title"] == "Dishes"
     assert data[0]["assigned_to_name"] == "Member User"
     assert data[0]["status"] == "pending"
-    
-    app.dependency_overrides.clear()
 
 
 async def test_non_admin_cannot_access_admin_endpoint(
@@ -283,15 +235,13 @@ async def test_non_admin_cannot_access_admin_endpoint(
     """Non-admin should get 403."""
     from app.core.security import create_token
     token = create_token(member_user["id"], member_user["name"], member_user["role"])
-    
+
     response = client.get(
         "/api/chores/admin/instances",
         headers={"Cookie": f"token={token}"},
     )
-    
+
     assert response.status_code == 403
-    
-    app.dependency_overrides.clear()
 
 
 async def test_admin_filter_by_status(
@@ -305,21 +255,19 @@ async def test_admin_filter_by_status(
     db_session.add(chore_template)
     db_session.add(chore_instance)
     await db_session.commit()
-    
+
     from app.core.security import create_token
     token = create_token(admin_user["id"], admin_user["name"], admin_user["role"])
-    
+
     response = client.get(
         "/api/chores/admin/instances",
         params={"status_filter": "pending"},
         headers={"Cookie": f"token={token}"},
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert all(item["status"] == "pending" for item in data)
-    
-    app.dependency_overrides.clear()
 
 
 async def test_admin_filter_by_date_range(
@@ -333,21 +281,19 @@ async def test_admin_filter_by_date_range(
     db_session.add(chore_template)
     db_session.add(chore_instance)
     await db_session.commit()
-    
+
     from app.core.security import create_token
     token = create_token(admin_user["id"], admin_user["name"], admin_user["role"])
-    
+
     response = client.get(
         "/api/chores/admin/instances",
         params={"start_date": "2026-06-01", "end_date": "2026-06-30"},
         headers={"Cookie": f"token={token}"},
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 1
-    
-    app.dependency_overrides.clear()
 ```
 
 - [ ] **Step 2: Run the tests**
@@ -356,7 +302,7 @@ async def test_admin_filter_by_date_range(
 cd backend && source .venv/bin/activate && pytest tests/test_chores_admin.py -v
 ```
 
-Expected: All tests pass.
+Expected: All 4 tests pass.
 
 - [ ] **Step 3: Commit**
 
@@ -370,7 +316,7 @@ git commit -m "test: add admin instances endpoint tests"
 ### Task 4: Add getAdminInstances to choreAPI
 
 **Files:**
-- Modify: `frontend/src/api/client.ts:67-91`
+- Modify: `frontend/src/api/client.ts`
 
 - [ ] **Step 1: Add the admin instances method**
 
@@ -379,39 +325,6 @@ Append to `choreAPI` object (after line 90, before the closing brace):
 ```typescript
   getAdminInstances: (statusFilter?: string, startDate?: string, endDate?: string) =>
     api.get('/chores/admin/instances', { params: { status_filter: statusFilter, start_date: startDate, end_date: endDate } }).then(r => r.data),
-```
-
-Full updated choreAPI:
-
-```typescript
-export const choreAPI = {
-  getTemplates: () => api.get('/chores/templates').then(r => r.data),
-  createTemplate: (data: { title: string; description?: string; assignment_mode: string; recurrence_rule: string; point_value: number }) =>
-    api.post('/chores/templates', data).then(r => r.data),
-  updateTemplate: (id: string, data: Partial<{ title: string; description?: string; assignment_mode: string; recurrence_rule: string; point_value: number; is_active: boolean }>) =>
-    api.patch(`/chores/templates/${id}`, data).then(r => r.data),
-  deactivateTemplate: (id: string) =>
-    api.delete(`/chores/templates/${id}`).then(r => r.data),
-
-  getInstances: (statusFilter?: string, dueDate?: string) =>
-    api.get('/chores/instances', { params: { status_filter: statusFilter, due_date: dueDate } }).then(r => r.data),
-  claimInstance: (id: string) =>
-    api.post(`/chores/instances/${id}/claim`).then(r => r.data),
-  completeInstance: (id: string) =>
-    api.post(`/chores/instances/${id}/complete`).then(r => r.data),
-
-  getCompletionLog: (limit = 50) =>
-    api.get('/chores/completion-log', { params: { limit } }).then(r => r.data),
-
-  getStats: () =>
-    api.get('/chores/stats').then(r => r.data),
-
-  quickAdd: (data: { title: string; description?: string; point_value: number; assigned_to_id: string; recurrence_rule: string }) =>
-    api.post('/chores/quick-add', data).then(r => r.data),
-
-  getAdminInstances: (statusFilter?: string, startDate?: string, endDate?: string) =>
-    api.get('/chores/admin/instances', { params: { status_filter: statusFilter, start_date: startDate, end_date: endDate } }).then(r => r.data),
-};
 ```
 
 - [ ] **Step 2: Commit**
