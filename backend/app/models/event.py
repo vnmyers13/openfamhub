@@ -187,7 +187,7 @@ class RewardPointsLedger(Base):
     type: Mapped[str] = mapped_column(Text, nullable=False)
     reference_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[str] = mapped_column(Text, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class AllowanceLedger(Base):
