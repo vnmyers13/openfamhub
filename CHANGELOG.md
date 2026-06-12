@@ -1,3 +1,22 @@
+## [0.21] - 2026-06-12
+
+### Changed
+- Shared chore list admin dashboard — view all chore instances across the family
+- Admin tab on ChoresPage with status filter, date range filter, and sortable columns
+- All pages now share consistent navigation layout under /dashboard route
+
+### Fixed
+- Navigation missing on Rewards, Chores, Calendar, Meals pages (now nested under /dashboard)
+- Books route was in navigation but had no corresponding route defined
+
+### Added
+- ChoreInstanceAdminResponse schema with title and assigned_to_name fields
+- GET /api/chores/admin/instances endpoint with status_filter, start_date, end_date params
+- Admin tab tests (4 tests: access, filtering by status, filtering by date range)
+- getAdminInstances method in frontend choreAPI client
+- Admin tab UI with filter bar (status dropdown, date inputs) and sortable table
+PYEOF
+
 ## [0.20] - 2026-06-12
 
 ### Added

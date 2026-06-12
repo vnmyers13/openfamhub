@@ -1,6 +1,6 @@
 # OpenFamHub
 
-[![Version](https://img.shields.io/badge/version-0.20-blue)]()
+[![Version](https://img.shields.io/badge/version-0.21-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 [![CI](https://github.com/vnmyers13/openfamhub/actions/workflows/build.yml/badge.svg)](https://github.com/vnmyers13/openfamhub/actions)
 
