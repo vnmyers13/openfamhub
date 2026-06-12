@@ -104,7 +104,7 @@ export default function CalendarPage() {
 
   const updateSourceMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: CreateSourcePayload }) => {
-      const res = await api.put(`/calendar/sources/${id}`, data);
+      const res = await api.patch(`/calendar/sources/${id}`, data);
       return res.data;
     },
     onSuccess: () => {
