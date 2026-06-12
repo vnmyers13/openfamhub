@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../stores/auth";
 import api from "../api/client";
 import {
@@ -26,6 +26,17 @@ interface Announcement {
   content: string;
   is_pinned: boolean;
   created_at?: string;
+}
+
+interface Book {
+  id: string;
+  title: string;
+  author?: string;
+  status: string;
+  notes?: string;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function DashboardHome() {
@@ -69,6 +80,14 @@ export default function DashboardHome() {
     queryFn: async () => {
       const res = await api.get('/rewards/allowance/balance');
       return res.data;
+    },
+  });
+
+  const { data: readingBooks = [] } = useQuery({
+    queryKey: ['books', 'shared'],
+    queryFn: async () => {
+      const res = await api.get('/books/shared');
+      return (res.data as Book[]).filter(b => b.status === 'reading');
     },
   });
 
@@ -257,6 +276,30 @@ export default function DashboardHome() {
               <p className="text-emerald-400 text-xs mt-3">View Full Planner →</p>
             </div>
           )}
+
+          <div className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">Family Reading</h2>
+              <Link to="/dashboard/books" className="text-sm text-blue-400 hover:text-blue-300">
+                View All
+              </Link>
+            </div>
+            {readingBooks.length === 0 ? (
+              <p className="text-gray-400 text-sm">No one is currently reading</p>
+            ) : (
+              <div className="space-y-3">
+                {readingBooks.slice(0, 3).map(book => (
+                  <div key={book.id} className="flex items-start gap-3">
+                    <span className="text-xl">📖</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-medium text-sm truncate">{book.title}</p>
+                      {book.author && <p className="text-gray-400 text-xs truncate">by {book.author}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {user?.role === "admin" && (
             <div

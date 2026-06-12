@@ -1,6 +1,6 @@
 import { useAuthStore } from '../stores/auth'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { FaCalendarAlt, FaHome, FaSignOutAlt, FaUsers, FaBullhorn, FaTasks, FaGift, FaUtensils } from 'react-icons/fa'
+import { FaCalendarAlt, FaHome, FaSignOutAlt, FaUsers, FaBullhorn, FaTasks, FaGift, FaUtensils, FaBook } from 'react-icons/fa'
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
@@ -19,6 +19,7 @@ export default function Dashboard() {
     { path: '/chores', label: 'Chores', icon: <FaTasks /> },
     { path: '/meals', label: 'Meals', icon: <FaUtensils /> },
     { path: '/rewards', label: 'Rewards', icon: <FaGift /> },
+    { path: '/dashboard/books', label: 'Books', icon: <FaBook /> },
     { path: '/dashboard/announcements', label: 'Announcements', icon: <FaBullhorn /> },
     ...(user?.role === 'admin' ? [{ path: '/dashboard/manage-users', label: 'Manage Users', icon: <FaUsers /> }] : []),
   ]
