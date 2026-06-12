@@ -15,10 +15,10 @@ export default function Dashboard() {
 
   const navItems = [
     { path: '/dashboard', label: 'Home', icon: <FaHome /> },
-    { path: '/calendar', label: 'Calendar', icon: <FaCalendarAlt /> },
-    { path: '/chores', label: 'Chores', icon: <FaTasks /> },
-    { path: '/meals', label: 'Meals', icon: <FaUtensils /> },
-    { path: '/rewards', label: 'Rewards', icon: <FaGift /> },
+    { path: '/dashboard/calendar', label: 'Calendar', icon: <FaCalendarAlt /> },
+    { path: '/dashboard/chores', label: 'Chores', icon: <FaTasks /> },
+    { path: '/dashboard/meals', label: 'Meals', icon: <FaUtensils /> },
+    { path: '/dashboard/rewards', label: 'Rewards', icon: <FaGift /> },
     { path: '/dashboard/books', label: 'Books', icon: <FaBook /> },
     { path: '/dashboard/announcements', label: 'Announcements', icon: <FaBullhorn /> },
     ...(user?.role === 'admin' ? [{ path: '/dashboard/manage-users', label: 'Manage Users', icon: <FaUsers /> }] : []),

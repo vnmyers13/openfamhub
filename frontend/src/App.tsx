@@ -10,6 +10,7 @@ import AnnouncementsPage from './pages/AnnouncementsPage'
 import RewardsPage from './pages/RewardsPage'
 import ChoresPage from './pages/ChoresPage'
 import MealsPage from './pages/MealsPage'
+import BooksPage from './pages/BooksPage'
 import { useAuthStore } from './stores/auth'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -36,46 +37,19 @@ function App() {
         }
       >
         <Route index element={<DashboardHome />} />
-        <Route path="manage-users" element={<ManageUsers />} />
+        <Route path="calendar" element={<CalendarPage />} />
+        <Route path="chores" element={<ChoresPage />} />
+        <Route path="meals" element={<MealsPage />} />
+        <Route path="rewards" element={<RewardsPage />} />
+        <Route path="books" element={<BooksPage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
+        <Route path="manage-users" element={<ManageUsers />} />
       </Route>
-      <Route
-        path="/calendar"
-        element={
-          <ProtectedRoute>
-            <CalendarPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/meals"
-        element={
-          <ProtectedRoute>
-            <MealsPage />
-          </ProtectedRoute>
-        }
-      />
       <Route
         path="/wall"
         element={
           <ProtectedRoute>
             <WallDisplay />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/rewards"
-        element={
-          <ProtectedRoute>
-            <RewardsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/chores"
-        element={
-          <ProtectedRoute>
-            <ChoresPage />
           </ProtectedRoute>
         }
       />

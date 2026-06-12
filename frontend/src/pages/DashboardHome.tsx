@@ -62,7 +62,7 @@ export default function DashboardHome() {
   const { data: choreStats } = useQuery({
     queryKey: ["chores", "stats"],
     queryFn: async () => {
-      const res = await api.get('/chores/stats');
+      const res = await api.get('/dashboard/chores/stats');
       return res.data;
     },
   });
@@ -70,7 +70,7 @@ export default function DashboardHome() {
   const { data: pointsBalance } = useQuery({
     queryKey: ["rewards", "points", "balance"],
     queryFn: async () => {
-      const res = await api.get('/rewards/points/balance');
+      const res = await api.get('/dashboard/rewards/points/balance');
       return res.data;
     },
   });
@@ -78,7 +78,7 @@ export default function DashboardHome() {
   const { data: allowanceBalance } = useQuery({
     queryKey: ["rewards", "allowance", "balance"],
     queryFn: async () => {
-      const res = await api.get('/rewards/allowance/balance');
+      const res = await api.get('/dashboard/rewards/allowance/balance');
       return res.data;
     },
   });
@@ -98,7 +98,7 @@ export default function DashboardHome() {
       const monday = new Date(today);
       monday.setDate(today.getDate() - today.getDay() + 1);
       const weekStart = monday.toISOString().split("T")[0];
-      const res = await api.get('/meals/plans', { params: { week_start: weekStart } });
+      const res = await api.get('/dashboard/meals/plans', { params: { week_start: weekStart } });
       return (res.data as { meals: Array<{ date: string; title: string; meal_type: string; recipe?: { title: string } }> }).meals
         .filter(m => m.meal_type === "dinner")
         .sort((a, b) => a.date.localeCompare(b.date));
@@ -143,7 +143,7 @@ export default function DashboardHome() {
                 <FaClock /> Today's Schedule
               </h2>
               <button
-                onClick={() => navigate("/calendar")}
+                onClick={() => navigate("/dashboard/calendar")}
                 className="text-blue-400 hover:text-blue-300 text-sm"
               >
                 View Calendar →
@@ -213,7 +213,7 @@ export default function DashboardHome() {
           {choreStats && (
             <div
               className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700 cursor-pointer hover:border-slate-600 transition"
-              onClick={() => navigate("/chores")}
+              onClick={() => navigate("/dashboard/chores")}
             >
               <div className="flex items-center gap-3 mb-3">
                 <FaTasks className="text-xl text-orange-400" />
@@ -235,7 +235,7 @@ export default function DashboardHome() {
           {pointsBalance && allowanceBalance && (
             <div
               className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700 cursor-pointer hover:border-slate-600 transition"
-              onClick={() => navigate("/rewards")}
+              onClick={() => navigate("/dashboard/rewards")}
             >
               <div className="flex items-center gap-3 mb-3">
                 <FaGift className="text-xl text-pink-400" />
@@ -257,7 +257,7 @@ export default function DashboardHome() {
           {weekDinners && weekDinners.length > 0 && (
             <div
               className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-emerald-500/30 cursor-pointer hover:border-emerald-400 transition"
-              onClick={() => navigate("/meals")}
+              onClick={() => navigate("/dashboard/meals")}
             >
               <div className="flex items-center gap-3 mb-3">
                 <FaUtensils className="text-xl text-emerald-400" />
@@ -342,7 +342,7 @@ export default function DashboardHome() {
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <div
             className="text-center p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 cursor-pointer hover:bg-blue-500/20 transition"
-            onClick={() => navigate("/calendar")}
+            onClick={() => navigate("/dashboard/calendar")}
           >
             <FaCalendarAlt className="text-3xl text-blue-400 mx-auto mb-2" />
             <p className="text-white font-medium">Calendar</p>
@@ -363,7 +363,7 @@ export default function DashboardHome() {
           {choreStats && (
             <div
               className="text-center p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 cursor-pointer hover:bg-orange-500/20 transition"
-              onClick={() => navigate("/chores")}
+              onClick={() => navigate("/dashboard/chores")}
             >
               <FaTasks className="text-3xl text-orange-400 mx-auto mb-2" />
               <p className="text-white font-medium">Chores</p>
@@ -375,7 +375,7 @@ export default function DashboardHome() {
           {pointsBalance && allowanceBalance && (
             <div
               className="text-center p-4 rounded-lg bg-pink-500/10 border border-pink-500/20 cursor-pointer hover:bg-pink-500/20 transition"
-              onClick={() => navigate("/rewards")}
+              onClick={() => navigate("/dashboard/rewards")}
             >
               <FaGift className="text-3xl text-pink-400 mx-auto mb-2" />
               <p className="text-white font-medium">Rewards</p>
