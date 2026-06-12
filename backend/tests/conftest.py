@@ -89,9 +89,18 @@ import app.core.database as db_module
 db_module.engine = test_engine
 db_module.async_session_factory = TestSessionLocal
 
-client = TestClient(app)
+_test_client = TestClient(app)
+
+
+@pytest.fixture
+async def db():
+    async with TestSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
 
 
 @pytest.fixture
 def test_client():
-    return client
+    return _test_client
