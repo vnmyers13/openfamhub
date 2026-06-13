@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.core.config import get_settings
-from app.routers import auth, users, events, calendar, announcements, wall, chores, rewards, meals, books, weather
+from app.routers import auth, users, events, calendar, announcements, wall, chores, rewards, meals, books, weather, settings
 from app.jobs.chore_generator import generate_chore_instances
 from app.jobs.allowance_distributor import distribute_weekly_allowance
 
@@ -34,6 +34,7 @@ app.include_router(rewards.router, prefix="/api/rewards", tags=["rewards"])
 app.include_router(meals.router, prefix="/api/meals", tags=["meals"])
 app.include_router(books.router, prefix="/api/books", tags=["books"])
 app.include_router(weather.router, prefix="/api/weather", tags=["weather"])
+app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 
 
 @app.get("/api/health")
