@@ -1,16 +1,17 @@
 from fastapi.testclient import TestClient
 from app.main import app
-from app.core.database import get_db, async_session_factory
+from app.core.database import get_db
 from app.core.security import get_current_user, decode_access_token
 from app.models import User
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
+from tests.conftest import TestSessionLocal
 
 client = TestClient(app)
 
 
 async def override_get_db():
-    async with async_session_factory() as session:
+    async with TestSessionLocal() as session:
         try:
             yield session
             await session.commit()
@@ -21,12 +22,11 @@ async def override_get_db():
             await session.close()
 
 
+app.dependency_overrides[get_db] = override_get_db
+
+
 def override_get_current_user():
     return {"sub": "test-user-id", "role": "admin"}
-
-
-app.dependency_overrides[get_db] = override_get_db
-app.dependency_overrides[get_current_user] = override_get_current_user
 
 
 def test_list_profiles():

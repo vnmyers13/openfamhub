@@ -1,15 +1,7 @@
 from fastapi.testclient import TestClient
 from app.main import app
-from app.core.security import get_current_user
 
 client = TestClient(app)
-
-
-def override_get_current_user():
-    return {"sub": "test-user-id", "role": "admin"}
-
-
-app.dependency_overrides[get_current_user] = override_get_current_user
 
 
 # ─── Dietary Tag Tests ──────────────────────────────────────────────────────

@@ -6,27 +6,6 @@ from app.models import User, Event
 client = TestClient(app)
 
 
-async def override_get_db():
-    from tests.conftest import TestSessionLocal
-
-    async with TestSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
-
-
-def override_get_current_user():
-    return {"sub": "test-user-id", "role": "admin"}
-
-
-app.dependency_overrides[get_current_user] = override_get_current_user
-
-
 def test_list_events_empty():
     response = client.get("/api/events")
     assert response.status_code == 200

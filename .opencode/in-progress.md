@@ -15,7 +15,7 @@
 
 All 8 wall display tasks are ✅ DONE.
 
-- Backend: 19/59 tests passed (40 pre-existing failures in events/meals/rewards)
+- Backend: 59/59 tests passed (all pre-existing failures fixed)
 - Frontend: Build succeeded
 - Commits: 1fcc6e6, 766f131, 94c46f0, 65de92e
 - New components: MenuWallPanel, CalendarWallView, ChoresWallPanel, AnnouncementsWallPanel

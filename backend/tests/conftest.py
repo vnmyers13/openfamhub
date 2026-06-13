@@ -15,10 +15,11 @@ from app.main import app
 # Test user ID used in overrides
 TEST_USER_ID = "test-user-id"
 
-# Create in-memory SQLite engine for tests
+# Create in-memory SQLite engine for tests with shared cache
 test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
+    "sqlite+aiosqlite:///file:memdb1?mode=memory&cache=shared",
     echo=False,
+    connect_args={"check_same_thread": False},
 )
 
 # Enable foreign keys for SQLite
@@ -58,25 +59,33 @@ app.dependency_overrides[get_current_user] = override_get_current_user
 @pytest.fixture(scope="function", autouse=True)
 async def setup_db():
     """Create tables and default test user before each test."""
+    import sys
+    print("\n[setup_db] Starting...", file=sys.stderr)
     from app.models.base import Base
     from app.models import User
 
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Create default test user
     async with TestSessionLocal() as session:
-        stmt = insert(User).values(
-            id=TEST_USER_ID,
-            name="Test Admin",
-            avatar_emoji="👨‍💼",
-            pin_hash=hash_pin("0000"),
-            role="admin",
-            settings_json="{}",
-            is_active=True,
+        result = await session.execute(
+            __import__('sqlalchemy').text("SELECT COUNT(*) FROM users WHERE id = :uid"),
+            {"uid": TEST_USER_ID},
         )
-        await session.execute(stmt)
+        if result.scalar() == 0:
+            stmt = insert(User).values(
+                id=TEST_USER_ID,
+                name="Test Admin",
+                avatar_emoji="👨‍💼",
+                pin_hash=hash_pin("0000"),
+                role="admin",
+                settings_json="{}",
+                is_active=True,
+            )
+            await session.execute(stmt)
         await session.commit()
+    
+    print("[setup_db] Done", file=sys.stderr)
 
     yield
 

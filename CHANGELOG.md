@@ -1,3 +1,19 @@
+## [0.23] - 2026-06-13
+
+### Fixed
+- All 59 backend tests now pass (previously 15 failures from test isolation issues)
+- Test isolation: removed duplicate dependency overrides from test_events.py, test_meals.py, test_rewards.py, test_auth.py
+- Test isolation: fixed test_chores_admin.py to use API-based approach with db fixture
+- Test isolation: fixed SQLite shared cache mode for cross-event-loop table visibility
+- Test isolation: added setup_db fixture guard against duplicate user insertion
+- Weather widget DNS resolution fix — added explicit DNS config to Docker Compose
+- Weather service improved error handling (DNS errors, timeouts, HTTP errors)
+
+### Changed
+- Version bump 0.22 → 0.23
+
+---
+
 ## [0.22] - 2026-06-12
 
 ### Added
