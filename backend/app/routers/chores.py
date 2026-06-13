@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select, or_
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -252,7 +252,7 @@ async def list_wall_chores(
             title=chore.title,
             assigned_to_name=user.name if user else None,
             status=inst.status,
-            due_date=inst.due_date,
+            due_date=str(inst.due_date),
             completed_at=str(inst.completed_at) if inst.completed_at else None,
         )
         for inst, chore, user in rows
