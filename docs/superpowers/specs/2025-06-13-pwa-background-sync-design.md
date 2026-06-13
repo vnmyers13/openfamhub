@@ -26,7 +26,7 @@ The PWA runs on a local intranet. When users are away from home, they cannot acc
 - When app becomes visible and connection is online, sync queued operations
 
 ### Conflict Detection
-- Each cached response includes an `etag` or `lastModified` header
+- Each cached response includes a `serverVersion` (ISO timestamp of last modification)
 - When syncing, compare local `serverVersion` with server current version
 - If different → conflict → show merge UI
 
