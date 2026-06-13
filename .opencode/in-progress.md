@@ -2,13 +2,13 @@
 
 ## Tasks
 
-- [x] Task 1: Create WallDisplayPage component
-- [x] Task 2: Create WallDisplayCard component
-- [x] Task 3: Create WallDisplayLayout component
-- [x] Task 4: Create WallDisplayConfig store
-- [x] Task 5: Create wall display API endpoints
-- [x] Task 6: Create wall display backend models/schemas
-- [x] Task 7: Create wall display backend service
+- [x] Task 1: Backend — Wall chores endpoint
+- [x] Task 2: Frontend — API client for wall chores
+- [x] Task 3: Frontend — MenuWallPanel component
+- [x] Task 4: Frontend — CalendarWallView component
+- [x] Task 5: Frontend — ChoresWallPanel component
+- [x] Task 6: Frontend — AnnouncementsWallPanel component
+- [x] Task 7: Refactor WallDisplay into thin composer
 - [x] Task 8: Final verification
 
 ## Progress
@@ -18,3 +18,4 @@ All 8 wall display tasks are ✅ DONE.
 - Backend: 19/59 tests passed (40 pre-existing failures in events/meals/rewards)
 - Frontend: Build succeeded
 - Commit: 1fcc6e6
+- All 8 wall display tasks are ✅ DONE
