@@ -239,6 +239,8 @@ export default function WeatherWidget({ mode = "dashboard" }: WeatherWidgetProps
                 </button>
               </div>
 
+              </div>
+
               <div className="flex gap-3 mt-6">
               <button
                 onClick={handleSave}
