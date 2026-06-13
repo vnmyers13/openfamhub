@@ -1,5 +1,27 @@
 # In-Progress Sessions
 
+## v0.25 Release (2026-06-13)
+
+### Status: COMPLETE
+
+All 11 phases of the release checklist completed successfully.
+
+- P1: 0 open GitHub issues
+- P2: TODO.md and FUTURE_ENHANCEMENTS.md verified (no new entries)
+- P3: Version bumped to 0.25 (config.py, Dockerfile, README.md)
+- P4: CHANGELOG.md updated with v0.25 release notes
+- P5: Backend tests — 59/59 passed
+- P6: Frontend build — OK
+- P7: Docker images built for linux/amd64
+- P8: Pushed to GitHub (main branch + tag v0.25)
+- P9: Pushed to Docker Hub (vnmyers13/openfamhub-api:0.25, vnmyers13/openfamhub-web:0.25)
+- P10: Production deployed — health check OK (version 0.25)
+- P11: Release summary written to docs/releases/v0.25.md
+
+### Key Changes
+- Admin chores "By User" view — group chores by assigned user with pending/completed counts
+- Toggle between List and By User views in admin tab
+
 ## v0.24 Release (2026-06-13)
 
 ### Status: COMPLETE
