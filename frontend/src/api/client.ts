@@ -140,3 +140,8 @@ export const weatherAPI = {
   updateSettings: (data: { lat: number; lon: number; location_name?: string }) =>
     api.put('/weather/settings', data).then(r => r.data),
 };
+
+export const settingsAPI = {
+  getTimezone: () => api.get('/settings/timezone').then(r => r.data as { timezone: string }),
+  updateTimezone: (timezone: string) => api.put('/settings/timezone', { timezone }).then(r => r.data),
+};
