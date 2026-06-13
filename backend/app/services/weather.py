@@ -73,6 +73,12 @@ async def fetch_weather(lat: float, lon: float) -> dict:
             resp = await client.get(url)
             resp.raise_for_status()
             data = resp.json()
+    except httpx.ConnectError as e:
+        return {"error": f"Weather fetch failed: DNS resolution error. Check network connectivity and DNS settings."}
+    except httpx.TimeoutException:
+        return {"error": "Weather fetch failed: Request timed out."}
+    except httpx.HTTPStatusError as e:
+        return {"error": f"Weather fetch failed: API returned status {e.response.status_code}."}
     except Exception as e:
         return {"error": f"Weather fetch failed: {str(e)}"}
 

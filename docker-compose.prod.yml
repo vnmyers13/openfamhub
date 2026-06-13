@@ -3,6 +3,9 @@ services:
     platform: linux/amd64
     image: vnmyers13/openfamhub-api:0.22
     env_file: .env.prod
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     volumes:
       - data_db:/data/db
       - data_photos:/data/photos
