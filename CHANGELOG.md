@@ -1,3 +1,13 @@
+## [0.25] - 2026-06-13
+
+### Added
+- Admin chores "By User" view — group chores by assigned user with pending/completed counts
+
+### Changed
+- Version bump 0.24 → 0.25
+
+---
+
 ## [0.24] - 2026-06-13
 
 ### Added
