@@ -47,14 +47,24 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
+            urlPattern: /^https:\/\/openfamhub\.local\/api\/meals\/shopping-list.*/i,
+            handler: 'CacheFirst',
+            options: { cacheName: 'shopping-cache', expiration: { maxEntries: 10, maxAgeSeconds: 300 }, cacheableResponse: { statuses: [0, 200] } },
+          },
+          {
+            urlPattern: /^https:\/\/openfamhub\.local\/api\/chores\/instances.*/i,
+            handler: 'CacheFirst',
+            options: { cacheName: 'chores-cache', expiration: { maxEntries: 10, maxAgeSeconds: 300 }, cacheableResponse: { statuses: [0, 200] } },
+          },
+          {
             urlPattern: /^https:\/\/openfamhub\.local\/api\/.*/i,
             handler: 'NetworkFirst',
-            options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 60 } },
+            options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 60 }, cacheableResponse: { statuses: [0, 200] } },
           },
           {
             urlPattern: /^https:\/\/openfamhub\.local\/ws\/.*/i,
             handler: 'NetworkFirst',
-            options: { cacheName: 'ws-cache', expiration: { maxEntries: 10, maxAgeSeconds: 30 } },
+            options: { cacheName: 'ws-cache', expiration: { maxEntries: 10, maxAgeSeconds: 30 }, cacheableResponse: { statuses: [0, 200] } },
           },
         ],
       },
