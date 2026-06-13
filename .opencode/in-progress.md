@@ -1,23 +1,27 @@
-# Wall Display Enhancement - Task Progress
+# In-Progress Sessions
 
-## Tasks
+## v0.23 Release (2026-06-13)
 
-- [x] Task 1: Backend — Wall chores endpoint
-- [x] Task 2: Frontend — API client for wall chores
-- [x] Task 3: Frontend — MenuWallPanel component
-- [x] Task 4: Frontend — CalendarWallView component
-- [x] Task 5: Frontend — ChoresWallPanel component
-- [x] Task 6: Frontend — AnnouncementsWallPanel component
-- [x] Task 7: Refactor WallDisplay into thin composer
-- [x] Task 8: Final verification
+### Status: COMPLETE
 
-## Progress
+All 11 phases of the release checklist completed successfully.
 
-All 8 wall display tasks are ✅ DONE.
+- P1: 0 open GitHub issues
+- P2: TODO.md and FUTURE_ENHANCEMENTS.md verified (no new entries)
+- P3: Version bumped to 0.23 (config.py, Dockerfile, README.md)
+- P4: CHANGELOG.md updated with v0.23 release notes
+- P5: Backend tests — 59/59 passed (all pre-existing failures fixed)
+- P6: Frontend build — OK
+- P7: Docker images built for linux/amd64
+- P8: Pushed to GitHub (main branch + tag v0.23)
+- P9: Pushed to Docker Hub (vnmyers13/openfamhub-api:0.23, vnmyers13/openfamhub-web:0.23)
+- P10: Production deployed — health check OK
+- P11: Release summary written to docs/releases/v0.23.md
 
-- Backend: 59/59 tests passed (all pre-existing failures fixed)
-- Frontend: Build succeeded
-- Commits: 1fcc6e6, 766f131, 94c46f0, 65de92e
+### Key Changes
+- All 59 backend tests now pass (previously 15 failures from test isolation issues)
+- Weather widget DNS resolution fix
+- Weather service improved error handling
 - New components: MenuWallPanel, CalendarWallView, ChoresWallPanel, AnnouncementsWallPanel
 - WallDisplay refactored into thin composer with 25vh/75vh split layout
 
