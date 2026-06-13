@@ -17,6 +17,14 @@ All 8 wall display tasks are ✅ DONE.
 
 - Backend: 19/59 tests passed (40 pre-existing failures in events/meals/rewards)
 - Frontend: Build succeeded
-- Commits: 1fcc6e6, 766f131, 94c46f0
+- Commits: 1fcc6e6, 766f131, 94c46f0, 65de92e
 - New components: MenuWallPanel, CalendarWallView, ChoresWallPanel, AnnouncementsWallPanel
 - WallDisplay refactored into thin composer with 25vh/75vh split layout
+
+## v0.22 Release
+
+- Released: 2026-06-12
+- Git tag: v0.22
+- Commits: 53e904d, 6a918ab
+- Docker images: vnmyers13/openfamhub-api:0.22, vnmyers13/openfamhub-web:0.22
+- Production: deployed and verified (all services healthy)
