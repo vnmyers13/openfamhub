@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../stores/auth";
 import api from "../api/client";
+import WeatherWidget from "../components/WeatherWidget";
 import {
   FaCalendarAlt,
   FaBullhorn,
@@ -197,6 +198,8 @@ export default function DashboardHome() {
         </div>
 
         <div className="space-y-6">
+          <WeatherWidget mode="dashboard" />
+
           <div
             className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6 text-white cursor-pointer hover:from-blue-500 hover:to-blue-700 transition"
             onClick={() => navigate("/wall")}
