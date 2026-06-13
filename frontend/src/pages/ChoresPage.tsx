@@ -5,6 +5,8 @@ import api from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { useNavigate } from 'react-router-dom'
 import { FaArrowLeft } from 'react-icons/fa'
+import { enqueueOperation } from '../lib/idb'
+import { useOfflineStore } from '../lib/offline-state'
 
 type Tab = 'my' | 'available' | 'history' | 'templates' | 'admin'
 
@@ -127,7 +129,18 @@ export default function ChoresPage() {
   })
 
   const completeMutation = useMutation({
-    mutationFn: choreAPI.completeInstance,
+    mutationFn: (id: string) => {
+      if (!navigator.onLine) {
+        enqueueOperation({
+          type: 'update',
+          entity: 'chore-instance',
+          data: { id },
+          endpoint: '/chores/instances',
+        })
+        useOfflineStore.getState().incrementPending()
+      }
+      return choreAPI.completeInstance(id)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chores-instances'] })
       queryClient.invalidateQueries({ queryKey: ['chores-completion-log'] })
@@ -136,7 +149,18 @@ export default function ChoresPage() {
   })
 
   const claimMutation = useMutation({
-    mutationFn: choreAPI.claimInstance,
+    mutationFn: (id: string) => {
+      if (!navigator.onLine) {
+        enqueueOperation({
+          type: 'update',
+          entity: 'chore-instance',
+          data: { id },
+          endpoint: '/chores/instances',
+        })
+        useOfflineStore.getState().incrementPending()
+      }
+      return choreAPI.claimInstance(id)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chores-instances'] })
     },
