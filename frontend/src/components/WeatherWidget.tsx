@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { weatherAPI } from "../api/client";
+import { weatherAPI, settingsAPI } from "../api/client";
 
 interface WeatherData {
   temperature: number;
@@ -30,6 +30,8 @@ export default function WeatherWidget({ mode = "dashboard" }: WeatherWidgetProps
   const [editLocation, setEditLocation] = useState("");
   const [saving, setSaving] = useState(false);
   const [geolocating, setGeolocating] = useState(false);
+  const [editTimezone, setEditTimezone] = useState("UTC");
+  const [loadingTimezone, setLoadingTimezone] = useState(false);
 
   const { data } = useQuery({
     queryKey: ["weather"],
@@ -42,11 +44,17 @@ export default function WeatherWidget({ mode = "dashboard" }: WeatherWidgetProps
 
   const weather = data as WeatherData | undefined;
 
-  const handleOpenEdit = () => {
+  const handleOpenEdit = async () => {
     if (weather?.settings) {
       setEditLat(weather.settings.lat.toString());
       setEditLon(weather.settings.lon.toString());
       setEditLocation(weather.settings.location_name || "");
+    }
+    try {
+      const tzData = await settingsAPI.getTimezone();
+      setEditTimezone(tzData.timezone || "UTC");
+    } catch {
+      setEditTimezone("UTC");
     }
     setShowEditModal(true);
   };
@@ -86,6 +94,18 @@ export default function WeatherWidget({ mode = "dashboard" }: WeatherWidgetProps
       alert("Failed to update location");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveTimezone = async () => {
+    setLoadingTimezone(true);
+    try {
+      await settingsAPI.updateTimezone(editTimezone);
+      await queryClient.invalidateQueries({ queryKey: ["weather"] });
+    } catch {
+      alert("Failed to update timezone");
+    } finally {
+      setLoadingTimezone(false);
     }
   };
 
@@ -192,9 +212,34 @@ export default function WeatherWidget({ mode = "dashboard" }: WeatherWidgetProps
               >
                 {geolocating ? "Getting location..." : "📍 Use my location"}
               </button>
-            </div>
 
-            <div className="flex gap-3 mt-6">
+              <div className="border-t border-slate-700 pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-slate-300 mb-2">
+                  Wall Display Timezone (affects wall board clock)
+                </h4>
+                <select
+                  value={editTimezone}
+                  onChange={(e) => setEditTimezone(e.target.value)}
+                  className="w-full p-3 rounded-lg bg-white/5 border border-white/20 focus:border-white/50 focus:outline-none text-white"
+                >
+                  <option value="America/New_York">Eastern Time (UTC-5)</option>
+                  <option value="America/Chicago">Central Time (UTC-6)</option>
+                  <option value="America/Denver">Mountain Time (UTC-7)</option>
+                  <option value="America/Los_Angeles">Pacific Time (UTC-8)</option>
+                  <option value="America/Anchorage">Alaska Time (UTC-9)</option>
+                  <option value="Pacific/Honolulu">Hawaii Time (UTC-10)</option>
+                  <option value="UTC">UTC</option>
+                </select>
+                <button
+                  onClick={handleSaveTimezone}
+                  disabled={loadingTimezone}
+                  className="mt-2 w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-blue-400 text-white font-semibold transition text-sm"
+                >
+                  {loadingTimezone ? "Saving..." : "Save Timezone"}
+                </button>
+              </div>
+
+              <div className="flex gap-3 mt-6">
               <button
                 onClick={handleSave}
                 disabled={saving}
