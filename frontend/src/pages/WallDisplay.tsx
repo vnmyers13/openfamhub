@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import api from "../api/client";
+import WeatherWidget from "../components/WeatherWidget";
 
 interface WallEvent {
   id: string;
@@ -283,6 +284,10 @@ export default function WallDisplay() {
           <p className="text-xl text-slate-400">{time}</p>
         </div>
       </header>
+
+      <div className="mb-6">
+        <WeatherWidget mode="wall" />
+      </div>
 
       <div className="flex-1 flex flex-col">
         {mode === "grid" ? renderGridMode() : renderCyclingMode()}
