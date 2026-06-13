@@ -12,6 +12,9 @@ import ChoresPage from './pages/ChoresPage'
 import MealsPage from './pages/MealsPage'
 import BooksPage from './pages/BooksPage'
 import { useAuthStore } from './stores/auth'
+import { useSyncOnVisible } from './hooks/useSyncOnVisible'
+import { OfflineBanner } from './components/OfflineBanner'
+import { ConflictModal } from './components/ConflictModal'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -23,9 +26,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   const token = useAuthStore((s) => s.token)
+  useSyncOnVisible()
 
   return (
-    <Routes>
+    <>
+      <OfflineBanner />
+      <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/setup" element={<SetupWizard />} />
       <Route
@@ -60,6 +66,8 @@ function App() {
         }
       />
     </Routes>
+      <ConflictModal />
+    </>
   )
 }
 

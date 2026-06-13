@@ -1,6 +1,7 @@
 import { useAuthStore } from '../stores/auth'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { FaCalendarAlt, FaHome, FaSignOutAlt, FaUsers, FaBullhorn, FaTasks, FaGift, FaUtensils, FaBook } from 'react-icons/fa'
+import { SyncIndicator } from '../components/SyncIndicator'
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
@@ -47,6 +48,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <SyncIndicator />
           <div className="flex items-center gap-2">
             <span className="text-2xl">{user?.avatar_emoji || ''}</span>
             <span className="hidden sm:inline">{user?.name || 'User'}</span>
