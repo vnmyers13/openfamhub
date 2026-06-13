@@ -111,6 +111,10 @@ export const choreAPI = {
     api.post('/chores/quick-add', data).then(r => r.data),
 };
 
+export const wallChoreAPI = {
+  getWallChores: () => api.get('/chores/wall').then(r => r.data),
+};
+
 export const bookAPI = {
   getMyBooks: () => api.get('/books/').then(r => r.data),
   getSharedBooks: () => api.get('/books/shared').then(r => r.data),
