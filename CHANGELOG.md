@@ -1,3 +1,14 @@
+## [0.26] - 2026-06-13
+
+### Fixed
+- Wall display controls always visible (Grid View, Cycling Panels, Exit Display)
+- Wall display cycling countdown now updates in real-time
+
+### Changed
+- Version bump 0.25 → 0.26
+
+---
+
 ## [0.25] - 2026-06-13
 
 ### Added
