@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     @property
     def app_version(self) -> str:
-        return "0.23"
+        return "0.24"
 
     @property
     def data_db_path(self) -> str:

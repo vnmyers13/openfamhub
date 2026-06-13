@@ -1,3 +1,24 @@
+## [0.24] - 2026-06-13
+
+### Added
+- PWA background sync — IndexedDB queue for offline operations (shopping list + chores)
+- Offline mutations — add/claim/complete operations queue when offline, sync when back online
+- Sync orchestrator — native fetch-based queue processor with 409 conflict detection
+- Conflict resolution modal — side-by-side local/server comparison with keep-local/keep-server/merge options
+- Offline banner — visual indicator for offline/syncing/conflict states
+- Sync indicator — dot in dashboard nav bar showing sync status
+- Visibility API sync trigger — auto-sync when tab becomes visible or connection restored
+- Offline state store — Zustand store tracking online/offline/syncing/conflict status
+- IndexedDB queue manager — pending-operations store with entity and timestamp indexes
+- Workbox CacheFirst patterns — cache /api/meals/shopping-list* and /api/chores/instances* (5 min)
+- Workbox NetworkFirst — cache /api/* with 60s stale-while-revalidate
+- Sync pulse animation — CSS animation for sync indicator
+
+### Changed
+- Version bump 0.23 → 0.24
+
+---
+
 ## [0.23] - 2026-06-13
 
 ### Fixed
