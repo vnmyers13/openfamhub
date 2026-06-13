@@ -24,7 +24,9 @@ export default function WallDisplay() {
   const [mode, setMode] = useState<DisplayMode>('grid');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(8);
   const timerRef = useRef<number | null>(null);
+  const countdownRef = useRef<number | null>(null);
 
   const { data: events } = useQuery({
     queryKey: ['wall-events'],
@@ -49,13 +51,25 @@ export default function WallDisplay() {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = window.setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % cyclingPanels.length);
+      setTimeRemaining(8);
     }, 8000);
+    const startTime = Date.now();
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = window.setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const remaining = Math.max(0, Math.ceil(8 - elapsed));
+      setTimeRemaining(remaining);
+    }, 1000);
   }, [cyclingPanels.length]);
 
   const stopCycling = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
     }
   }, []);
 
@@ -146,8 +160,7 @@ export default function WallDisplay() {
         {!isHovered && cyclingPanels.length > 1 && (
           <div className="text-center mt-2 px-4">
             <p className="text-slate-500 text-sm">
-              Auto-advancing in{' '}
-              {Math.ceil((8000 - (Date.now() % 8000)) / 1000)}s...
+              Auto-advancing in {timeRemaining}s...
             </p>
           </div>
         )}
@@ -165,9 +178,7 @@ export default function WallDisplay() {
         {mode === 'grid' ? renderGridMode() : renderCyclingMode()}
 
         <div
-          className={`px-4 py-3 bg-slate-900/80 backdrop-blur flex items-center justify-between transition-opacity duration-300 ${
-            isHovered ? 'opacity-100' : 'opacity-0 hover:opacity-100'
-          }`}
+          className="px-4 py-3 bg-slate-900/80 backdrop-blur flex items-center justify-between"
         >
           <div className="flex gap-3">
             <button
