@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/client";
+import { enqueueOperation } from "../lib/idb";
+import { useOfflineStore } from "../lib/offline-state";
 
 type Tab = "planner" | "recipes" | "shopping";
 
@@ -88,8 +90,18 @@ export default function MealsPage() {
   const [addItemError, setAddItemError] = useState("")
 
   const addShoppingItemMutation = useMutation({
-    mutationFn: (data: { item: string; quantity?: string }) =>
-      api.post('/meals/shopping-list', data).then(r => r.data),
+    mutationFn: (data: { item: string; quantity?: string }) => {
+      if (!navigator.onLine) {
+        enqueueOperation({
+          type: 'create',
+          entity: 'shopping-item',
+          data,
+          endpoint: '/meals/shopping-list',
+        })
+        useOfflineStore.getState().incrementPending()
+      }
+      return api.post('/meals/shopping-list', data).then(r => r.data)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meals", "shopping"] });
       setShoppingItemForm({ item: "", quantity: "" });
@@ -102,8 +114,18 @@ export default function MealsPage() {
   })
 
   const updateShoppingItemMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<ShoppingItem> }) =>
-      api.patch(`/meals/shopping-list/${id}`, data).then(r => r.data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<ShoppingItem> }) => {
+      if (!navigator.onLine) {
+        enqueueOperation({
+          type: 'update',
+          entity: 'shopping-item',
+          data: { id, ...data },
+          endpoint: '/meals/shopping-list',
+        })
+        useOfflineStore.getState().incrementPending()
+      }
+      return api.patch(`/meals/shopping-list/${id}`, data).then(r => r.data)
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meals", "shopping"] }),
   });
 
