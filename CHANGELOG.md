@@ -10,6 +10,10 @@
 - Books route was in navigation but had no corresponding route defined
 
 ### Added
+- Weather widget on dashboard sidebar and wall display
+- Weather location configuration in setup wizard
+- Inline weather location editing via dashboard widget
+- Open-Meteo integration for weather data (free, no API key)
 - ChoreInstanceAdminResponse schema with title and assigned_to_name fields
 - GET /api/chores/admin/instances endpoint with status_filter, start_date, end_date params
 - Admin tab tests (4 tests: access, filtering by status, filtering by date range)
