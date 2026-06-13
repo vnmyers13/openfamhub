@@ -6,6 +6,7 @@ import MenuWallPanel from '../components/MenuWallPanel';
 import CalendarWallView from '../components/CalendarWallView';
 import ChoresWallPanel from '../components/ChoresWallPanel';
 import AnnouncementsWallPanel from '../components/AnnouncementsWallPanel';
+import DateTimeWallPanel from '../components/DateTimeWallPanel';
 
 interface WallEvent {
   id: string;
@@ -45,6 +46,7 @@ export default function WallDisplay() {
     { type: 'announcements' as const, title: 'Announcements' },
     { type: 'weather' as const, title: 'Weather' },
     { type: 'menu' as const, title: "Today's Menu" },
+    { type: 'datetime' as const, title: 'Date & Time' },
   ];
 
   const startCycling = useCallback(() => {
@@ -91,14 +93,17 @@ export default function WallDisplay() {
 
   const renderGridMode = () => (
     <div className="h-full flex flex-col">
-      <div className="h-[25vh] grid grid-cols-3 gap-2 p-2">
-        <div className="rounded-xl bg-white/5 border border-white/10 overflow-hidden">
+      <div className="h-[25vh] grid grid-cols-4 gap-2 p-2">
+        <div className="col-span-1 rounded-xl bg-white/5 border border-white/10 overflow-hidden">
+          <DateTimeWallPanel />
+        </div>
+        <div className="col-span-1 rounded-xl bg-white/5 border border-white/10 overflow-hidden">
           <AnnouncementsWallPanel />
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 overflow-hidden">
+        <div className="col-span-1 rounded-xl bg-white/5 border border-white/10 overflow-hidden">
           <WeatherWidget mode="wall" />
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 overflow-hidden">
+        <div className="col-span-1 rounded-xl bg-white/5 border border-white/10 overflow-hidden">
           <MenuWallPanel />
         </div>
       </div>
@@ -129,6 +134,8 @@ export default function WallDisplay() {
           return <WeatherWidget mode="wall" />;
         case 'menu':
           return <MenuWallPanel />;
+        case 'datetime':
+          return <DateTimeWallPanel />;
         default:
           return null;
       }
