@@ -222,6 +222,15 @@ class ChoreInstanceAdminResponse(BaseModel):
     point_value: int
 
 
+class WallChoreResponse(BaseModel):
+    id: str
+    title: str
+    assigned_to_name: Optional[str] = None
+    status: str
+    due_date: str
+    completed_at: Optional[str] = None
+
+
 class ChoreCompletionLogResponse(BaseModel):
     id: str
     instance_id: str

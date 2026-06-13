@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -16,6 +16,7 @@ from app.schemas.models import (
     ChoreStatsResponse,
     ChoreQuickAdd,
     ChoreInstanceAdminResponse,
+    WallChoreResponse,
 )
 from app.models import Chore, ChoreInstance, ChoreCompletionLog, User, UserStreak
 
@@ -218,6 +219,43 @@ async def list_chore_instances(
             created_at=str(i.created_at),
         )
         for i in instances
+    ]
+
+
+@router.get("/wall", response_model=list[WallChoreResponse])
+async def list_wall_chores(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get today's chores (pending + completed) for wall display."""
+    today = datetime.now(timezone.utc).date().isoformat()
+
+    query = (
+        select(ChoreInstance, Chore, User)
+        .join(Chore, ChoreInstance.chore_template_id == Chore.id)
+        .outerjoin(User, ChoreInstance.assigned_to_id == User.id)
+        .where(
+            or_(
+                ChoreInstance.due_date == today,
+                ChoreInstance.completed_at != None,  # noqa: E711
+            )
+        )
+        .order_by(ChoreInstance.status, ChoreInstance.due_date)
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    return [
+        WallChoreResponse(
+            id=inst.id,
+            title=chore.title,
+            assigned_to_name=user.name if user else None,
+            status=inst.status,
+            due_date=inst.due_date,
+            completed_at=str(inst.completed_at) if inst.completed_at else None,
+        )
+        for inst, chore, user in rows
     ]
 
 
