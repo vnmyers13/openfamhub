@@ -17,5 +17,6 @@ All 8 wall display tasks are ✅ DONE.
 
 - Backend: 19/59 tests passed (40 pre-existing failures in events/meals/rewards)
 - Frontend: Build succeeded
-- Commit: 1fcc6e6
-- All 8 wall display tasks are ✅ DONE
+- Commits: 1fcc6e6, 766f131, 94c46f0
+- New components: MenuWallPanel, CalendarWallView, ChoresWallPanel, AnnouncementsWallPanel
+- WallDisplay refactored into thin composer with 25vh/75vh split layout
