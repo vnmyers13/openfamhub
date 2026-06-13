@@ -1,3 +1,20 @@
+## [0.22] - 2026-06-12
+
+### Added
+- Wall display enhancement — redesigned layout with 25vh/75vh split
+- MenuWallPanel — today's meal planning display (breakfast, lunch, dinner, snack)
+- CalendarWallView — 4 view modes (agenda, daily, weekly, monthly) with toggle buttons
+- ChoresWallPanel — pending/all toggle with color-coded status badges
+- AnnouncementsWallPanel — 7-day filtered announcements with max 5 display
+- Top row: announcements | weather | menu (25vh)
+- Bottom area: calendar (70%) | chores (30%) (75vh)
+- WallDisplay refactored into thin composer with new component architecture
+
+### Changed
+- Version bump 0.21 → 0.22
+
+---
+
 ## [0.21] - 2026-06-12
 
 ### Changed
