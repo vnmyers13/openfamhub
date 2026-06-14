@@ -317,7 +317,7 @@ export default function MealsPage() {
           <div className="flex gap-3">
             <button
               onClick={() => setShowScanModal(true)}
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition whitespace-nowrap"
+              className="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition whitespace-nowrap"
             >
               Scan Recipe
             </button>

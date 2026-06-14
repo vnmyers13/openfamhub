@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import * as Tesseract from 'tesseract.js'
-import { parseLines, classifyLines, compressImage } from '../lib/ocr-utils'
+import { parseLines, classifyLines, compressImage, bitmapToBlob } from '../lib/ocr-utils'
 
 interface ScanListModalProps {
   isOpen: boolean
@@ -47,26 +47,6 @@ export function ScanListModal({
     reader.readAsDataURL(file)
   }, [])
 
-  const bitmapToBlob = async (bitmap: ImageBitmap): Promise<Blob> => {
-    const canvas = document.createElement('canvas')
-    canvas.width = bitmap.width
-    canvas.height = bitmap.height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Could not get canvas context')
-    ctx.drawImage(bitmap, 0, 0)
-    bitmap.close()
-    return new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (blob) resolve(blob)
-          else reject(new Error('Canvas toBlob failed'))
-        },
-        'image/jpeg',
-        0.8
-      )
-    })
-  }
-
   const startOCR = useCallback(async (file: File) => {
     setStage('processing')
     setProgress(0)
@@ -100,7 +80,8 @@ export function ScanListModal({
       }))
 
       setExtractedLines(classifiedWithCategory)
-      setRecipeTitle(lines[0])
+      const titleLine = lines.find((line) => !classified.ingredients.includes(line)) ?? lines[0]
+      setRecipeTitle(titleLine)
       setStage('preview')
     } catch {
       setProcessingError('Scan failed')
@@ -163,7 +144,7 @@ export function ScanListModal({
   }, [])
 
   const handleAddLine = useCallback(() => {
-    setExtractedLines((prev) => [...prev, { text: '', category: mode === 'recipe' ? 'ingredient' : 'ingredient' }])
+    setExtractedLines((prev) => [...prev, { text: '', category: mode === 'recipe' ? 'step' : 'ingredient' }])
   }, [mode])
 
   const handleSubmit = useCallback(() => {

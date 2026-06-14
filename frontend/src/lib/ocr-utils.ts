@@ -46,6 +46,7 @@ export async function compressImage(blob: Blob): Promise<ImageBitmap> {
 
   const ctx = canvas.getContext('2d')
   if (!ctx) {
+    bitmap.close()
     throw new Error('Could not get canvas context')
   }
 
@@ -64,4 +65,24 @@ export async function compressImage(blob: Blob): Promise<ImageBitmap> {
   })
 
   return createImageBitmap(compressedBlob)
+}
+
+export async function bitmapToBlob(bitmap: ImageBitmap): Promise<Blob> {
+  const canvas = document.createElement('canvas')
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Could not get canvas context')
+  ctx.drawImage(bitmap, 0, 0)
+  bitmap.close()
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob)
+        else reject(new Error('Canvas toBlob failed'))
+      },
+      'image/jpeg',
+      0.8
+    )
+  })
 }
