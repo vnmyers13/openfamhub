@@ -48,6 +48,28 @@ Navigate to `https://openfamhub.local` and complete the setup wizard to create y
 Caddy generates a self-signed CA cert for local HTTPS. Trust it on each device:
 - [macOS / Windows / Linux / iOS / Android / Pi OS](./docs/cert-trust.md)
 
+### Installing the PWA
+
+OpenFamHub is a Progressive Web App — install it on Android or iOS for a native-like experience with offline read support.
+
+**Requirements:**
+- HTTPS connection (trust the Caddy CA cert first — see above)
+- iOS 16+ or Android 8+
+
+**Install on iPhone / iPad (Safari):**
+1. Open `https://openfamhub.local` in Safari
+2. Tap the **Share** button (square with arrow up)
+3. Tap **Add to Home Screen**
+4. Tap **Add**
+
+**Install on Android (Chrome):**
+1. Open `https://openfamhub.local` in Chrome
+2. Tap the **⋮** menu (or the install icon in the address bar)
+3. Tap **Install App**
+4. Tap **Install**
+
+Once installed, OpenFamHub appears as a standalone app with its own icon, launches without the browser chrome, and caches calendar and chore data for offline viewing.
+
 ## Wall Display
 
 Set up a dedicated wall display on a Raspberry Pi:
@@ -114,6 +136,21 @@ Daily backups are stored in `./data/backups`. To manually restore:
 ```bash
 sqlite3 ./data/db/homehub.db ".restore './data/backups/homehub_YYYY-MM-DD.db'"
 ```
+
+## Future Enhancements
+
+Planned improvements for upcoming releases:
+
+- **Modern App Icon** — Replace current PWA icons with a fresh, modern design that better represents the family hub experience
+- **Family Chat** — Real-time messaging between family members for quick coordination
+- **Subscription Tracker** — Monitor all household subscriptions (streaming, utilities, etc.) with renewal alerts
+- **Bill & Expense Tracking** — Shared household budget view with bill due-date reminders
+- **Photo Sharing** — Private family album for event photos and milestones
+- **Medical Records** — Store vaccination history, allergies, and upcoming appointments for each member
+- **Announcements** — Pinned messages for school closures, plumber visits, and other time-sensitive family info
+- **Pantry Inventory** — Track food at home with expiration dates to reduce waste
+- **Savings Goals** — Kids set and track targets for bigger rewards with visual progress bars
+- **Multi-Home Support** — Manage multiple households (e.g., grandparents, second home) from one account
 
 ## Contributing
 
