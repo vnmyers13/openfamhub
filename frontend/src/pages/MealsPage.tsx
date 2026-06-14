@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/client";
 import { enqueueOperation } from "../lib/idb";
 import { useOfflineStore } from "../lib/offline-state";
+import { ScanListModal } from "../components/ScanListModal";
 
 type Tab = "planner" | "recipes" | "shopping";
 
@@ -88,6 +89,7 @@ export default function MealsPage() {
   const [shoppingItemForm, setShoppingItemForm] = useState({ item: "", quantity: "" })
   const [showAddItemForm, setShowAddItemForm] = useState(false)
   const [addItemError, setAddItemError] = useState("")
+  const [showScanModal, setShowScanModal] = useState(false)
 
   const addShoppingItemMutation = useMutation({
     mutationFn: (data: { item: string; quantity?: string }) => {
@@ -133,6 +135,28 @@ export default function MealsPage() {
     mutationFn: (id: string) => api.delete(`/meals/plans/${id}`).then(r => r.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meals", "plans"] }),
   });
+
+  const handleShoppingItemsExtracted = useCallback(
+    (items: string[]) => {
+      items.forEach((item) => {
+        addShoppingItemMutation.mutate({ item });
+      });
+    },
+    [addShoppingItemMutation]
+  );
+
+  const handleRecipeExtracted = useCallback(
+    (recipe: { title: string; ingredients_raw: string; steps_raw: string; content_text: string }) => {
+      createRecipeMutation.mutate({
+        title: recipe.title,
+        content_text: recipe.content_text,
+        ingredients_raw: recipe.ingredients_raw,
+        steps_raw: recipe.steps_raw,
+        dietary_tag_ids: [],
+      });
+    },
+    [createRecipeMutation]
+  );
 
   // Week navigation helpers
   const changeWeek = (delta: number) => {
@@ -281,6 +305,12 @@ export default function MealsPage() {
       {activeTab === "recipes" && (
         <div className="space-y-4">
           <div className="flex gap-3">
+            <button
+              onClick={() => setShowScanModal(true)}
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition whitespace-nowrap"
+            >
+              Scan Recipe
+            </button>
             <input
               type="text"
               placeholder="Search recipes..."
@@ -353,12 +383,20 @@ export default function MealsPage() {
             >
               🔄 Regenerate
             </button>
-            <button
-              onClick={() => setShowAddItemForm(true)}
-              className="px-4 py-2 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition"
-            >
-              + Add Item
-            </button>
+            <div className="flex gap-3">
+                <button
+                  onClick={() => setShowAddItemForm(true)}
+                  className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition"
+                >
+                  + Add Item
+                </button>
+                <button
+                  onClick={() => setShowScanModal(true)}
+                  className="flex-1 px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition"
+                >
+                  Scan List
+                </button>
+              </div>
           </div>
 
           {showAddItemForm && (
@@ -475,6 +513,15 @@ export default function MealsPage() {
           </div>
         </div>
       )}
+
+      {/* Scan List Modal */}
+      <ScanListModal
+        isOpen={showScanModal}
+        mode="shopping"
+        onClose={() => setShowScanModal(false)}
+        onItemsExtracted={handleShoppingItemsExtracted}
+        onRecipeExtracted={handleRecipeExtracted}
+      />
     </div>
   );
 }
