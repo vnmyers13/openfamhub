@@ -5,7 +5,7 @@ const STORE_NAME = 'pending-operations'
 export interface PendingOperation {
   id: string
   type: 'create' | 'update' | 'delete'
-  entity: 'shopping-item' | 'chore-instance'
+  entity: 'shopping-item' | 'chore-instance' | 'recipe'
   data: Record<string, unknown>
   endpoint: string
   timestamp: number
@@ -71,7 +71,7 @@ export async function dequeueOperation(id: string): Promise<void> {
   })
 }
 
-export async function clearOperations(entity?: 'shopping-item' | 'chore-instance'): Promise<void> {
+export async function clearOperations(entity?: 'shopping-item' | 'chore-instance' | 'recipe'): Promise<void> {
   const db = await openDB()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite')
@@ -88,7 +88,7 @@ export async function clearOperations(entity?: 'shopping-item' | 'chore-instance
   })
 }
 
-export async function getOperationCount(entity?: 'shopping-item' | 'chore-instance'): Promise<number> {
+export async function getOperationCount(entity?: 'shopping-item' | 'chore-instance' | 'recipe'): Promise<number> {
   const db = await openDB()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly')

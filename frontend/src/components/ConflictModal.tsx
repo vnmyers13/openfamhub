@@ -72,6 +72,9 @@ export function ConflictModal({ onRetry }: ConflictModalProps) {
     if (entity === 'shopping-item') {
       return { ...server, ...local, checked: false }
     }
+    if (entity === 'recipe') {
+      return { ...server, ...local }
+    }
     return { ...server, ...local }
   }
 

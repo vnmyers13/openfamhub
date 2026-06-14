@@ -75,8 +75,18 @@ export default function MealsPage() {
 
   // Mutations
   const createRecipeMutation = useMutation({
-    mutationFn: (data: { title: string; content_text: string; ingredients_raw?: string; steps_raw?: string; dietary_tag_ids: string[] }) =>
-      api.post('/meals/recipes', data).then(r => r.data),
+    mutationFn: (data: { title: string; content_text: string; ingredients_raw?: string; steps_raw?: string; dietary_tag_ids: string[] }) => {
+      if (!navigator.onLine) {
+        enqueueOperation({
+          type: 'create',
+          entity: 'recipe',
+          data,
+          endpoint: '/meals/recipes',
+        })
+        useOfflineStore.getState().incrementPending()
+      }
+      return api.post('/meals/recipes', data).then(r => r.data)
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meals", "recipes"] }),
   });
 
