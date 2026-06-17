@@ -4,7 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     FAMILY_NAME: str = "MyFamily"
-    TIMEZONE: str = "America/Chicago"
+    TIMEZONE: str = "America/Detroit"
     SECRET_KEY: str = "change-me-in-production"
     DATA_PATH: str = "./data"
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/db/openfamhub.db"
