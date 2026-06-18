@@ -96,6 +96,20 @@ export const choreAPI = {
       page: number;
       page_size: number;
     }>('/chores/admin/instances', { params }).then(r => r.data),
+
+  getAssignedInstances: () =>
+    api.get<{
+      id: string;
+      chore_template_id: string;
+      title: string;
+      assigned_to_id: string;
+      assigned_to_name: string;
+      status: string;
+      due_date: string;
+      completed_at?: string;
+      points_awarded: number;
+      claimed_by_id?: string;
+    }[]>('/chores/assigned').then(r => r.data),
   claimInstance: (id: string) =>
     api.post(`/chores/instances/${id}/claim`).then(r => r.data),
   completeInstance: (id: string) =>

@@ -70,6 +70,10 @@ async def on_startup():
     global scheduler
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        from sqlalchemy import text
+        await conn.execute(text("ALTER TABLE chores ADD COLUMN recurrence_rule TEXT NOT NULL DEFAULT 'none'"))
+        await conn.execute(text("ALTER TABLE chores ADD COLUMN default_assigned_to_id TEXT"))
+        await conn.commit()
 
     from app.core.database import async_session_factory
     scheduler = AsyncIOScheduler()

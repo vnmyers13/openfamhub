@@ -8,7 +8,7 @@ import { FaArrowLeft } from 'react-icons/fa'
 import { enqueueOperation } from '../lib/idb'
 import { useOfflineStore } from '../lib/offline-state'
 
-type Tab = 'my' | 'available' | 'history' | 'templates' | 'admin'
+type Tab = 'my' | 'available' | 'history' | 'templates' | 'admin' | 'assigned'
 
 interface ChoreTemplate {
   id: string
@@ -117,6 +117,12 @@ export default function ChoresPage() {
     }),
   })
 
+  const { data: assignedData, isLoading: assignedLoading } = useQuery({
+    queryKey: ['assigned-chores'],
+    queryFn: () => choreAPI.getAssignedInstances(),
+    refetchInterval: 30000,
+  })
+
   const createMutation = useMutation({
     mutationFn: choreAPI.createTemplate,
     onSuccess: () => {
@@ -161,6 +167,12 @@ export default function ChoresPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chores-instances'] })
+      queryClient.invalidateQueries({ queryKey: ['assigned-chores'] })
+    },
+    onError: (error: any) => {
+      console.error('Failed to claim chore:', error)
+      const detail = error?.response?.data?.detail || error?.message || 'Unknown error'
+      alert(`Failed to claim chore: ${detail}`)
     },
   })
 
@@ -233,6 +245,7 @@ export default function ChoresPage() {
     { key: 'my', label: 'My Chores' },
     { key: 'available', label: 'Available' },
     { key: 'history', label: 'History' },
+    { key: 'assigned', label: 'Assigned' },
     { key: 'templates', label: 'Templates', adminOnly: true },
     { key: 'admin', label: 'Admin', adminOnly: true },
   ]
@@ -461,6 +474,16 @@ export default function ChoresPage() {
               onEndDateChange={setEndDate}
               onSortColumnChange={setSortColumn}
               onSortDirectionChange={setSortDirection}
+            />
+          </div>
+        )}
+
+        {activeTab === 'assigned' && (
+          <div className="space-y-4">
+            <AssignedChoresView
+              assignedData={assignedData}
+              assignedLoading={assignedLoading}
+              claimMutation={claimMutation}
             />
           </div>
         )}
@@ -798,6 +821,156 @@ function AdminChoresView({
         <p className="text-xs text-gray-500 text-right">
           Showing {adminData.items?.length || 0} of {adminData.total} total
         </p>
+      )}
+    </>
+  )
+}
+
+function AssignedChoresView({
+  assignedData,
+  assignedLoading,
+  claimMutation,
+}: {
+  assignedData: any[] | undefined
+  assignedLoading: boolean
+  claimMutation: any
+}) {
+  const [viewMode, setViewMode] = useState<'list' | 'byUser'>('list')
+
+  const userGroups = assignedData ? (() => {
+    const groups: Record<string, any[]> = {}
+    const sorted = [...assignedData].sort((a, b) => {
+      const aName = a.assigned_to_name || 'Unassigned'
+      const bName = b.assigned_to_name || 'Unassigned'
+      return aName.localeCompare(bName)
+    })
+    sorted.forEach(item => {
+      const key = item.assigned_to_name || 'Unassigned'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(item)
+    })
+    return groups
+  })() : undefined
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-blue-100 text-blue-800',
+    claimed: 'bg-yellow-100 text-yellow-800',
+    completed: 'bg-green-100 text-green-800',
+    expired: 'bg-red-100 text-red-800',
+  }
+
+  return (
+    <>
+      <div className="flex gap-1 bg-gray-800 rounded-lg p-1 w-fit">
+        <button
+          className={`px-3 py-1 rounded text-sm ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+          onClick={() => setViewMode('list')}
+        >
+          List
+        </button>
+        <button
+          className={`px-3 py-1 rounded text-sm ${viewMode === 'byUser' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+          onClick={() => setViewMode('byUser')}
+        >
+          By User
+        </button>
+      </div>
+
+      {assignedLoading ? (
+        <p className="text-gray-400 text-center py-8">Loading...</p>
+      ) : !assignedData || assignedData.length === 0 ? (
+        <p className="text-gray-400 text-center py-8">No assigned chores found</p>
+      ) : viewMode === 'list' ? (
+        <div className="bg-gray-800 rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-700">
+                <th className="px-4 py-2 text-left">Title</th>
+                <th className="px-4 py-2 text-left">Assigned To</th>
+                <th className="px-4 py-2 text-left">Status</th>
+                <th className="px-4 py-2 text-left">Due Date</th>
+                <th className="px-4 py-2 text-left">Completed</th>
+                <th className="px-4 py-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assignedData.map((item: any) => (
+                <tr key={item.id} className="border-b border-gray-700">
+                  <td className="px-4 py-2 font-medium">{item.title}</td>
+                  <td className="px-4 py-2 text-gray-400">{item.assigned_to_name || 'Unassigned'}</td>
+                  <td className="px-4 py-2">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${statusColors[item.status] || 'bg-gray-100 text-gray-800'}`}>
+                      {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-gray-400">{new Date(item.due_date).toLocaleDateString()}</td>
+                  <td className="px-4 py-2 text-gray-400">{item.completed_at ? new Date(item.completed_at).toLocaleDateString() : '-'}</td>
+                  <td className="px-4 py-2">
+                    {item.status === 'pending' && !item.assigned_to_id && !item.claimed_by_id && (
+                      <button
+                        className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs transition"
+                        onClick={() => claimMutation.mutate(item.id)}
+                        disabled={claimMutation.isPending}
+                      >
+                        Claim
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(userGroups || {}).map(([userName, userChores]) => {
+            const pendingCount = userChores.filter((c: any) => c.status === 'pending' || c.status === 'claimed').length
+            const completedCount = userChores.filter((c: any) => c.status === 'completed').length
+            return (
+              <div key={userName} className="bg-gray-800 rounded-lg overflow-hidden">
+                <div className="px-4 py-3 bg-gray-750 border-b border-gray-700 flex items-center justify-between">
+                  <div>
+                    <span className="font-medium">{userName}</span>
+                    <span className="text-gray-400 text-sm ml-2">
+                      {pendingCount} pending · {completedCount} completed
+                    </span>
+                  </div>
+                  <span className="text-gray-400 text-sm">{userChores.length} total</span>
+                </div>
+                <div className="divide-y divide-gray-700">
+                  {userChores
+                    .sort((a: any, b: any) => {
+                      const statusOrder: Record<string, number> = { pending: 0, claimed: 1, completed: 2, expired: 3 }
+                      return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0) || new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+                    })
+                    .map((item: any) => (
+                      <div key={item.id} className="px-4 py-2 flex items-center justify-between">
+                        <div className="flex-1">
+                          <span className="font-medium">{item.title}</span>
+                          <span className="text-gray-400 text-sm ml-2">
+                            Due: {new Date(item.due_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${statusColors[item.status] || 'bg-gray-100 text-gray-800'}`}>
+                          {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                        </span>
+                        {item.status === 'pending' && !item.assigned_to_id && !item.claimed_by_id && (
+                          <button
+                            className="ml-3 px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs transition"
+                            onClick={() => claimMutation.mutate(item.id)}
+                            disabled={claimMutation.isPending}
+                          >
+                            Claim
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
     </>
   )

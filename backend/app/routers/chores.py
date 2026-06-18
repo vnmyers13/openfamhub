@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -219,6 +219,48 @@ async def list_chore_instances(
             created_at=str(i.created_at),
         )
         for i in instances
+    ]
+
+
+@router.get("/assigned", response_model=list[ChoreInstanceAdminResponse])
+async def list_assigned_chore_instances(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    now_utc = datetime.now(timezone.utc)
+    cutoff = (now_utc - timedelta(hours=48)).isoformat()
+
+    query = (
+        select(ChoreInstance, Chore, User)
+        .join(Chore, ChoreInstance.chore_template_id == Chore.id)
+        .outerjoin(User, ChoreInstance.assigned_to_id == User.id)
+        .where(
+            or_(
+                ChoreInstance.status.in_(["pending", "claimed", "expired"]),
+                and_(ChoreInstance.status == "completed", ChoreInstance.completed_at >= cutoff),
+            )
+        )
+        .order_by(ChoreInstance.due_date, ChoreInstance.status)
+    )
+    result = await db.execute(query)
+    rows = result.all()
+
+    return [
+        ChoreInstanceAdminResponse(
+            id=inst.id,
+            chore_template_id=inst.chore_template_id,
+            title=chore.title,
+            assigned_to_id=inst.assigned_to_id,
+            assigned_to_name=user.name if user else None,
+            due_date=inst.due_date,
+            status=inst.status,
+            claimed_by_id=inst.claimed_by_id,
+            claimed_at=str(inst.claimed_at) if inst.claimed_at else None,
+            completed_by_id=inst.completed_by_id,
+            completed_at=str(inst.completed_at) if inst.completed_at else None,
+            point_value=chore.point_value,
+        )
+        for inst, chore, user in rows
     ]
 
 
