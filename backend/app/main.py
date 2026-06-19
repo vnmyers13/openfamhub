@@ -71,8 +71,12 @@ async def on_startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         from sqlalchemy import text
-        await conn.execute(text("ALTER TABLE chores ADD COLUMN recurrence_rule TEXT NOT NULL DEFAULT 'none'"))
-        await conn.execute(text("ALTER TABLE chores ADD COLUMN default_assigned_to_id TEXT"))
+        columns = (await conn.execute(text("PRAGMA table_info(chores)"))).fetchall()
+        col_names = [c[1] for c in columns]
+        if "recurrence_rule" not in col_names:
+            await conn.execute(text("ALTER TABLE chores ADD COLUMN recurrence_rule TEXT NOT NULL DEFAULT 'none'"))
+        if "default_assigned_to_id" not in col_names:
+            await conn.execute(text("ALTER TABLE chores ADD COLUMN default_assigned_to_id TEXT"))
         await conn.commit()
 
     from app.core.database import async_session_factory
