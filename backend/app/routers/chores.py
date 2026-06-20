@@ -193,7 +193,11 @@ async def list_chore_instances(
 
     if not is_admin:
         query = query.where(
-            ChoreInstance.assigned_to_id == user_id | ChoreInstance.claimed_by_id == user_id
+            or_(
+                ChoreInstance.assigned_to_id == user_id,
+                ChoreInstance.claimed_by_id == user_id,
+                and_(ChoreInstance.status == "pending", ChoreInstance.assigned_to_id == None),  # noqa: E711
+            )
         )
 
     if status_filter:

@@ -2,6 +2,9 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
+APP_VERSION = "0.29"
+
+
 class Settings(BaseSettings):
     FAMILY_NAME: str = "MyFamily"
     TIMEZONE: str = "America/Detroit"
@@ -11,7 +14,7 @@ class Settings(BaseSettings):
 
     @property
     def app_version(self) -> str:
-        return "0.28"
+        return APP_VERSION
 
     @property
     def data_db_path(self) -> str:

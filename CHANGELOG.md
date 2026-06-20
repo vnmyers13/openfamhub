@@ -1,3 +1,32 @@
+## [0.29] - 2026-06-20
+
+### Fixed
+- Chores: non-admin users can now quick-add chores (GET /api/users/profiles no longer requires admin)
+- Chores: non-admin users can now see and claim unassigned pending chores in the Available tab
+- Chores: all users can now see the Assigned tab showing all users' assigned chores
+
+---
+
+## [0.28] - 2026-06-19
+
+### Fixed
+- CalendarPage: non-admin users can no longer click "Add Calendar Source" (hidden behind admin role check)
+- CalendarPage: non-admin users can no longer see Edit/Delete/Sync buttons on calendar sources
+- API interceptor no longer causes generic "Failed to load users" errors on 401/403 — silently redirects to login
+- GET /api/calendar/events now requires authentication (was publicly accessible)
+
+### Changed
+- Version bump 0.27 → 0.28
+
+---
+
+## [0.27] - 2026-06-18
+
+### Changed
+- Version bump 0.26 → 0.27
+
+---
+
 ## [0.26] - 2026-06-13
 
 ### Fixed

@@ -1,6 +1,6 @@
 FROM python:3.12-alpine
 
-LABEL version="0.28"
+LABEL version="0.29"
 LABEL description="OpenFamHub API Backend"
 
 WORKDIR /app
