@@ -1,13 +1,13 @@
 {
   "document": "OpenFamHub Release Checklist",
   "version": "1.0",
-  "description": "Complete step-by-step release process. Every release — no matter how small — follows every step in order. No step is optional.",
+  "description": "Complete step-by-step release process. Every release \u2014 no matter how small \u2014 follows every step in order. No step is optional.",
   "agent_instructions": {
     "role": "You are a release engineer executing the OpenFamHub release process. Work through every phase and every step in exact order. Do not proceed to the next step until the current step's verify command returns the expected output. If any step fails, stop and report the failure before continuing.",
     "working_directory": "/home/dev/openfamhub",
     "python_environment": "source backend/.venv/bin/activate before any Python/alembic/pytest command",
-    "version_format": "MAJOR.MINOR — always two decimal places e.g. 0.10, 0.11, 1.00. Increment MINOR by 1 per release (0.10 → 0.11). A MAJOR bump resets MINOR to 0.",
-    "canonical_version_file": "backend/app/core/config.py — the APP_VERSION constant is the single source of truth",
+    "version_format": "MAJOR.MINOR \u2014 always two decimal places e.g. 0.10, 0.11, 1.00. Increment MINOR by 1 per release (0.10 \u2192 0.11). A MAJOR bump resets MINOR to 0.",
+    "canonical_version_file": "backend/app/core/config.py \u2014 the APP_VERSION constant is the single source of truth",
     "abort_rule": "If any test fails or any verify command returns unexpected output, STOP the release. Fix the issue and restart from Phase 3 (tests).",
     "project_name": "OpenFamHub (repo: vnmyers13/openfamhub)",
     "dockerhub_username": "vnmyers13",
@@ -28,7 +28,7 @@
           "commands": [
             "# Fetch all open issues from the repo (replace vnmyers13/openfamhub)",
             "curl -s 'https://api.github.com/repos/vnmyers13/openfamhub/issues?state=open&per_page=100' -H 'Accept: application/vnd.github.v3+json' > /tmp/gh_issues.json",
-            "python3 -c \"import json; issues=json.load(open('/tmp/gh_issues.json')); [print(f\\\"#{i['number']} [{i['labels'][0]['name'] if i['labels'] else 'unlabeled'}] {i['title']} — {i['html_url']}\\\") for i in issues]\""
+            "python3 -c \"import json; issues=json.load(open('/tmp/gh_issues.json')); [print(f\\\"#{i['number']} [{i['labels'][0]['name'] if i['labels'] else 'unlabeled'}] {i['title']} \u2014 {i['html_url']}\\\") for i in issues]\""
           ],
           "verify": "cat /tmp/gh_issues.json | python3 -c \"import json,sys; d=json.load(sys.stdin); print(f'Fetched {len(d)} open issues')\"",
           "note": "If GITHUB_TOKEN is set, add -H 'Authorization: token $GITHUB_TOKEN' for private rate limits"
@@ -159,7 +159,7 @@
             "new_minor = minor + 1",
             "old_ver = f'{major}.{minor:02d}'",
             "new_ver = f'{major}.{new_minor:02d}'",
-            "print(f'Bumping {old_ver} → {new_ver}')",
+            "print(f'Bumping {old_ver} \u2192 {new_ver}')",
             "",
             "# Files that contain the version string",
             "files_to_update = {",
@@ -173,14 +173,14 @@
             "for filepath, replacement in files_to_update.items():",
             "    p = pathlib.Path(filepath)",
             "    if not p.exists():",
-            "        print(f'  SKIP {filepath} — not found')",
+            "        print(f'  SKIP {filepath} \u2014 not found')",
             "        continue",
             "    if replacement is None:",
             "        continue",
             "    old, new = replacement",
             "    text = p.read_text()",
             "    if old not in text:",
-            "        print(f'  WARN {filepath} — old version string not found, skipping')",
+            "        print(f'  WARN {filepath} \u2014 old version string not found, skipping')",
             "        continue",
             "    p.write_text(text.replace(old, new))",
             "    print(f'  Updated {filepath}')",
@@ -205,7 +205,7 @@
             "'''",
             "changelog_path.write_text(entry + existing)",
             "print(f'  Prepended entry to CHANGELOG.md')",
-            "print(f'\\nVersion bump complete: {old_ver} → {new_ver}')",
+            "print(f'\\nVersion bump complete: {old_ver} \u2192 {new_ver}')",
             "print('ACTION REQUIRED: Edit CHANGELOG.md and fill in the release notes before committing.')",
             "PYEOF"
           ],
@@ -218,7 +218,7 @@
           "type": "MANUAL",
           "instruction": "Open CHANGELOG.md in your editor. Fill in the three sections (Changed, Fixed, Added) for this release. Do not leave placeholder text. Save the file before proceeding.",
           "verify": "python3 -c \"import pathlib; text=pathlib.Path('CHANGELOG.md').read_text(); assert 'describe changes here' not in text, 'CHANGELOG still has placeholder text'; print('CHANGELOG OK')\"",
-          "note": "This step cannot be automated — it requires human judgement about what changed"
+          "note": "This step cannot be automated \u2014 it requires human judgement about what changed"
         }
       ]
     },
@@ -282,7 +282,7 @@
           "title": "Check that GitHub repo description and topics are current",
           "type": "MANUAL",
           "instruction": "Navigate to https://github.com/vnmyers13/openfamhub. Click the gear icon next to About. Verify: (1) Description is accurate, (2) Website field is correct if applicable, (3) Topics include: self-hosted, docker, raspberry-pi, family-calendar, fastapi, react, pwa. Update any that are stale. Screenshot or note the current description for the release notes.",
-          "verify": "echo 'MANUAL_STEP — confirm GitHub description reviewed before continuing'"
+          "verify": "echo 'MANUAL_STEP \u2014 confirm GitHub description reviewed before continuing'"
         },
         {
           "id": "P3.5",
@@ -315,7 +315,7 @@
     },
     {
       "id": "P4",
-      "title": "Test Suite — Full Run",
+      "title": "Test Suite \u2014 Full Run",
       "description": "Every test must pass. Zero failures, zero errors. No skipped tests without documented reason.",
       "steps": [
         {
@@ -338,7 +338,7 @@
             "cd backend && pytest tests/ -v --tb=short --strict-markers 2>&1 | tee /tmp/pytest_output.txt",
             "echo 'Exit code:' $?"
           ],
-          "verify": "python3 -c \"output=open('/tmp/pytest_output.txt').read(); assert 'failed' not in output.lower() or '0 failed' in output, 'TESTS FAILED — see /tmp/pytest_output.txt'; passed=__import__('re').search(r'(\\d+) passed',output); print(f'Tests: {passed.group(0) if passed else \\\"unknown\\\"}'); print('ALL TESTS PASS')\"",
+          "verify": "python3 -c \"output=open('/tmp/pytest_output.txt').read(); assert 'failed' not in output.lower() or '0 failed' in output, 'TESTS FAILED \u2014 see /tmp/pytest_output.txt'; passed=__import__('re').search(r'(\\d+) passed',output); print(f'Tests: {passed.group(0) if passed else \\\"unknown\\\"}'); print('ALL TESTS PASS')\"",
           "on_failure": "STOP RELEASE. Fix all failing tests before continuing. Do not proceed with a broken test suite."
         },
         {
@@ -357,7 +357,7 @@
             "# Clean up",
             "rm -f test_release.db"
           ],
-          "verify": "echo 'Migration round-trip test complete — all three steps must print OK above'"
+          "verify": "echo 'Migration round-trip test complete \u2014 all three steps must print OK above'"
         },
         {
           "id": "P4.4",
@@ -367,7 +367,7 @@
             "cd frontend && npm run build 2>&1 | tee /tmp/frontend_build.txt",
             "echo 'Frontend build exit code:' $?"
           ],
-          "verify": "python3 -c \"output=open('/tmp/frontend_build.txt').read(); assert 'error' not in output.lower() or 'TypeScript' not in output, 'FRONTEND BUILD ERRORS — see /tmp/frontend_build.txt'; print('Frontend build OK')\"",
+          "verify": "python3 -c \"output=open('/tmp/frontend_build.txt').read(); assert 'error' not in output.lower() or 'TypeScript' not in output, 'FRONTEND BUILD ERRORS \u2014 see /tmp/frontend_build.txt'; print('Frontend build OK')\"",
           "on_failure": "STOP RELEASE. Fix all TypeScript/build errors before continuing."
         },
         {
@@ -378,7 +378,7 @@
             "docker compose build --no-cache 2>&1 | tee /tmp/docker_build.txt",
             "echo 'Docker build exit code:' $?"
           ],
-          "verify": "python3 -c \"output=open('/tmp/docker_build.txt').read(); assert 'ERROR' not in output, 'DOCKER BUILD FAILED — see /tmp/docker_build.txt'; print('Docker build OK')\"",
+          "verify": "python3 -c \"output=open('/tmp/docker_build.txt').read(); assert 'ERROR' not in output, 'DOCKER BUILD FAILED \u2014 see /tmp/docker_build.txt'; print('Docker build OK')\"",
           "on_failure": "STOP RELEASE. Fix Docker build errors before continuing."
         },
         {
@@ -391,7 +391,7 @@
             "curl -sk https://openfamhub.local/api/health",
             "docker compose down"
           ],
-          "verify": "docker compose up -d && sleep 8 && curl -sk https://openfamhub.local/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Smoke test OK — version:', d.get('version','?'))\" && docker compose down"
+          "verify": "docker compose up -d && sleep 8 && curl -sk https://openfamhub.local/api/health | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['status']=='ok'; print('Smoke test OK \u2014 version:', d.get('version','?'))\" && docker compose down"
         },
         {
           "id": "P4.7",
@@ -410,7 +410,7 @@
             "ver = ver_match.group(1) if ver_match else 'unknown'",
             "",
             "result = f'''",
-            "## Release {ver} — Test Run — {datetime.datetime.now().isoformat()}",
+            "## Release {ver} \u2014 Test Run \u2014 {datetime.datetime.now().isoformat()}",
             "- pytest: {passed.group(0) if passed else 'unknown'} {'FAILED: ' + failed.group(0) if failed else '0 failed'}",
             "- Frontend build: OK",
             "- Docker build: OK",
@@ -440,14 +440,14 @@
             "git status",
             "git diff --stat"
           ],
-          "verify": "git status | grep -E 'modified|new file' && echo 'Files staged — review above before proceeding'"
+          "verify": "git status | grep -E 'modified|new file' && echo 'Files staged \u2014 review above before proceeding'"
         },
         {
           "id": "P5.2",
           "title": "Final review of staged changes",
           "type": "MANUAL",
           "instruction": "Review the git diff output above. Confirm: (1) No .env file is staged (it must never be committed). (2) No test database files (*.db) are staged. (3) CHANGELOG.md has real release notes (no placeholders). (4) Version number in config.py matches the expected new version. Only then continue.",
-          "verify": "git diff --cached --name-only | python3 -c \"import sys; files=sys.stdin.read(); assert '.env' not in files, 'ERROR: .env is staged — unstage it immediately'; assert '.db' not in files, 'ERROR: .db file is staged'; print('Staged files clean — no secrets or databases')\""
+          "verify": "git diff --cached --name-only | python3 -c \"import sys; files=sys.stdin.read(); assert '.env' not in files, 'ERROR: .env is staged \u2014 unstage it immediately'; assert '.db' not in files, 'ERROR: .db file is staged'; print('Staged files clean \u2014 no secrets or databases')\""
         },
         {
           "id": "P5.3",
@@ -473,7 +473,7 @@
           "type": "SHELL",
           "commands": [
             "NEW_VER=$(cat /tmp/new_version.txt)",
-            "git tag -a \"v${NEW_VER}\" -m \"Release v${NEW_VER} — see CHANGELOG.md\"",
+            "git tag -a \"v${NEW_VER}\" -m \"Release v${NEW_VER} \u2014 see CHANGELOG.md\"",
             "echo \"Created tag v${NEW_VER}\""
           ],
           "verify": "git tag --sort=-creatordate | head -1 | python3 -c \"import sys; tag=sys.stdin.read().strip(); assert tag.startswith('v'), f'Latest tag {tag} does not start with v'; print(f'Tag verified: {tag}')\""
@@ -543,7 +543,7 @@
             "",
             "# Create the release using GitHub CLI (if installed)",
             "NEW_VER=$(cat /tmp/new_version.txt)",
-            "gh release create \"v${NEW_VER}\" --title \"OpenFamHub v${NEW_VER}\" --notes-file /tmp/release_notes.md 2>/dev/null || echo 'gh CLI not found — create the release manually at https://github.com/vnmyers13/openfamhub/releases/new'"
+            "gh release create \"v${NEW_VER}\" --title \"OpenFamHub v${NEW_VER}\" --notes-file /tmp/release_notes.md 2>/dev/null || echo 'gh CLI not found \u2014 create the release manually at https://github.com/vnmyers13/openfamhub/releases/new'"
           ],
           "verify": "echo 'Verify GitHub Release is visible at https://github.com/vnmyers13/openfamhub/releases'"
         }
@@ -563,7 +563,7 @@
             "echo 'Logged in to Docker Hub'"
           ],
           "verify": "docker info 2>/dev/null | grep 'Username' && echo DOCKERHUB_LOGIN_OK",
-          "note": "Set DOCKERHUB_USERNAME env var before running. Password will be prompted interactively. Use a Docker Hub access token (not your account password) — generate one at https://hub.docker.com/settings/security"
+          "note": "Set DOCKERHUB_USERNAME env var before running. Password will be prompted interactively. Use a Docker Hub access token (not your account password) \u2014 generate one at https://hub.docker.com/settings/security"
         },
         {
           "id": "P7.2",
@@ -617,7 +617,10 @@
             "",
             "echo \"All images pushed for v${NEW_VER}\""
           ],
-          "verify": "NEW_VER=$(cat /tmp/new_version.txt) && echo 'Verify at: https://hub.docker.com/r/'${DOCKERHUB_USERNAME}'/openfamhub-api/tags'"
+          "verify": "NEW_VER=$(cat /tmp/new_version.txt) && echo 'Verify at: https://hub.docker.com/r/'${DOCKERHUB_USERNAME}'/openfamhub-api/tags'",
+          "status": "completed",
+          "completed_at": "2026-06-20",
+          "notes": "All 4 tags pushed (api:0.29, api:latest, web:0.29, web:latest) \u2014 verified via docker pull"
         },
         {
           "id": "P7.5",
@@ -633,7 +636,7 @@
             "token = os.environ.get('DOCKERHUB_TOKEN', '')",
             "",
             "if not token:",
-            "    print('DOCKERHUB_TOKEN not set — update Docker Hub description manually at:')",
+            "    print('DOCKERHUB_TOKEN not set \u2014 update Docker Hub description manually at:')",
             "    print(f'  https://hub.docker.com/r/{username}/openfamhub-api')",
             "    exit(0)",
             "",
@@ -652,21 +655,21 @@
             "        print(f'Failed to update {repo_name}: {e}')",
             "PYEOF"
           ],
-          "verify": "echo 'Docker Hub README update attempted — verify manually if DOCKERHUB_TOKEN was not set'"
+          "verify": "echo 'Docker Hub README update attempted \u2014 verify manually if DOCKERHUB_TOKEN was not set'"
         }
       ]
     },
     {
       "id": "P8",
       "title": "Post-Release Housekeeping",
-      "description": "Close the loop — update tracking files and confirm everything is in order.",
+      "description": "Close the loop \u2014 update tracking files and confirm everything is in order.",
       "steps": [
         {
           "id": "P8.1",
-          "title": "Update TODO.md — mark resolved items",
+          "title": "Update TODO.md \u2014 mark resolved items",
           "type": "MANUAL",
           "instruction": "Open TODO.md. For every item that was fixed in this release: change '- [ ]' to '- [x]' and append '(fixed in vX.XX)'. Move the completed items to a 'Completed' section at the bottom of the file. Save.",
-          "verify": "grep -c '\\- \\[x\\]' TODO.md | python3 -c \"import sys; n=int(sys.stdin.read()); print(f'{n} items marked complete in TODO.md')\" || echo 'No completed items yet — OK for first release'"
+          "verify": "grep -c '\\- \\[x\\]' TODO.md | python3 -c \"import sys; n=int(sys.stdin.read()); print(f'{n} items marked complete in TODO.md')\" || echo 'No completed items yet \u2014 OK for first release'"
         },
         {
           "id": "P8.2",
@@ -685,7 +688,7 @@
             "releases_dir = pathlib.Path('docs/releases')",
             "releases_dir.mkdir(parents=True, exist_ok=True)",
             "",
-            "summary = f'''# Release v{ver} — {date}",
+            "summary = f'''# Release v{ver} \u2014 {date}",
             "",
             "**Git SHA:** {sha}",
             "**Date:** {date}",
@@ -732,17 +735,17 @@
           "title": "Announce release (optional)",
           "type": "MANUAL",
           "instruction": "If the project has a Discord, Slack, or community forum: post a brief release announcement with the version number and the key changes from CHANGELOG.md. Link to the GitHub Release page.",
-          "verify": "echo 'MANUAL_STEP — optional announcement'"
+          "verify": "echo 'MANUAL_STEP \u2014 optional announcement'"
         }
       ]
     }
   ],
   "quick_reference": {
     "full_checklist_order": [
-      "P1: Check GitHub issues → update TODO.md + FUTURE_ENHANCEMENTS.md",
+      "P1: Check GitHub issues \u2192 update TODO.md + FUTURE_ENHANCEMENTS.md",
       "P2: Bump version in config.py, Dockerfile, README, CHANGELOG",
       "P3: Verify all documentation is accurate",
-      "P4: Run full test suite — ALL must pass before continuing",
+      "P4: Run full test suite \u2014 ALL must pass before continuing",
       "P5: git commit with structured message + annotated tag",
       "P6: Push to GitHub + wait for CI + create GitHub Release",
       "P7: Build Docker images + smoke test + push to Docker Hub",
@@ -760,13 +763,13 @@
     "required_env_vars_for_release": {
       "DOCKERHUB_USERNAME": "Your Docker Hub username",
       "DOCKERHUB_TOKEN": "Docker Hub access token (from hub.docker.com/settings/security)",
-      "GITHUB_TOKEN": "Optional — increases GitHub API rate limit for issue fetching"
+      "GITHUB_TOKEN": "Optional \u2014 increases GitHub API rate limit for issue fetching"
     },
     "files_that_record_version": [
-      "backend/app/core/config.py — APP_VERSION (canonical source)",
-      "backend/Dockerfile — LABEL version= or ENV VERSION=",
-      "README.md — version badge or quick-start reference",
-      "CHANGELOG.md — top entry header"
+      "backend/app/core/config.py \u2014 APP_VERSION (canonical source)",
+      "backend/Dockerfile \u2014 LABEL version= or ENV VERSION=",
+      "README.md \u2014 version badge or quick-start reference",
+      "CHANGELOG.md \u2014 top entry header"
     ]
   }
 }
