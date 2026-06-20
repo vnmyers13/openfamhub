@@ -719,7 +719,10 @@
             "print(f'Release summary written to {out_path}')",
             "PYEOF"
           ],
-          "verify": "ls docs/releases/*.md | head -1 && echo RELEASE_SUMMARY_OK"
+          "verify": "ls docs/releases/*.md | head -1 && echo RELEASE_SUMMARY_OK",
+          "status": "completed",
+          "completed_at": "2026-06-20",
+          "notes": "Deployed to prod 192.168.10.13 \u2014 API v0.29 healthy, web frontend OK"
         },
         {
           "id": "P8.3",
