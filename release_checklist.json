@@ -545,7 +545,10 @@
             "NEW_VER=$(cat /tmp/new_version.txt)",
             "gh release create \"v${NEW_VER}\" --title \"OpenFamHub v${NEW_VER}\" --notes-file /tmp/release_notes.md 2>/dev/null || echo 'gh CLI not found \u2014 create the release manually at https://github.com/vnmyers13/openfamhub/releases/new'"
           ],
-          "verify": "echo 'Verify GitHub Release is visible at https://github.com/vnmyers13/openfamhub/releases'"
+          "verify": "echo 'Verify GitHub Release is visible at https://github.com/vnmyers13/openfamhub/releases'",
+          "status": "completed",
+          "completed_at": "2026-06-20",
+          "notes": "Created at https://github.com/vnmyers13/openfamhub/releases/tag/v0.29"
         }
       ]
     },
