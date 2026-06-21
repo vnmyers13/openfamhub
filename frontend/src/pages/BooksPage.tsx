@@ -45,7 +45,7 @@ export default function BooksPage() {
   const { data: allUsers = [] } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const res = await api.get('/users')
+      const res = await api.get('/users/profiles')
       return res.data as User[]
     },
   })
