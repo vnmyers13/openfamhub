@@ -36,10 +36,25 @@ export default function AnnouncementsPage() {
     },
   });
 
+  const deleteAnnouncement = useMutation({
+    mutationFn: async (announcementId: string) => {
+      await api.delete(`/announcements/${announcementId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (content.trim()) {
       createAnnouncement.mutate(content.trim());
+    }
+  };
+
+  const handleDelete = (announcementId: string) => {
+    if (window.confirm("Delete this announcement?")) {
+      deleteAnnouncement.mutate(announcementId);
     }
   };
 
@@ -130,6 +145,14 @@ export default function AnnouncementsPage() {
                   </div>
                   <p className="text-white whitespace-pre-wrap">{announcement.content}</p>
                 </div>
+                <button
+                  onClick={() => handleDelete(announcement.id)}
+                  className="p-1 text-slate-400 hover:text-red-400 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
           ))}

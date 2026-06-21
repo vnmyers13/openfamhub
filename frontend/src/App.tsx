@@ -11,6 +11,7 @@ import RewardsPage from './pages/RewardsPage'
 import ChoresPage from './pages/ChoresPage'
 import MealsPage from './pages/MealsPage'
 import BooksPage from './pages/BooksPage'
+import PhotosPage from './pages/PhotosPage'
 import { useAuthStore } from './stores/auth'
 import { useSyncOnVisible } from './hooks/useSyncOnVisible'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -48,6 +49,7 @@ function App() {
         <Route path="meals" element={<MealsPage />} />
         <Route path="rewards" element={<RewardsPage />} />
         <Route path="books" element={<BooksPage />} />
+        <Route path="photos" element={<PhotosPage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="manage-users" element={<ManageUsers />} />
       </Route>

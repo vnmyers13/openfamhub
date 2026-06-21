@@ -17,6 +17,7 @@ from app.models.event import (
     BadgeDefinition,
     UserBadge,
     UserStreak,
+    Photo,
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     "BadgeDefinition",
     "UserBadge",
     "UserStreak",
+    "Photo",
 ]

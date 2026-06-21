@@ -14,6 +14,11 @@ interface Book {
   updated_at: string
 }
 
+interface User {
+  id: string
+  name: string
+}
+
 export default function BooksPage() {
   const [activeTab, setActiveTab] = useState<'my' | 'shared'>('my')
   const [showForm, setShowForm] = useState(false)
@@ -36,6 +41,18 @@ export default function BooksPage() {
       return res.data as Book[]
     },
   })
+
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const res = await api.get('/users')
+      return res.data as User[]
+    },
+  })
+
+  const getUserById = (userId: string) => {
+    return allUsers.find(u => u.id === userId)?.name || userId
+  }
 
   const createMutation = useMutation({
     mutationFn: (data: { title: string; author?: string; status: string; notes?: string }) =>
@@ -246,7 +263,7 @@ export default function BooksPage() {
                         {book.author && <p className="text-sm text-gray-400">by {book.author}</p>}
                         {book.notes && <p className="text-sm text-gray-300 mt-1">{book.notes}</p>}
                         {activeTab === 'shared' && (
-                          <p className="text-xs text-gray-500 mt-1">Added by {book.created_by_id}</p>
+                          <p className="text-xs text-gray-500 mt-1">Added by {getUserById(book.created_by_id)}</p>
                         )}
                       </div>
                       <div className="flex gap-1">

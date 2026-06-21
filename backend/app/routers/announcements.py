@@ -76,3 +76,23 @@ async def toggle_pin(
     await db.flush()
 
     return {"message": f"Announcement {'pinned' if announcement.is_pinned else 'unpinned'}"}
+
+
+@router.delete("/{announcement_id}")
+async def delete_announcement(
+    announcement_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Announcement).where(Announcement.id == announcement_id)
+    )
+    announcement = result.scalar_one_or_none()
+
+    if announcement is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Announcement not found")
+
+    announcement.is_deleted = True
+    await db.flush()
+
+    return {"message": "Announcement deleted"}

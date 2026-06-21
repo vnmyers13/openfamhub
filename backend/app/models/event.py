@@ -202,6 +202,17 @@ class AllowanceLedger(Base):
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class Photo(Base, TimestampMixin):
+    __tablename__ = "photos"
+    
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=lambda: str(uuid4()))
+    title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    file_path: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by_id: Mapped[str | None] = mapped_column(Text, ForeignKey("users.id"), nullable=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
 class Reward(Base, TimestampMixin):
     __tablename__ = "rewards"
 

@@ -12,6 +12,7 @@ import {
   FaTasks,
   FaGift,
   FaUtensils,
+  FaCamera,
 } from "react-icons/fa";
 
 interface Event {
@@ -210,6 +211,19 @@ export default function DashboardHome() {
             </div>
             <p className="text-blue-100 text-sm">
               Launch the TV wall display for your home
+            </p>
+          </div>
+
+          <div
+            className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl p-6 text-white cursor-pointer hover:from-purple-500 hover:to-purple-700 transition"
+            onClick={() => navigate("/dashboard/photos")}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <FaCamera className="text-2xl" />
+              <h2 className="text-xl font-bold">Photo Library</h2>
+            </div>
+            <p className="text-purple-100 text-sm">
+              Upload and manage family photos for the wall display
             </p>
           </div>
 

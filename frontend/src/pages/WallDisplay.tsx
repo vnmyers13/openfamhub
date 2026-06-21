@@ -7,6 +7,7 @@ import CalendarWallView from '../components/CalendarWallView';
 import ChoresWallPanel from '../components/ChoresWallPanel';
 import AnnouncementsWallPanel from '../components/AnnouncementsWallPanel';
 import DateTimeWallPanel from '../components/DateTimeWallPanel';
+import PhotoLibraryWallPanel from '../components/PhotoLibraryWallPanel';
 
 interface WallEvent {
   id: string;
@@ -47,6 +48,7 @@ export default function WallDisplay() {
     { type: 'weather' as const, title: 'Weather' },
     { type: 'menu' as const, title: "Today's Menu" },
     { type: 'datetime' as const, title: 'Date & Time' },
+    { type: 'photos' as const, title: 'Family Photos' },
   ];
 
   const startCycling = useCallback(() => {
@@ -136,6 +138,8 @@ export default function WallDisplay() {
           return <MenuWallPanel />;
         case 'datetime':
           return <DateTimeWallPanel />;
+        case 'photos':
+          return <PhotoLibraryWallPanel />;
         default:
           return null;
       }
@@ -183,39 +187,39 @@ export default function WallDisplay() {
     >
       <div className="flex-1 flex flex-col overflow-hidden">
         {mode === 'grid' ? renderGridMode() : renderCyclingMode()}
+      </div>
 
-        <div
-          className="px-4 py-3 bg-slate-900/80 backdrop-blur flex items-center justify-between"
-        >
-          <div className="flex gap-3">
-            <button
-              onClick={() => setMode('grid')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                mode === 'grid'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
-              }`}
-            >
-              Grid View
-            </button>
-            <button
-              onClick={() => setMode('cycling')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                mode === 'cycling'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
-              }`}
-            >
-              Cycling Panels
-            </button>
-          </div>
+      <div
+        className="flex-shrink-0 px-4 py-3 bg-slate-900/80 backdrop-blur flex items-center justify-between border-t border-white/10"
+      >
+        <div className="flex gap-3">
           <button
-            onClick={() => window.location.href = '/'}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-slate-300 rounded-lg text-sm transition"
+            onClick={() => setMode('grid')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+              mode === 'grid'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+            }`}
           >
-            Exit Display
+            Grid View
+          </button>
+          <button
+            onClick={() => setMode('cycling')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+              mode === 'cycling'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+            }`}
+          >
+            Cycling Panels
           </button>
         </div>
+        <button
+          onClick={() => window.location.href = '/'}
+          className="px-4 py-2 bg-white/10 hover:bg-white/20 text-slate-300 rounded-lg text-sm transition"
+        >
+          Exit Display
+        </button>
       </div>
     </div>
   );

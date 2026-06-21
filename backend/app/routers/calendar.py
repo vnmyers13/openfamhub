@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import require_admin
+from app.core.security import require_admin, get_current_user
 from app.schemas.models import (
     CalendarSourceCreate, CalendarSourceUpdate, CalendarSourceResponse,
     CalendarEventResponse, SyncLogResponse,
@@ -171,6 +171,7 @@ async def get_sync_log(
 @router.get("/events", response_model=list[CalendarEventResponse])
 async def list_calendar_events(
     db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(
         select(CalendarEvent)
