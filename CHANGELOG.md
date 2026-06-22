@@ -1,3 +1,21 @@
+## [1.0.1] - 2026-06-21
+
+### Fixed
+- Dashboard: chore stats 500 error (ChoreCompletionLog.completed_by_id attribute fix)
+- Dashboard: meal plans 500 error (response schema mismatch)
+- Books page: 404 on /api/users endpoint (changed to /api/users/profiles)
+- Photo upload: 500 error (created_by → created_by_id)
+- Photo library: GUID displayed instead of user names
+
+### Added
+- Dashboard aggregation router with chore stats, rewards, and meal plans endpoints
+- Photo library page with upload, preview, and delete functionality
+- Photo Library Wall Panel component for wall display auto-cycling
+- Wall display footer fix (moved outside flex-1 container)
+- Announcement delete functionality
+
+---
+
 ## [0.29] - 2026-06-20
 
 ### Fixed
