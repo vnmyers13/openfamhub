@@ -14,7 +14,7 @@ interface RBCEvent {
   start: Date
   end: Date
   allDay: boolean
-  resource: { color: string }
+  resource: { color: string; sourceName: string }
 }
 
 const locales = { 'en-US': enUS }
@@ -34,13 +34,16 @@ export default function CalendarPage() {
     return (localStorage.getItem(VIEW_KEY) as ViewType) || 'month'
   })
   const [date, setDate] = useState(new Date())
-  const [filterIds, setFilterIds] = useState<Set<string>>(new Set())
+  // Track hidden sources (not visible ones) so new sources show up by default.
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
   const [selectedEvent, setSelectedEvent] = useState<RBCEvent | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const swipeRef = useRef<HTMLDivElement>(null)
   const swipeCb = useRef({ view, date })
 
-  swipeCb.current = { view, date }
+  useEffect(() => {
+    swipeCb.current = { view, date }
+  }, [view, date])
 
   useGesture(
     {
@@ -70,12 +73,6 @@ export default function CalendarPage() {
     localStorage.setItem(VIEW_KEY, view)
   }, [view])
 
-  useEffect(() => {
-    if (sources.length > 0 && filterIds.size === 0) {
-      setFilterIds(new Set(sources.map((s) => s.id)))
-    }
-  }, [sources])
-
   const handleNavigate = useCallback((newDate: Date) => {
     setDate(newDate)
   }, [])
@@ -103,7 +100,7 @@ export default function CalendarPage() {
   }
 
   const toggleFilter = (id: string) => {
-    setFilterIds((prev) => {
+    setHiddenIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -111,18 +108,23 @@ export default function CalendarPage() {
     })
   }
 
+  const sourceNames = useMemo(() => new Map(sources.map((s) => [s.id, s.display_name])), [sources])
+
   const filteredEvents = useMemo(() => {
     return events
-      .filter((e) => filterIds.has(e.source_id))
+      .filter((e) => !hiddenIds.has(e.source_id))
       .map((e) => ({
         id: e.id,
         title: e.title,
         start: eventStart(e),
         end: eventEnd(e),
         allDay: e.all_day,
-        resource: { color: e.source_color_hex || '#4F46E5' },
+        resource: {
+          color: e.source_color_hex || '#4F46E5',
+          sourceName: sourceNames.get(e.source_id) ?? 'Calendar',
+        },
       }))
-  }, [events, filterIds])
+  }, [events, hiddenIds, sourceNames])
 
   const { mutateAsync: createEvent } = useCreateEvent()
   const { mutateAsync: deleteEvent } = useDeleteEvent()
@@ -169,12 +171,12 @@ export default function CalendarPage() {
                 key={s.id}
                 onClick={() => toggleFilter(s.id)}
                 className={`px-3 py-1 rounded-full text-sm border transition ${
-                  filterIds.has(s.id)
+                  !hiddenIds.has(s.id)
                     ? 'text-white border-transparent'
                     : 'text-gray-500 border-gray-700'
                 }`}
                 style={{
-                  backgroundColor: filterIds.has(s.id) ? s.color_hex : 'transparent',
+                  backgroundColor: !hiddenIds.has(s.id) ? s.color_hex : 'transparent',
                 }}
               >
                 {s.display_name}
@@ -239,7 +241,7 @@ export default function CalendarPage() {
             {selectedEvent.resource && (
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedEvent.resource.color }} />
-                <span className="text-gray-400 text-sm">Family Calendar</span>
+                <span className="text-gray-400 text-sm">{selectedEvent.resource.sourceName}</span>
               </div>
             )}
             <div className="flex gap-2 mt-4">
@@ -277,25 +279,27 @@ function CreateEventModal({
   onClose: () => void
   onCreate: (data: { title: string; start_dt: string; end_dt: string; all_day?: boolean; location?: string; description?: string }) => Promise<void>
 }) {
+  // Default to now -> one hour from now (computed once, on open).
+  const [initial] = useState(() => {
+    const now = new Date()
+    const later = new Date(now.getTime() + 60 * 60 * 1000)
+    return {
+      startDate: format(now, 'yyyy-MM-dd'),
+      startTime: format(now, 'HH:mm'),
+      endDate: format(later, 'yyyy-MM-dd'),
+      endTime: format(later, 'HH:mm'),
+    }
+  })
   const [title, setTitle] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [startTime, setStartTime] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [endTime, setEndTime] = useState('')
+  const [startDate, setStartDate] = useState(initial.startDate)
+  const [startTime, setStartTime] = useState(initial.startTime)
+  const [endDate, setEndDate] = useState(initial.endDate)
+  const [endTime, setEndTime] = useState(initial.endTime)
   const [allDay, setAllDay] = useState(false)
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    const now = new Date()
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
-    setStartDate(format(now, 'yyyy-MM-dd'))
-    setStartTime(format(now, 'HH:mm'))
-    setEndDate(format(oneHourLater, 'yyyy-MM-dd'))
-    setEndTime(format(oneHourLater, 'HH:mm'))
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

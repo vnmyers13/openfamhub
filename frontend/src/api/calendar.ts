@@ -71,6 +71,8 @@ export function useCreateEvent() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar-events'] })
+      // The first manual event creates the internal "Family Calendar" source.
+      qc.invalidateQueries({ queryKey: ['calendar-sources'] })
     },
   })
 }
