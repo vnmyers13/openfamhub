@@ -5,6 +5,7 @@ import { enUS } from 'date-fns/locale/en-US'
 import { useGesture } from '@use-gesture/react'
 import { useCalendarEvents, useCalendarSources, useCreateEvent, useDeleteEvent } from '../api/calendar'
 import { useAuthStore } from '../stores/auth'
+import { allDayEndIso, allDayStartIso, eventEnd, eventStart, localDateTimeIso } from '../lib/dates'
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda'
 interface RBCEvent {
@@ -116,8 +117,8 @@ export default function CalendarPage() {
       .map((e) => ({
         id: e.id,
         title: e.title,
-        start: new Date(e.start_dt),
-        end: new Date(e.end_dt),
+        start: eventStart(e),
+        end: eventEnd(e),
         allDay: e.all_day,
         resource: { color: e.source_color_hex || '#4F46E5' },
       }))
@@ -285,6 +286,7 @@ function CreateEventModal({
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const now = new Date()
@@ -298,16 +300,29 @@ function CreateEventModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title) return
+    setError('')
+    // Timed events are sent as real UTC instants; all-day events as dates
+    // (00:00Z) with an exclusive end, matching iCal.
+    const startDt = allDay ? allDayStartIso(startDate) : localDateTimeIso(startDate, startTime)
+    const endDt = allDay ? allDayEndIso(endDate) : localDateTimeIso(endDate, endTime)
+    if (new Date(endDt) <= new Date(startDt)) {
+      setError('End must be after start')
+      return
+    }
     setSaving(true)
-    const startDt = allDay ? `${startDate}T00:00:00Z` : `${startDate}T${startTime}:00Z`
-    const endDt = allDay ? `${endDate}T23:59:59Z` : `${endDate}T${endTime}:00Z`
-    await onCreate({ title, start_dt: startDt, end_dt: endDt, all_day: allDay, location: location || undefined, description: description || undefined })
+    try {
+      await onCreate({ title, start_dt: startDt, end_dt: endDt, all_day: allDay, location: location || undefined, description: description || undefined })
+    } catch {
+      setError('Could not save the event')
+      setSaving(false)
+    }
   }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl p-6 max-w-md w-full border border-gray-800 space-y-3" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-xl font-bold text-white">New Event</h2>
+        {error && <div className="bg-red-900/50 text-red-300 px-3 py-2 rounded text-sm">{error}</div>}
         <input
           className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
           placeholder="Event title"

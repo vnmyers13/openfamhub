@@ -1,7 +1,8 @@
 import { Suspense } from 'react'
 import { useAuthStore } from '../stores/auth'
 import { useCalendarEvents, useCalendarSources } from '../api/calendar'
-import { startOfDay, endOfDay } from 'date-fns'
+import { startOfDay, endOfDay, format } from 'date-fns'
+import { eventDayKeys, eventStart } from '../lib/dates'
 
 function Greeting() {
   const user = useAuthStore((s) => s.user)
@@ -22,6 +23,10 @@ function TodaysEventsWidget() {
     startOfDay(today),
     endOfDay(today),
   )
+  const todayKey = format(today, 'yyyy-MM-dd')
+  // The range query is by overlap in UTC; all-day events are dates, so keep only
+  // those that actually fall on today's local date.
+  const todays = events.filter((ev) => !ev.all_day || eventDayKeys(ev).includes(todayKey))
 
   if (isLoading) {
     return (
@@ -35,11 +40,11 @@ function TodaysEventsWidget() {
   return (
     <div className="rounded-xl bg-slate-800 p-4">
       <h2 className="mb-3 text-lg font-semibold text-white">Today's Events</h2>
-      {events.length === 0 && (
+      {todays.length === 0 && (
         <p className="text-sm text-slate-400">No events scheduled for today.</p>
       )}
       <div className="flex flex-col gap-2">
-        {events.map((ev) => (
+        {todays.map((ev) => (
           <div
             key={ev.id}
             className="flex items-center gap-3 rounded bg-slate-700/50 px-3 py-2"
@@ -52,7 +57,7 @@ function TodaysEventsWidget() {
             <span className="text-xs text-slate-400">
               {ev.all_day
                 ? 'All day'
-                : new Date(ev.start_dt).toLocaleTimeString([], {
+                : eventStart(ev).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
                   })}

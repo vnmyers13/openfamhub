@@ -1,8 +1,9 @@
 import { useEffect, useMemo } from 'react'
-import { addDays, format, parseISO, startOfDay } from 'date-fns'
+import { addDays, format, startOfDay } from 'date-fns'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCalendarEvents } from '../api/calendar'
 import { cn } from '../lib/utils'
+import { eventDayKeys, eventStart } from '../lib/dates'
 
 interface CalendarEvent {
   id: string
@@ -79,15 +80,16 @@ export default function WallSevenDayStrip() {
       map[key] = []
     }
     for (const ev of events) {
-      const d = parseISO(ev.start_dt)
-      const key = format(d, 'yyyy-MM-dd')
-      if (map[key]) {
-        map[key].push(ev)
+      for (const key of eventDayKeys(ev)) {
+        map[key]?.push(ev)
       }
     }
     for (const key of Object.keys(map)) {
+      // All-day first, then by start time.
       map[key].sort(
-        (a, b) => new Date(a.start_dt).getTime() - new Date(b.start_dt).getTime(),
+        (a, b) =>
+          Number(b.all_day) - Number(a.all_day) ||
+          eventStart(a).getTime() - eventStart(b).getTime(),
       )
     }
     return map
@@ -135,7 +137,7 @@ export default function WallSevenDayStrip() {
                   </span>
                   {!ev.all_day && (
                     <span className="text-xs text-slate-400">
-                      {format(parseISO(ev.start_dt), 'HH:mm')}
+                      {format(eventStart(ev), 'HH:mm')}
                     </span>
                   )}
                   {ev.all_day && (
