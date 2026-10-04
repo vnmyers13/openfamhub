@@ -12,14 +12,45 @@ export default function CalendarSettings() {
   const [logSourceId, setLogSourceId] = useState<string | null>(null)
 
   const { mutateAsync: addIcal, isPending: adding } = useAddIcalSource()
-  const { mutateAsync: syncSource, isPending: syncing } = useSyncSource()
+  const { mutateAsync: syncSource, isPending: syncing, variables: syncingId } = useSyncSource()
   const { mutateAsync: deleteSource } = useDeleteCalendarSource()
+  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+
+  const errorText = (err: unknown, fallback: string) =>
+    (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback
+
+  const handleSync = async (id: string, name: string) => {
+    setMessage(null)
+    try {
+      const res = await syncSource(id)
+      setMessage(res.ok ? { kind: 'ok', text: `Synced ${name}` } : { kind: 'error', text: `${name}: ${res.error}` })
+    } catch (err) {
+      setMessage({ kind: 'error', text: errorText(err, 'Sync failed') })
+    }
+  }
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete "${name}"? Its events will be removed from the calendar.`)) return
+    setMessage(null)
+    try {
+      await deleteSource(id)
+      if (logSourceId === id) setLogSourceId(null)
+    } catch (err) {
+      setMessage({ kind: 'error', text: errorText(err, 'Delete failed') })
+    }
+  }
   const { data: logs } = useSourceLogs(logSourceId)
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!url || !name) return
-    await addIcal({ ics_url: url, display_name: name, color_hex: color, sync_interval_hours: interval })
+    setMessage(null)
+    try {
+      await addIcal({ ics_url: url, display_name: name, color_hex: color, sync_interval_hours: interval })
+    } catch (err) {
+      setMessage({ kind: 'error', text: errorText(err, 'Could not add the feed') })
+      return
+    }
     setUrl('')
     setName('')
     setColor(COLOR_SWATCHES[0])
@@ -30,6 +61,11 @@ export default function CalendarSettings() {
     <div className="min-h-screen bg-gray-950 p-4">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold text-white mb-6">Calendar Settings</h1>
+        {message && (
+          <div className={`mb-4 rounded px-4 py-2 text-sm ${message.kind === 'ok' ? 'bg-green-900/40 text-green-300' : 'bg-red-900/50 text-red-300'}`}>
+            {message.text}
+          </div>
+        )}
 
         {/* Connected sources */}
         <section className="mb-8">
@@ -50,11 +86,11 @@ export default function CalendarSettings() {
                   <div className="flex gap-2">
                     {s.provider === 'ical' && (
                       <button
-                        onClick={() => syncSource(s.id)}
+                        onClick={() => handleSync(s.id, s.display_name)}
                         disabled={syncing}
                         className="bg-primary hover:bg-primary-dark text-white px-3 py-1 rounded text-sm disabled:opacity-50"
                       >
-                        {syncing ? 'Syncing...' : 'Sync Now'}
+                        {syncing && syncingId === s.id ? 'Syncing...' : 'Sync Now'}
                       </button>
                     )}
                     <button
@@ -63,12 +99,14 @@ export default function CalendarSettings() {
                     >
                       {logSourceId === s.id ? 'Hide Log' : 'Log'}
                     </button>
-                    <button
-                      onClick={() => deleteSource(s.id)}
-                      className="text-red-400 hover:text-red-300 text-sm px-2 py-1"
-                    >
-                      Delete
-                    </button>
+                    {s.provider !== 'internal' && (
+                      <button
+                        onClick={() => handleDelete(s.id, s.display_name)}
+                        className="text-red-400 hover:text-red-300 text-sm px-2 py-1"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="text-xs text-gray-500 space-y-0.5">

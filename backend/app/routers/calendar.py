@@ -20,9 +20,19 @@ from app.schemas.calendar import (
     SyncLogResponse,
 )
 from app.services.calendar import get_events_in_range, get_or_create_internal_source, get_source_logs
+from app.jobs.calendar_sync import sync_source as run_source_sync
 from app.routers.ws import event_bus
 
 router = APIRouter()
+
+
+def _parse_dt(value: str, field: str) -> datetime:
+    """Parse an ISO8601 value; naive values are taken as UTC."""
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid datetime for {field}")
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def _build_event_response(event: CalendarEvent, color_hex: str) -> CalendarEventResponse:
@@ -52,11 +62,8 @@ async def list_events(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    try:
-        start_dt = datetime.fromisoformat(start)
-        end_dt = datetime.fromisoformat(end)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid datetime format")
+    start_dt = _parse_dt(start, "start")
+    end_dt = _parse_dt(end, "end")
     return await get_events_in_range(db, current_user.family_id, start_dt, end_dt)
 
 
@@ -66,12 +73,11 @@ async def create_event(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    start_dt = _parse_dt(data.start_dt, "start_dt")
+    end_dt = _parse_dt(data.end_dt, "end_dt")
+    if end_dt <= start_dt:
+        raise HTTPException(status_code=400, detail="end_dt must be after start_dt")
     source = await get_or_create_internal_source(db, current_user.family_id)
-    try:
-        start_dt = datetime.fromisoformat(data.start_dt)
-        end_dt = datetime.fromisoformat(data.end_dt)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid datetime format")
     event = CalendarEvent(
         source_id=source.id,
         family_id=current_user.family_id,
@@ -128,9 +134,9 @@ async def update_event(
     if data.title is not None:
         values["title"] = data.title
     if data.start_dt is not None:
-        values["start_dt"] = datetime.fromisoformat(data.start_dt)
+        values["start_dt"] = _parse_dt(data.start_dt, "start_dt")
     if data.end_dt is not None:
-        values["end_dt"] = datetime.fromisoformat(data.end_dt)
+        values["end_dt"] = _parse_dt(data.end_dt, "end_dt")
     if data.all_day is not None:
         values["all_day"] = data.all_day
     if data.location is not None:
@@ -254,8 +260,12 @@ async def delete_source(
     source = result.scalar_one_or_none()
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
+    if source.provider == "internal":
+        raise HTTPException(status_code=400, detail="The family calendar can't be deleted")
     source.enabled = False
+    source.is_deleted = True
     await db.flush()
+    await event_bus.emit("calendar_updated", {"source_id": source.id})
     return {"ok": True}
 
 
@@ -269,12 +279,18 @@ async def sync_source(
         select(CalendarSource).where(
             CalendarSource.id == source_id,
             CalendarSource.family_id == current_user.family_id,
+            CalendarSource.is_deleted == False,
         )
     )
     source = result.scalar_one_or_none()
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
-    return {"ok": True, "message": "Sync triggered"}
+    if source.provider != "ical" or not source.ics_url:
+        raise HTTPException(status_code=400, detail="Only iCal sources can be synced")
+    # sync_source records its own errors on the source and in the sync log.
+    await run_source_sync(source, db)
+    await event_bus.emit("calendar_updated", {"source_id": source.id})
+    return {"ok": source.sync_error is None, "error": source.sync_error}
 
 
 @router.get("/sources/{source_id}/log", response_model=List[SyncLogResponse])

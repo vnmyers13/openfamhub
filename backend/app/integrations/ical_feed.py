@@ -60,9 +60,16 @@ def _expand_recurrence(
     return occurrences
 
 
+def normalize_ics_url(url: str) -> str:
+    """webcal:// is just http(s) with a calendar-app hint."""
+    if url.lower().startswith("webcal://"):
+        return "https://" + url[len("webcal://"):]
+    return url
+
+
 async def fetch_and_parse(url: str) -> list[dict]:
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.get(url)
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        resp = await client.get(normalize_ics_url(url))
     if resp.status_code != 200:
         raise ValueError(f"ICS fetch returned HTTP {resp.status_code}")
 

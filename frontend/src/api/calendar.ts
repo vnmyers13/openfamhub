@@ -119,6 +119,7 @@ export function useAddIcalSource() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar-sources'] })
+      qc.invalidateQueries({ queryKey: ['calendar-events'] })
     },
   })
 }
@@ -128,10 +129,12 @@ export function useSyncSource() {
   return useMutation({
     mutationFn: async (sourceId: string) => {
       const res = await apiClient.post(`/calendar/sources/${sourceId}/sync`)
-      return res.data
+      return res.data as { ok: boolean; error: string | null }
     },
-    onSuccess: () => {
+    onSettled: (_data, _err, sourceId) => {
       qc.invalidateQueries({ queryKey: ['calendar-sources'] })
+      qc.invalidateQueries({ queryKey: ['calendar-events'] })
+      qc.invalidateQueries({ queryKey: ['source-logs', sourceId] })
     },
   })
 }
@@ -144,6 +147,7 @@ export function useDeleteCalendarSource() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendar-sources'] })
+      qc.invalidateQueries({ queryKey: ['calendar-events'] })
     },
   })
 }
