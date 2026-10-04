@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { apiClient } from './api/client'
 import { useAuthStore } from './stores/auth'
 import SetupWizard from './pages/SetupWizard'
@@ -11,26 +11,51 @@ import CalendarSettings from './pages/admin/CalendarSettings'
 import NavShell from './components/NavShell'
 import WallLayout from './wall/WallLayout'
 
+// Paths an authenticated user should be moved off of after boot.
+const ENTRY_PATHS = new Set(['/', '/login', '/setup'])
+
 function AppRoutes() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { setUser } = useAuthStore()
+  const [booting, setBooting] = useState(true)
 
   useEffect(() => {
-    apiClient.get('/auth/setup/status').then((res) => {
-      if (!res.data.setup_complete) {
-        navigate('/setup', { replace: true })
-        return
+    // Read the path at mount time only; later navigation is the user's.
+    const path = window.location.pathname
+    let cancelled = false
+
+    async function boot() {
+      try {
+        const status = await apiClient.get('/auth/setup/status')
+        if (!status.data.setup_complete) {
+          navigate('/setup', { replace: true })
+          return
+        }
+        try {
+          const me = await apiClient.get('/auth/me')
+          if (cancelled) return
+          setUser(me.data)
+          if (ENTRY_PATHS.has(path)) navigate('/dashboard', { replace: true })
+        } catch {
+          if (!cancelled && path !== '/login') navigate('/login', { replace: true })
+        }
+      } catch {
+        if (!cancelled && path !== '/login') navigate('/login', { replace: true })
+      } finally {
+        if (!cancelled) setBooting(false)
       }
-      apiClient.get('/auth/me').then((res) => {
-        setUser(res.data)
-        navigate('/dashboard', { replace: true })
-      }).catch(() => {
-        navigate('/login', { replace: true })
-      })
-    }).catch(() => {
-      navigate('/login', { replace: true })
-    })
-  }, [])
+    }
+
+    boot()
+    return () => {
+      cancelled = true
+    }
+  }, [navigate, setUser])
+
+  if (booting && !ENTRY_PATHS.has(location.pathname)) {
+    return <div className="min-h-screen bg-gray-950" />
+  }
 
   return (
     <Routes>

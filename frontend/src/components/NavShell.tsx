@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/auth'
 import { apiClient } from '../api/client'
 import { cn } from '../lib/utils'
@@ -11,6 +11,7 @@ const navItems = [
 
 export default function NavShell() {
   const location = useLocation()
+  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const { clearUser } = useAuthStore()
 
@@ -29,6 +30,7 @@ export default function NavShell() {
       // ignore logout errors
     }
     clearUser()
+    navigate('/login', { replace: true })
   }
 
   return (
