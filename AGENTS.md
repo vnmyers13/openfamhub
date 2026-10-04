@@ -53,6 +53,7 @@ data/             SQLite DB, photos, backups (gitignored)
 - **pytest.ini**: `asyncio_mode = auto`, test paths = `tests/`
 - **conftest.py**: In-memory SQLite (`sqlite+aiosqlite:///:memory:`) with per-function session + schema create/drop. Uses `httpx.AsyncClient` with `app.dependency_overrides` to inject test DB session.
 - **CI**: GitHub Actions runs `pytest backend/tests/ -v` before building Docker images.
+- **Gotcha**: The `client` fixture sets `app.dependency_overrides[get_db]` but never clears it. New tests that don't use `client` may still get the overridden DB dependency. Add cleanup if writing fixtures that share the module-level `app`.
 
 ## Database
 - SQLite via aiosqlite with SQLAlchemy 2.0 async
@@ -80,7 +81,8 @@ Comprehensive checklist at `release_checklist.json` (8 phases, P1–P8). Key ste
 
 ## Gotchas
 - CI pushes to **ghcr.io**, not Docker Hub (Docker Hub push is manual via release checklist)
-- `.env` is gitignored — never commit it. Copy from `.env.example`
+- `.env` is gitignored — never commit it. Copy from `.env.example`. Loaded from project root by pydantic-settings, not backend/.
 - `data/` directory is gitignored (except `.gitkeep` placeholders)
 - Backend and frontend are separate Docker images; frontend is served by nginx, not Vite dev server, in production
 - Python venv at `backend/.venv` — must activate before any Python/alembic/pytest commands
+- `DATA_PATH` env var overrides the data directory root (defaults to repo `data/`). Affects photos, DB, and backups paths.
