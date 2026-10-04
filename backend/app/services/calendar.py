@@ -42,9 +42,13 @@ async def get_events_in_range(
         .join(CalendarSource, CalendarEvent.source_id == CalendarSource.id)
         .where(
             CalendarSource.family_id == family_id,
+            CalendarSource.is_deleted == False,
+            CalendarSource.enabled == True,
             CalendarEvent.is_deleted == False,
-            CalendarEvent.start_dt >= start,
-            CalendarEvent.start_dt <= end,
+            # Overlap, not containment: multi-day events that started before
+            # the window (or end after it) must still be returned.
+            CalendarEvent.start_dt < end,
+            CalendarEvent.end_dt > start,
         )
         .order_by(CalendarEvent.start_dt)
     )

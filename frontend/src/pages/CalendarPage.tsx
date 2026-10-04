@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Calendar, dateFnsLocalizer, type View } from 'react-big-calendar'
-import { format, parse, getDay, addMonths, subMonths, addWeeks, subWeeks, startOfMonth, endOfMonth, startOfWeek as sow, endOfWeek as eow, addDays, subDays } from 'date-fns'
+import { format, parse, getDay, addMonths, subMonths, addWeeks, subWeeks, startOfMonth, endOfMonth, startOfWeek as sow, endOfWeek as eow, addDays, subDays, startOfDay, endOfDay } from 'date-fns'
 import { enUS } from 'date-fns/locale/en-US'
 import { useGesture } from '@use-gesture/react'
 import { useCalendarEvents, useCalendarSources, useCreateEvent, useDeleteEvent } from '../api/calendar'
@@ -382,12 +382,18 @@ function CreateEventModal({
 
 function getViewRange(view: ViewType, date: Date): { start: Date; end: Date } {
   if (view === 'month') {
-    return { start: startOfMonth(date), end: endOfMonth(date) }
+    // The month grid shows leading/trailing days from adjacent months.
+    return {
+      start: sow(startOfMonth(date), { weekStartsOn: 0 }),
+      end: eow(endOfMonth(date), { weekStartsOn: 0 }),
+    }
   }
   if (view === 'week') {
     return { start: sow(date, { weekStartsOn: 0 }), end: eow(date, { weekStartsOn: 0 }) }
   }
-  const weekStart = sow(date, { weekStartsOn: 0 })
-  const weekEnd = eow(date, { weekStartsOn: 0 })
-  return { start: weekStart, end: weekEnd }
+  if (view === 'agenda') {
+    // react-big-calendar's agenda view lists 30 days from the current date.
+    return { start: startOfDay(date), end: endOfDay(addDays(date, 30)) }
+  }
+  return { start: startOfDay(date), end: endOfDay(date) }
 }
