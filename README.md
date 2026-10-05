@@ -1,115 +1,82 @@
 # OpenFamHub
 
-[![Version](https://img.shields.io/badge/version-0.17-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-green)]()
-[![CI](https://github.com/vnmyers13/openfamhub/actions/workflows/build.yml/badge.svg)](https://github.com/vnmyers13/openfamhub/actions)
+![Version](https://img.shields.io/badge/version-0.18-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-Self-hosted family calendar and organizer with Raspberry Pi wall display support. Designed to run on a NAS or Linux server on your home network.
+A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
 
 ## Features
 
-- **Shared Family Calendar** — Month, Week, Day, and Agenda views with color-coded sources
-- **ICS Feed Integration** — Import calendars from Google, iCloud, TeamSnap, and any ICS URL
-- **Family Member Profiles** — Role-based access (admin/member), password and PIN login
-- **Wall Display** — Full-screen 1920×1080 kiosk mode on a Raspberry Pi with live clock and 7-day calendar strip
-- **PWA Support** — Install on Android/iOS phones as a native app with offline read capability
-- **Dashboard** — Time-based greeting, today's events, sync status
-- **Real-Time Updates** — WebSocket push to wall displays when events change
-- **Automated Backups** — Daily SQLite backup with configurable retention
+- **Shared family calendar**: month, week, day and agenda views, with color-coded sources and filters.
+- **Calendar subscriptions**: import Google, iCloud, school and sports calendars through their ICS or `webcal://` links. Feeds re-sync on a schedule, and you can trigger a sync from the settings page.
+- **Family members**: admin and member roles (a read-only viewer role is planned), with password or PIN login.
+- **Wall display**: a full-screen kiosk view (`/wall`) with a clock, a 7-day strip and the family list. Each display is paired once with a revocable device link and stays signed in after that.
+- **Live updates**: wall displays refresh as soon as events change, over a WebSocket.
+- **Installable app (PWA)**: works on iOS and Android phones and can show cached data offline.
+- **Automatic backups**: a daily SQLite backup with configurable retention.
 
-## Quick Start
+## Quick start (single machine)
 
-### Requirements
-- Docker + Docker Compose
-- A Linux server or NAS on your local network
-
-### Setup
+Requirements: Docker with Compose, and `openssl`.
 
 ```bash
-git clone https://github.com/vnmyers13/openfamhub.git
+git clone http://192.168.10.2:3002/vernon/OpenFamHub.git openfamhub
 cd openfamhub
-cp .env.example .env
-# Edit .env — set a unique SECRET_KEY, FAMILY_NAME, and TIMEZONE
-docker compose up -d
+scripts/deploy.sh setup     # creates .env with a generated SECRET_KEY
+scripts/deploy.sh deploy    # builds the images and starts the stack
 ```
 
-Navigate to `https://openfamhub.local` and complete the setup wizard to create your admin account.
+Open `https://openfamhub.local` (point that name at the machine in DNS or `/etc/hosts`) and finish the setup wizard to create the admin account. In this LAN mode Caddy issues its own certificate, so each device has to trust Caddy's root certificate. See [docs/cert-trust.md](docs/cert-trust.md).
 
-### Trust the Certificate
+## Deploying to a server
 
-Caddy generates a self-signed CA cert for local HTTPS. Trust it on each device:
-- [macOS / Windows / Linux / iOS / Android / Pi OS](./docs/cert-trust.md)
-
-## Wall Display
-
-Set up a dedicated wall display on a Raspberry Pi:
+The recommended setup is to build images once and publish them to the Forgejo container registry. Servers then only pull and run them:
 
 ```bash
-# On the Pi
-curl -fsSL https://raw.githubusercontent.com/vnmyers13/openfamhub/main/scripts/setup-wall-pi.sh | bash
-# Reboot — the Pi boots directly to the wall display
+scripts/deploy.sh publish                                     # build + push v0.18 (amd64 + arm64)
+PUBLIC_URL=https://openfamhub.vernonmyers.cloud \
+  scripts/deploy.sh remote test                               # install/upgrade the "test" VM over SSH
 ```
 
-See the [Wall Screen Setup Guide](./docs/wall-screen-setup.md).
+[docs/deployment.md](docs/deployment.md) covers:
 
-## Adding Calendar Feeds
+- registry login
+- running behind an existing reverse proxy
+- LAN-only mode
+- upgrades and rollback
+- backups and restore
+- troubleshooting
 
-OpenFamHub imports external calendars via ICS URLs. Supported sources:
-- **Google Calendar** — Settings → Integrate Calendar → Export to ICS
-- **iCloud** — Use a calendar's public/private ICS link
-- **Sports Apps** (TeamSnap, etc.) — ICS export links from the app
+## Documentation
 
-## Updates
-
-```bash
-git pull origin master
-docker compose pull
-docker compose up -d
-```
-
-## Architecture
-
-```
-openfamhub.local
-      │
-  ┌───┴───┐
-  │ Caddy │  (reverse proxy, internal TLS)
-  └───┬───┘
-      │
-  ┌───┴───┐
-  │  API  │  Python/FastAPI async, SQLAlchemy 2.0 + aiosqlite
-  └───────┘
-      │
-  ┌───┴───┐
-  │  Web  │  React 19 / Vite / TypeScript (served via nginx)
-  └───────┘
-```
-
-- **Backend**: Python 3.12, FastAPI, SQLAlchemy 2.0 async, APScheduler, JWT auth
-- **Frontend**: React 19, Vite 8, TypeScript 6, Tailwind CSS 3, Zustand, TanStack Query
-- **Database**: SQLite with WAL mode, foreign keys on, Alembic migrations
-- **Infra**: Docker Compose, Caddy 2 with internal TLS, GitHub Actions CI
-
-## Docker Images
-
-Images are published to both GitHub Container Registry and Docker Hub:
-
-| Component | Image |
+| Topic | Where |
 |---|---|
-| API | `ghcr.io/vnmyers13/openfamhub/openfamhub-api` / `vnmyers13/openfamhub-api` |
-| Web | `ghcr.io/vnmyers13/openfamhub/openfamhub-web` / `vnmyers13/openfamhub-web` |
+| Deploying, upgrading, backups | [docs/deployment.md](docs/deployment.md) |
+| How it works (components, data, auth, time zones) | [docs/architecture.md](docs/architecture.md) |
+| Developing and testing | [GETTING_STARTED.md](GETTING_STARTED.md) |
+| Raspberry Pi wall display | [docs/wall-screen-setup.md](docs/wall-screen-setup.md) |
+| Trusting the LAN certificate | [docs/cert-trust.md](docs/cert-trust.md) |
+| Known issues / planned fixes | [TODO.md](TODO.md) |
+| Feature backlog | [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) |
+| Version history | [CHANGELOG.md](CHANGELOG.md) |
+| Notes for AI coding agents | [AGENTS.md](AGENTS.md) |
 
-## Backups
+## Adding calendar feeds
 
-Daily backups are stored in `./data/backups`. To manually restore:
+In **Admin › Calendars › Add ICS Feed**, paste a calendar's ICS (or `webcal://`) link:
 
-```bash
-sqlite3 ./data/db/homehub.db ".restore './data/backups/homehub_YYYY-MM-DD.db'"
-```
+- **Google Calendar**: Settings › *your calendar* › Integrate calendar › *Secret address in iCal format*.
+- **iCloud**: Calendar app › Share Calendar › Public Calendar, then copy the link.
+- **School and sports apps** (TeamSnap and others): look for "Subscribe" or "Export to calendar".
 
-## Contributing
+## Stack
 
-Report issues or suggest features at [GitHub Issues](https://github.com/vnmyers13/openfamhub/issues).
+| Layer | Technology |
+|---|---|
+| API | Python 3.12, FastAPI, SQLAlchemy 2 (async) + SQLite (WAL), APScheduler |
+| Web | React 19, Vite, TypeScript, Tailwind CSS, TanStack Query, Zustand, served by nginx |
+| Edge | Caddy 2: internal TLS on the LAN, or plain HTTP behind another proxy |
+| Packaging | Docker Compose; images published to the Forgejo container registry |
 
 ## License
 

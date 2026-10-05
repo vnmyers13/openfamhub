@@ -1,5 +1,9 @@
 # Trusting the Caddy Self-Signed Certificate
 
+> **Only needed in LAN mode** (`CADDYFILE=Caddyfile`, e.g. `https://openfamhub.local`).
+> Deployments behind a reverse proxy with a real certificate (such as
+> `https://openfamhub.vernonmyers.cloud`) don't need any of this.
+
 OpenFamHub uses Caddy as a reverse proxy with automatic HTTPS. On a LAN
 without a public domain, Caddy generates a self-signed CA and issues
 certificates. Browsers and devices will show a security warning until

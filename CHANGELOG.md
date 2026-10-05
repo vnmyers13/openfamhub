@@ -1,3 +1,26 @@
+## [0.18] - 2026-10-04
+
+### Added
+- Wall display pairing: admins create a revocable pairing link (Admin › Wall displays). Displays stay signed in without a family member's login, and an unpaired display shows the clock and a pairing hint.
+- Registry deployment: `deploy.sh publish` builds multi-arch images and pushes them to the Forgejo registry. `deploy.sh remote <host>` installs or upgrades a server over SSH, using `deploy/compose.yml`.
+- Behind-proxy mode (`config/Caddyfile.proxy`); the hostname and ports are configurable.
+- `backend/scripts/fix_event_timezones.py` converts events created in the app before 0.18.
+- Documentation: rewritten README and developer guide, new `docs/deployment.md` and `docs/architecture.md`.
+
+### Fixed
+- Refreshing a page or opening `/wall` no longer redirects to the dashboard.
+- A wrong password or PIN now shows an error instead of reloading the login page.
+- Event times are stored in UTC and shown in local time. Subscribed-calendar events were shifted by the UTC offset, and all-day events now stay on the correct day.
+- Multi-day events and the edge days of the month grid now appear; agenda view covers 30 days.
+- **Sync Now** actually syncs. **Delete** removes the source and its events. Feeds that redirect and `webcal://` links work.
+- The first event created in the app no longer stays hidden until a reload.
+- Scheduled re-syncs no longer crash (naive vs. aware datetime).
+- The daily backup runs at `BACKUP_TIME` in `TIMEZONE`, not at that time in UTC.
+- `deploy.sh deploy` rebuilds images, and `setup` generates `SECRET_KEY`.
+- Docker builds from a Mac checkout no longer break (`.dockerignore`); the API image has a healthcheck.
+
+---
+
 ## [0.17] - 2026-05-16
 
 ### Added
