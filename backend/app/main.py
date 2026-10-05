@@ -1,3 +1,4 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -24,6 +25,11 @@ async def lifespan(app: FastAPI):
     os.makedirs(_DB_DIR, exist_ok=True)
     os.makedirs(_BACKUPS_DIR, exist_ok=True)
 
+    # Alembic owns the schema. It runs in a worker thread because env.py starts
+    # its own event loop. create_all afterwards is a no-op safety net.
+    from app.core.migrate import upgrade_database
+
+    await asyncio.to_thread(upgrade_database)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
