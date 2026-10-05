@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, update as sql_update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -33,6 +33,21 @@ def _parse_dt(value: str, field: str) -> datetime:
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Invalid datetime for {field}")
     return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _check_can_edit(user: User, event: CalendarEvent, provider: str) -> None:
+    """Who may change an event:
+    - nobody edits events from a calendar subscription (the next sync would undo it)
+    - viewers are read-only
+    - members change only events they created
+    - admins change any family event (no password step needed: everyday family use)
+    """
+    if provider != "internal":
+        raise HTTPException(status_code=403, detail="Events from a subscribed calendar are read-only")
+    if user.role == "viewer":
+        raise HTTPException(status_code=403, detail="Viewers can't change events")
+    if user.role != "admin" and event.created_by != user.id:
+        raise HTTPException(status_code=403, detail="You can only change events you created")
 
 
 def _build_event_response(event: CalendarEvent, color_hex: str) -> CalendarEventResponse:
@@ -73,6 +88,8 @@ async def create_event(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role == "viewer":
+        raise HTTPException(status_code=403, detail="Viewers can't add events")
     start_dt = _parse_dt(data.start_dt, "start_dt")
     end_dt = _parse_dt(data.end_dt, "end_dt")
     if end_dt <= start_dt:
@@ -117,7 +134,7 @@ async def get_event(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    event, color_hex = await _load_event_with_source(db, event_id, current_user.family_id)
+    event, color_hex, _ = await _load_event_with_source(db, event_id, current_user.family_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     return _build_event_response(event, color_hex)
@@ -130,29 +147,28 @@ async def update_event(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    values = {}
-    if data.title is not None:
-        values["title"] = data.title
-    if data.start_dt is not None:
-        values["start_dt"] = _parse_dt(data.start_dt, "start_dt")
-    if data.end_dt is not None:
-        values["end_dt"] = _parse_dt(data.end_dt, "end_dt")
-    if data.all_day is not None:
-        values["all_day"] = data.all_day
-    if data.location is not None:
-        values["location"] = data.location
-    if data.description is not None:
-        values["description"] = data.description
-    if values:
-        await db.execute(
-            sql_update(CalendarEvent)
-            .where(CalendarEvent.id == event_id)
-            .values(**values)
-        )
-        await db.flush()
-    event, color_hex = await _load_event_with_source(db, event_id, current_user.family_id)
+    # Load through the family-scoped join first, so an ID from another family
+    # is a 404 and nothing is written before the permission check.
+    event, color_hex, provider = await _load_event_with_source(db, event_id, current_user.family_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
+    _check_can_edit(current_user, event, provider)
+
+    if data.title is not None:
+        event.title = data.title
+    if data.start_dt is not None:
+        event.start_dt = _parse_dt(data.start_dt, "start_dt")
+    if data.end_dt is not None:
+        event.end_dt = _parse_dt(data.end_dt, "end_dt")
+    if data.all_day is not None:
+        event.all_day = data.all_day
+    if data.location is not None:
+        event.location = data.location
+    if data.description is not None:
+        event.description = data.description
+    if event.end_dt <= event.start_dt:
+        raise HTTPException(status_code=400, detail="end_dt must be after start_dt")
+    await db.flush()
     await event_bus.emit("calendar_updated", {"source_id": event.source_id})
     return _build_event_response(event, color_hex)
 
@@ -163,14 +179,11 @@ async def delete_event(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    event, _ = await _load_event_with_source(db, event_id, current_user.family_id)
+    event, _, provider = await _load_event_with_source(db, event_id, current_user.family_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    await db.execute(
-        sql_update(CalendarEvent)
-        .where(CalendarEvent.id == event_id)
-        .values(is_deleted=True)
-    )
+    _check_can_edit(current_user, event, provider)
+    event.is_deleted = True
     await db.flush()
     await event_bus.emit("calendar_updated", {"source_id": event.source_id})
     return {"ok": True}
@@ -315,7 +328,7 @@ async def _load_event_with_source(
     db: AsyncSession, event_id: str, family_id: str
 ):
     result = await db.execute(
-        select(CalendarEvent, CalendarSource.color_hex)
+        select(CalendarEvent, CalendarSource.color_hex, CalendarSource.provider)
         .join(CalendarSource, CalendarEvent.source_id == CalendarSource.id)
         .where(
             CalendarEvent.id == event_id,
@@ -325,5 +338,5 @@ async def _load_event_with_source(
     )
     row = result.one_or_none()
     if not row:
-        return None, None
-    return row[0], row[1]
+        return None, None, None
+    return row[0], row[1], row[2]
