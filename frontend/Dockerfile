@@ -1,4 +1,6 @@
-FROM node:20-alpine AS build
+# The build output is static files, so build once on the host's native
+# platform (fast, no emulation) and reuse it for every target platform.
+FROM --platform=$BUILDPLATFORM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci

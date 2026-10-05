@@ -1,0 +1,9 @@
+# Keep host-specific and dev-only files out of the image.
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+*.db
+*.db-*
+.env

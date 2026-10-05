@@ -1,0 +1,6 @@
+# node_modules must come from `npm ci` inside the image: a host (macOS) copy
+# has the wrong native binaries (e.g. rolldown) and breaks the Linux build.
+node_modules/
+dist/
+.env
+*.log
