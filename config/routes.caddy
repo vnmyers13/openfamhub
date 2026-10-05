@@ -1,4 +1,4 @@
-# Shared routing for both Caddyfiles. The WebSocket lives under /api/ws/.
+# Shared routing for both Caddyfiles. The wall WebSocket is /api/wall/ws.
 handle /api/* {
 	reverse_proxy api:8000
 }

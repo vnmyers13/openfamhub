@@ -27,14 +27,14 @@ Each release is published with `deploy.sh publish` and checked on the `test` VM 
 - **Frontend:** v0.29's pages (Chores, Meals, Rewards, Books, Announcements, wall panels; about 3k lines) are reusable UI. Port them with an API adapter: axios `withCredentials`, our routes, 401 → login and 403 → message (v0.29 logs users out on 403), and `lib/dates.ts` for dates.
 - **Tests:** v0.29's 65 backend tests are acceptance criteria. Re-express each one against our fixtures before writing the code it covers.
 
-## Phase 2 — Security
-- [ ] Enforce roles on events. Viewers are read-only. Members edit their own and internal events. Admins can edit everything. Synced iCal events are read-only. Scope `PATCH /calendar/events` by family.
-- [ ] Rate-limit password login. Block deleted users at login. Make display names unique (case-insensitive) with a clear error.
-- [ ] Remove `POST /users/switch`. It mints a token for any user ID and nothing uses it.
-- [ ] Server-side session revocation using the `sessions` table and a `jti` claim, so logout, password changes and user deletion revoke tokens.
-- [ ] Optional: authenticate the `/api/ws/wall` WebSocket.
-- [ ] Fix the remaining react-hooks lint error in `ManageUsers.tsx`.
-- [ ] **Sign-in model (decision above).**
+## Phase 2 — Security ✅ (0.30)
+- [x] Enforce roles on events. Viewers are read-only. Members change their own events. Admins change any family event. Synced iCal events are read-only. `PATCH /calendar/events` is scoped by family.
+- [x] Rate-limit password login. Block deleted users at login. Make display names unique (case-insensitive) with a clear error.
+- [x] Remove `POST /users/switch`. It mints a token for any user ID and nothing uses it.
+- [x] Server-side session revocation using the `sessions` table and a `jti` claim, so logout, password changes and user deletion revoke tokens.
+- [x] Authenticate the wall WebSocket (now `/api/wall/ws`, paired displays only).
+- [x] Fix the remaining react-hooks lint error in `ManageUsers.tsx`.
+- [x] **Sign-in model (decision above).**
   - `GET /api/auth/profiles` returns name, avatar and color for the picker. It stays public, because the picker needs it before sign-in, but it returns no other fields.
   - PIN login takes `user_id` + `pin` (never loop over users) and counts **failed** attempts per user with an escalating lockout.
   - Sessions record the method (`amr: pin|password`). Admin endpoints require a password session, or a password re-check within the last 15 minutes.
@@ -48,18 +48,19 @@ Each release is published with `deploy.sh publish` and checked on the `test` VM 
 - [ ] Store a window only (about 90 days back to 365 days ahead) instead of full history.
 - [ ] Look up existing UIDs in one batch query per sync.
 
-## Phase 4 — Infra and cleanup
-- [ ] Run Alembic migrations on container start instead of `create_all`.
-- [ ] CI: set `SECRET_KEY` for tests; add a frontend lint + build job; move to Forgejo Actions once a runner exists.
-- [ ] Fix the Workbox `runtimeCaching` URL patterns (they're matched against the full URL, so they never match).
-- [ ] `setup-wall-pi.sh`: make it idempotent and Bookworm-compatible (`chromium`, labwc/Wayland autostart).
-- [ ] Remove dead code and placeholders: `notifications.py`, the `/lists` nav link, the `co_admin` role checks, and `/admin/settings` rendering the Dashboard.
-- [ ] Deduplicate the event response builders and the user validators.
-- [ ] Read `WALL_IDLE_TIMEOUT_SECONDS` and `FAMILY_NAME` from settings, or drop them.
-- [ ] Add tests for users and permissions.
-- [ ] Update `release_checklist.json` and the sprint manifests, or archive them.
-- [ ] `.gitignore`: add `file:*` (SQLite shared-cache files) now, before any Phase 5 dev DB.
-- [ ] Bump to 0.30 and add the CHANGELOG note about the retired 0.19–0.29 line.
+## Phase 4 — Infra and cleanup ✅ (0.30)
+- [x] Run Alembic migrations on container start instead of `create_all`.
+- [x] CI: set `SECRET_KEY` for tests; add a frontend lint + build job.
+- [ ] Move CI to Forgejo Actions once a runner exists (still GitHub Actions only).
+- [x] Fix the Workbox `runtimeCaching` URL patterns (they're matched against the full URL, so they never match).
+- [x] `setup-wall-pi.sh`: make it idempotent and Bookworm-compatible (`chromium`, labwc/Wayland autostart).
+- [x] Remove dead code and placeholders: `notifications.py`, the `/lists` nav link, the `co_admin` role checks, and `/admin/settings` rendering the Dashboard.
+- [x] Deduplicate the event response builders and the user validators.
+- [x] `WALL_IDLE_TIMEOUT_SECONDS` drives the wall idle screen. `FAMILY_NAME` stays accepted (an unknown key would break existing `.env` files) but is unused: the name comes from the setup wizard.
+- [x] Add tests for users and permissions (`tests/test_phase2.py`).
+- [x] Archive `release_checklist.json` and the sprint manifests (`docs/archive/planning/`).
+- [x] `.gitignore`: add `file:*` (SQLite shared-cache files) now, before any Phase 5 dev DB.
+- [x] Bump to 0.30 and add the CHANGELOG note about the retired 0.19–0.29 line.
 
 ## Phases 5–10 — Port the v0.29 feature set
 
@@ -148,4 +149,5 @@ Decided: the merged line continues at **0.30** (see Decisions). Our 0.18 keeps i
 notes that 0.19–0.29 (and v0.29's own "0.18") belong to the retired `main` line.
 
 ## Completed
+- [x] v0.30: Phases 2 and 4 (sign-in picker + PIN with admin password gate, server-side sessions, lockout, event permissions, migrations at startup, CI, cleanup). See CHANGELOG.
 - [x] v0.18: the Phase 1 fixes (routing, login errors, time zones, range queries, Sync Now, source delete, source filter, wall pairing, deploy script). See CHANGELOG.

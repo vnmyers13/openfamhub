@@ -40,6 +40,10 @@ families 1─* wall_devices
 - Deletes are soft (`is_deleted`). Events from deleted or disabled sources are hidden.
 - `families.timezone` comes from the setup wizard.
 
+## Database migrations
+
+Alembic owns the schema. On startup the API runs `alembic upgrade head` (`core/migrate.py`, in a worker thread). A database created before 0.30 has no `alembic_version` table; it's first stamped at the revision that matches its newest table, then upgraded. `create_all` still runs afterwards as a no-op safety net. Every model change needs a migration in `backend/alembic/versions/`.
+
 ## Time handling
 
 SQLite has no timezone type. Every datetime column uses `core.types.UTCDateTime`:
@@ -58,12 +62,24 @@ The frontend uses one convention, implemented in `frontend/src/lib/dates.ts`:
 
 | Who | How | Lifetime |
 |---|---|---|
-| Family members | `POST /api/auth/login` (display name + password) or `/login/pin` (5 attempts/min per user). Returns a JWT in an `access_token` cookie (`HttpOnly`, `Secure`, `SameSite=Strict`). | 30 days. Logging out only clears the cookie; server-side revocation is planned. |
+| Family members | The sign-in page shows avatars from `GET /api/auth/profiles` (public; only the picker's fields). Tapping one posts `user_id` + PIN to `/api/auth/login/pin`. `POST /api/auth/login` (name + password) remains. Either returns a JWT in an `access_token` cookie (`HttpOnly`, `Secure`, `SameSite=Strict`). | 30 days. The token's `jti` is a `sessions` row, checked on every request: logout deletes it, a password change deletes the user's other sessions, and removing a user deletes all of theirs. |
 | Wall displays | An admin creates a device and gets `/wall?token=…`. The display posts the token to `/api/wall/pair` and receives a `wall_token` cookie scoped to `/api/wall`. Only the token's SHA-256 is stored. | Refreshed on every load, so it never expires while the display is used. **Unpair** revokes it immediately. |
 
-Roles: `admin` (manages users, calendar sources and wall displays) and `member`. `viewer` is accepted, but read-only access isn't enforced yet (see [TODO.md](../TODO.md)).
+**Lockout.** Failed PIN and password attempts are counted per person (`LoginThrottle`, in-process). At 5, 10 and 15 failures, sign-in locks for 1, 5 and 15 minutes, and the API responds 429 with `Retry-After`.
 
-A wall display can only read `/api/wall/events` and `/api/wall/members`. It can't call any user endpoint.
+**Admin gate.** Sessions record `auth_method` (`pin` or `password`). Admin-only endpoints (`require_role("admin")`, and changing another member's profile) need a password session, or a PIN session that was unlocked by `POST /api/auth/elevate` within the last 15 minutes. Otherwise they answer **403 `password_required`**. The frontend turns that response into a password prompt and retries the request. `/api/auth/me` reports `auth_method` and `admin_unlocked`.
+
+**Roles.**
+
+| Role | Can do |
+|---|---|
+| `admin` | Manage members, calendar sources and wall displays; change any family event. |
+| `member` | Add events; change or delete their own. |
+| `viewer` | Read only. |
+
+Events from subscribed calendars are read-only for everyone, because the next sync would overwrite any change.
+
+A wall display can only read `/api/wall/events` and `/api/wall/members`, and open the `/api/wall/ws` live-update socket. It can't call any user endpoint.
 
 ## Calendar sync
 
@@ -75,17 +91,17 @@ A wall display can only read `/api/wall/events` and `/api/wall/members`. It can'
 
 ## Realtime
 
-Calendar changes call `event_bus.emit("calendar_updated", …)`. The WebSocket hub (`/api/ws/wall`) forwards that event to every connected wall, which then re-fetches its events. Walls also poll every 15 minutes in case the socket drops.
+Calendar changes call `event_bus.emit("calendar_updated", …)`. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards that event to every connected wall, which then re-fetches its events. Walls also poll every 15 minutes in case the socket drops.
 
 ## Frontend layout (`frontend/src`)
 
 ```
 App.tsx            boot: setup status → /auth/me; routes (wall is outside the nav shell)
-api/               axios client (401 → /login, except /auth/* and /wall/*), React Query hooks
+api/               axios client (401 → /login, except /auth/* and /wall/*; 403 password_required → password prompt + retry), React Query hooks
 lib/dates.ts       time convention above
-pages/             Dashboard, CalendarPage, Login, SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays
+pages/             Dashboard, CalendarPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays
 wall/              WallLayout (pairing gate + idle screen), clock, 7-day strip (WebSocket), member list
-components/        NavShell (sidebar / mobile bottom nav)
+components/        NavShell (sidebar / mobile bottom nav, "Unlock admin"), PasswordPrompt, Avatar
 ```
 
 The PWA (`vite-plugin-pwa`) caches the app shell for offline launch.

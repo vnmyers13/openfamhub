@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-0.18-blue)
+![Version](https://img.shields.io/badge/version-0.30-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -9,7 +9,7 @@ A self-hosted family calendar and organizer, a home version of a Skylight-style 
 
 - **Shared family calendar**: month, week, day and agenda views, with color-coded sources and filters.
 - **Calendar subscriptions**: import Google, iCloud, school and sports calendars through their ICS or `webcal://` links. Feeds re-sync on a schedule, and you can trigger a sync from the settings page.
-- **Family members**: admin and member roles (a read-only viewer role is planned), with password or PIN login.
+- **Family members**: tap-your-avatar sign-in with a PIN; admin, member and read-only viewer roles; admin changes need a password.
 - **Wall display**: a full-screen kiosk view (`/wall`) with a clock, a 7-day strip and the family list. Each display is paired once with a revocable device link and stays signed in after that.
 - **Live updates**: wall displays refresh as soon as events change, over a WebSocket.
 - **Installable app (PWA)**: works on iOS and Android phones and can show cached data offline.
@@ -33,7 +33,7 @@ Open `https://openfamhub.local` (point that name at the machine in DNS or `/etc/
 The recommended setup is to build images once and publish them to the Forgejo container registry. Servers then only pull and run them:
 
 ```bash
-scripts/deploy.sh publish                                     # build + push v0.18 (amd64 + arm64)
+scripts/deploy.sh publish                                     # build + push v0.30 (amd64 + arm64)
 PUBLIC_URL=https://openfamhub.vernonmyers.cloud \
   scripts/deploy.sh remote test                               # install/upgrade the "test" VM over SSH
 ```

@@ -3,7 +3,7 @@
 Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then [docs/architecture.md](docs/architecture.md). Deployment is in [docs/deployment.md](docs/deployment.md), and dev and test commands are in [GETTING_STARTED.md](GETTING_STARTED.md).
 
 ## Version and branches
-- Current version: **0.18**. The canonical source is `APP_VERSION` in `backend/app/core/config.py`; it's also in the `backend/Dockerfile` label and the README badge.
+- Current version: **0.30**. The canonical source is `APP_VERSION` in `backend/app/core/config.py`; it's also in the `backend/Dockerfile` label and the README badge.
 - Default branch: `master`. Remotes: `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary) and `origin` (GitHub mirror).
 - Work on a branch with one commit per logical change.
 
@@ -15,8 +15,8 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 ```
 backend/app/        FastAPI app: core/ models/ schemas/ routers/ services/ integrations/ jobs/
 backend/scripts/    one-off maintenance (fix_event_timezones.py)
-backend/tests/      pytest (conftest.py, test_auth.py, test_phase1.py)
-backend/alembic/    migrations 001–004 (004 = wall_devices)
+backend/tests/      pytest (conftest.py, test_auth.py, test_phase1.py, test_phase2.py)
+backend/alembic/    migrations 001–005 (004 = wall_devices, 005 = session auth_method); run at startup
 frontend/src/       React app: api/ lib/dates.ts pages/ wall/ components/
 config/             Caddyfile (LAN TLS), Caddyfile.proxy (behind proxy), routes.caddy (shared)
 deploy/             compose.yml + env.template, copied to servers by deploy.sh remote
@@ -38,8 +38,8 @@ docker-compose.yml  build-from-source stack; image names match published ones
 ## Gotchas
 - **Time:** every datetime column is `UTCDateTime`. Always pass aware datetimes, or naive values meaning UTC. The API returns `+00:00`. All-day events are `00:00Z` dates with an exclusive end. Frontend code must use `src/lib/dates.ts`.
 - **Range queries** use overlap, not start-in-range.
-- **Schema:** startup runs `create_all`, which adds new tables but never alters existing ones. Add an Alembic migration for every model change, and import new models in `models/__init__.py` and `alembic/env.py`.
-- **Auth:** user JWT in the `access_token` cookie (30 days, no server-side revocation yet). Wall displays use a `wall_token` cookie scoped to `/api/wall`; only its SHA-256 is stored. The axios 401 handler skips `/auth/*` and `/wall/*`.
+- **Schema:** startup runs Alembic (`app/core/migrate.py`; pre-0.30 databases are stamped first). Add a migration for every model change (next: 006), and import new models in `models/__init__.py` and `alembic/env.py`.
+- **Auth:** every user token's `jti` is a `sessions` row (revoked on logout, password change and removal). Sessions record `auth_method` (pin|password); admin endpoints need a password session or `/auth/elevate` within 15 min, otherwise 403 `password_required`. Failed sign-ins lock out per person (`login_throttle`). Wall displays use a `wall_token` cookie scoped to `/api/wall` (SHA-256 stored). The axios 401 handler skips `/auth/*` and `/wall/*`.
 - **Single API worker:** the scheduler, event bus, WebSocket hub and PIN rate limiter are all in-process. Don't add uvicorn workers.
 - **node_modules on the Mac** holds macOS binaries. `vite build` fails in Linux containers or VMs that reuse it, so `frontend/.dockerignore` excludes it.
 - **Test fixtures:** `client` overrides `get_db` with one shared session per test. Cookies are `Secure`, so tests pass them as an explicit `Cookie` header (see `_cookie()` in `test_phase1.py`).

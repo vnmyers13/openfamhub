@@ -1,3 +1,35 @@
+## [0.30] - 2026-10-05
+
+> **Version numbering:** this release follows 0.18. Versions 0.19–0.29 (and the
+> other line's own "0.18", with chores/rewards/meals) belong to the retired
+> `main` line, a separate codebase that is now a reference for features being
+> ported (see TODO.md). Numbering continues at 0.30 so no existing tag collides.
+
+### Added
+- **Family sign-in picker**: tap your avatar and enter a PIN. Passwords still work, and are required for admin changes. An admin who signed in with a PIN is asked for their password once, which unlocks admin actions for 15 minutes ("Unlock admin" in the sidebar).
+- Emoji avatars and colors for family members; the setup wizard accepts an optional admin PIN.
+- **Database migrations run automatically at startup** (Alembic). Installs created before 0.30 are detected and stamped, then upgraded.
+- CI runs frontend lint and build, and the tests get a `SECRET_KEY`.
+
+### Security
+- Sign-in sessions are stored server-side. Signing out, changing a password (other devices) and removing a member now end those sessions immediately. A token without a live session is rejected.
+- Failed PIN and password attempts are counted per person, with an escalating lockout (1, 5, then 15 minutes).
+- Event permissions: viewers are read-only; members change their own events; admins change any family event; events from subscribed calendars are read-only. Event edits are checked against the family before anything is written.
+- Display names are unique within the family (ignoring case).
+- Removed `POST /api/users/switch`, which created a login token for any user ID.
+- The wall's live-update socket (now `/api/wall/ws`) only accepts paired displays.
+
+### Fixed
+- PWA offline caching never matched API requests; it now caches calendar events, sources and members (not sign-in state).
+- The wall idle timeout uses `WALL_IDLE_TIMEOUT_SECONDS`.
+- `setup-wall-pi.sh` is safe to re-run and works on Raspberry Pi OS Bookworm (`chromium`, Wayland autostart, `raspi-config` blanking).
+
+### Removed
+- The unused notifications stub, the `/lists` and `/admin/settings` placeholders, and the nonexistent `co_admin` role checks.
+- The sprint planning manifests moved to `docs/archive/planning/`.
+
+---
+
 ## [0.18] - 2026-10-04
 
 ### Added

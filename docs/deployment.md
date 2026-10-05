@@ -26,7 +26,7 @@ Everything goes through `scripts/deploy.sh`. Run it from anywhere inside the rep
             ▼
  ┌──────────────────────────── test VM: ~/openfamhub ───────────────────────────┐
  │  caddy (Caddyfile.proxy, plain HTTP :80→8080)                                 │
- │     ├── /api/*, /api/ws/*, /photos/*  → api  (openfamhub-api:<version>)       │
+ │     ├── /api/* (incl. /api/wall/ws), /photos/* → api (openfamhub-api)         │
  │     └── everything else             → web  (openfamhub-web:<version>, nginx)  │
  │  ./data/db  ./data/backups  ./data/photos   (bind mounts = all app state)     │
  └───────────────────────────────────────────────────────────────────────────────┘
@@ -86,7 +86,7 @@ If a proxy sits in front of Forgejo, make sure it doesn't cap upload size. Image
 
 ```bash
 scripts/deploy.sh publish            # version = APP_VERSION in backend/app/core/config.py
-scripts/deploy.sh publish 0.18-rc1   # or an explicit tag
+scripts/deploy.sh publish 0.30-rc1   # or an explicit tag
 ```
 
 This builds `linux/amd64` and `linux/arm64` images for the API and web app and pushes each one as `:<version>` and `:latest`.
@@ -130,7 +130,7 @@ PUBLIC_URL=https://openfamhub.vernonmyers.cloud scripts/deploy.sh remote test
    }
    ```
 
-   No extra configuration is needed: Caddy passes WebSockets (`/api/ws/wall`) through, and it forwards the `X-Forwarded-*` headers.
+   No extra configuration is needed: Caddy passes WebSockets (`/api/wall/ws`) through, and it forwards the `X-Forwarded-*` headers.
 4. Open `https://openfamhub.vernonmyers.cloud`, complete the setup wizard, and add your calendars.
 5. Pair any wall displays under **Admin › Wall displays** (see [wall-screen-setup.md](wall-screen-setup.md)).
 
@@ -156,10 +156,10 @@ scripts/deploy.sh publish
 scripts/deploy.sh remote test
 
 # Roll back to any version that was published
-scripts/deploy.sh remote test 0.18
+scripts/deploy.sh remote test 0.30
 ```
 
-**Database changes:** at startup the API creates any **new tables** automatically (for example `wall_devices` in 0.18). Changes to **existing** columns aren't applied automatically yet; that work is tracked in [TODO.md](../TODO.md). Rolling back across a schema change isn't supported, so take a backup before upgrading (see below).
+**Database changes:** from 0.30, the API applies Alembic migrations automatically at startup. Installs from before 0.30 are recognized and brought up to date. Migrations only move forward: rolling back to an older version across a schema change isn't supported, so take a backup before upgrading (see below).
 
 ### Upgrading an install from 0.17 or earlier: fix event times
 
@@ -246,7 +246,9 @@ By default this runs in **LAN mode**: Caddy listens on 80/443 and serves `https:
 | `exec format error` on the server | The image wasn't built for the server's architecture; publish with the default `PLATFORMS` or include the server's. |
 | `remote` waits, then "did not become healthy" | `ssh test 'cd ~/openfamhub && docker compose logs api'`. Usually a missing or invalid `SECRET_KEY`, or a `data/` folder that can't be written. |
 | Site loads but login immediately returns to the login page | Not on HTTPS (Secure cookies), or `ALLOWED_ORIGINS` doesn't exactly match the URL. |
-| Wall display doesn't update live | The proxy must pass WebSockets on `/api/ws/wall`. Caddy does by default; with nginx, add the `Upgrade`/`Connection` headers. Displays still refresh every 15 minutes. |
+| Wall display doesn't update live | The proxy must pass WebSockets on `/api/wall/ws`, and the display must be paired. Caddy does by default; with nginx, add the `Upgrade`/`Connection` headers. Displays still refresh every 15 minutes. |
+| A dialog asks an admin for their password | They signed in with a PIN. Admin changes need the password once; it unlocks them for 15 minutes. |
+| Sign-in says "Too many attempts" | Failed PIN or password attempts lock that person out for 1, 5, then 15 minutes. Wait, or sign in another way (password vs. PIN). |
 | "This display isn't paired" | Create a pairing link under Admin › Wall displays and open it on the display. |
 | A calendar feed shows an error | Admin › Calendars › Log shows the message; **Sync Now** retries immediately. |
 

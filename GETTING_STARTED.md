@@ -68,13 +68,13 @@ npm run build      # tsc -b + vite build; fails on type errors
 ```
 
 - Backend tests use an in-memory SQLite database and need `SECRET_KEY` (read from the repo-root `.env`, or export it).
-- `tests/test_phase1.py` covers time handling, range queries, calendar sources and wall pairing.
+- `tests/test_phase1.py` covers time handling, range queries, calendar sources and wall pairing. `tests/test_phase2.py` covers sign-in, sessions, the admin password gate and event permissions.
 - Run `npm` commands on the Mac itself: `node_modules` contains macOS-native binaries, and a Linux container or VM can't use them.
 
 ## Conventions
 
 - **Time:** store UTC, and treat all-day events as dates. Read the *Time handling* section of [docs/architecture.md](docs/architecture.md) before touching dates. On the frontend, use the helpers in `src/lib/dates.ts` instead of `new Date(event.start_dt)`.
-- **New tables:** add the model under `backend/app/models/`, import it in `models/__init__.py` and `alembic/env.py`, and add an Alembic migration. Startup creates new tables automatically, but it doesn't alter existing ones.
+- **New tables:** add the model under `backend/app/models/`, import it in `models/__init__.py` and `alembic/env.py`, and add an Alembic migration. Migrations run automatically at startup (`app/core/migrate.py`), so every model change needs one.
 - **Commits:** one logical change per commit, with a message that explains *why*.
 
 ## Releasing
@@ -82,7 +82,7 @@ npm run build      # tsc -b + vite build; fails on type errors
 1. Bump `APP_VERSION` in `backend/app/core/config.py`, the label in `backend/Dockerfile` and the badge in `README.md`.
 2. Add a section to `CHANGELOG.md`.
 3. Run the tests and checks above.
-4. Commit and tag: `git tag v0.18 && git push forgejo master --tags` (and `origin` if you mirror to GitHub).
+4. Commit and tag: `git tag v0.30 && git push forgejo master --tags` (and `origin` if you mirror to GitHub).
 5. `scripts/deploy.sh publish`
 6. Deploy to test, check it, then deploy to production: `scripts/deploy.sh remote test`, then `scripts/deploy.sh remote <prod-host>`.
 

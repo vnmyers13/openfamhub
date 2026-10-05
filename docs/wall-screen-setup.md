@@ -27,7 +27,7 @@ This guide explains how to set up a Raspberry Pi as a dedicated wall display for
   sudo ./setup-wall-pi.sh "https://openfamhub.vernonmyers.cloud/wall?token=..."
   ```
 - Without an argument the kiosk opens `https://openfamhub.local/wall`.
-- The script targets the older LXDE desktop (Raspberry Pi OS Bullseye). On Bookworm, install `chromium` and add the kiosk command to the labwc/Wayfire autostart yourself (tracked in TODO.md).
+- The script works on Raspberry Pi OS Bookworm (Wayland: labwc/Wayfire) and Bullseye (LXDE). It's safe to re-run, for example to change the URL.
 
 ### 3. Trust the Server Certificate (LAN mode only)
 If OpenFamHub runs behind a reverse proxy with a real certificate (e.g. `https://openfamhub.vernonmyers.cloud`), skip this step.
@@ -51,8 +51,8 @@ The display then stays signed in indefinitely (its cookie refreshes on every loa
 
 | Issue | Possible Cause | Solution |
 | :--- | :--- | :--- |
-| **Chromium won't start** | Missing `chromium-browser` or incorrect autostart path. | Ensure `unclutter` and `chromium-browser` are installed. Check `/etc/xdg/autostart/homehub-kiosk.desktop`. |
+| **Chromium won't start** | Browser not installed or autostart file missing. | Re-run the setup script. Check `/etc/xdg/autostart/openfamhub-kiosk.desktop`. |
 | **Blank screen / No display** | Power management or HDMI issues. | Check if `xset` commands in autostart are working. Ensure the Pi is powered correctly. |
 | **Certificate Error** | The browser is blocking the connection due to untrusted SSL. | Re-follow the [cert trust steps](cert-trust.md). |
 | **"This display isn't paired"** | Never paired, unpaired by an admin, or browser data cleared. | Create a new pairing link under Admin › Wall displays and open it on the Pi. |
-| **Wall doesn't update** | Network issues or server downtime. | Ensure the Pi can reach the server, and that the proxy passes WebSockets (`/api/ws/wall`). Displays also refresh every 15 minutes. |
+| **Wall doesn't update** | Network issues or server downtime. | Ensure the Pi can reach the server, and that the proxy passes WebSockets (`/api/wall/ws`). Displays also refresh every 15 minutes. |

@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 LABEL org.opencontainers.image.title="openfamhub-api" \
-      org.opencontainers.image.version="0.18"
+      org.opencontainers.image.version="0.30"
 
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \

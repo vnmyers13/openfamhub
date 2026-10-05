@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-OpenFamHub: a self-hosted family calendar and organizer (a home version of a Skylight-style wall calendar). FastAPI + SQLite backend, React frontend, Docker/Caddy deployment, Raspberry Pi wall display. Current version: **0.18** (`APP_VERSION` in `backend/app/core/config.py`).
+OpenFamHub: a self-hosted family calendar and organizer (a home version of a Skylight-style wall calendar). FastAPI + SQLite backend, React frontend, Docker/Caddy deployment, Raspberry Pi wall display. Current version: **0.30** (`APP_VERSION` in `backend/app/core/config.py`).
 
 Read these before changing code:
 
@@ -11,7 +11,7 @@ Read these before changing code:
 
 ## Which code is canonical
 
-- **`master` is the product.** Feature work branches from it. `release/0.18-deploy` carries the 0.18 deploy and docs work.
+- **`master` is the product.** Feature work branches from it. `release/0.18-deploy` carries the 0.18 deploy and docs work; `feat/0.30-security` carries 0.30.
 - **`origin/main` (tagged v0.29) is a different codebase with no shared history.** Use it only as a reference for features to port (Phases 5–10). Never merge, rebase onto or cherry-pick from it. Re-implement each feature on our architecture: our auth, `family_id` scoping, `UTCDateTime`, Alembic migrations, deploy tooling and CI.
 - **Remotes:** `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary) and `origin` (GitHub). Push to both.
 
@@ -26,10 +26,10 @@ Read these before changing code:
   - Frontend date handling goes through `frontend/src/lib/dates.ts`.
 - **Tenancy:** every family-owned row has `family_id`, and every query filters by it.
 - **Auth:**
-  - User sessions are an HttpOnly JWT cookie (30 days) that's re-checked against the DB.
+  - User sessions are an HttpOnly JWT cookie (30 days) whose `jti` is a `sessions` row, checked on every request. Admin endpoints also need a password session (or `/auth/elevate` within 15 minutes).
   - Wall displays use a paired-device cookie scoped to `/api/wall`.
   - Never trust a role claim from a token without loading the user.
-- **Schema:** for a new model, add it under `backend/app/models/`, import it in `models/__init__.py` and `alembic/env.py`, and add an Alembic migration. The next migration number is **005**. Startup `create_all` only adds new tables.
+- **Schema:** for a new model, add it under `backend/app/models/`, import it in `models/__init__.py` and `alembic/env.py`, and add an Alembic migration. The next migration number is **006**. Migrations run automatically at startup.
 - **Single API worker:** the scheduler, event bus, WebSocket hub and rate limiter are all in-process. Add jobs to the existing scheduler (`backend/app/jobs/scheduler.py`, which runs in `TIMEZONE`); never start a second scheduler.
 - **Secrets:** `SECRET_KEY` has no default on purpose. Never commit `.env`, databases or tokens.
 - **Git:** branch per change, one logical change per commit, and messages that explain why.
@@ -58,9 +58,9 @@ The detail is in [TODO.md](TODO.md).
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Routing, login errors, time zones, ranges, Sync Now/Delete, source filter, wall pairing, `deploy.sh` | Done, v0.18 |
-| 2 | Security: event roles, avatar + PIN sign-in with password for admins, remove `/users/switch`, session revocation | Open (0.30) |
+| 2 | Security: event roles, avatar + PIN sign-in with password for admins, remove `/users/switch`, session revocation | Done, 0.30 |
 | 3 | iCal correctness: duplicate first occurrence, EXDATE/RECURRENCE-ID, all-day recurrences, storage window, batch UID lookup | Open (0.31) |
-| 4 | Infra/cleanup: Alembic on start, CI, Workbox patterns, Pi script, dead code, settings, `.gitignore` | Open (0.30) |
+| 4 | Infra/cleanup: Alembic on start, CI, Workbox patterns, Pi script, dead code, settings, `.gitignore` | Done, 0.30 |
 | 5 | Port chores; fix v0.29's missing points credit, interval drift, UTC due dates | Open (0.31) |
 | 6 | Port rewards (append-only points ledger, idempotent weekly allowance in cents, catalog, badges/streaks) | Open (0.32); needs 5 |
 | 7 | Port meals and recipes (auth on every endpoint, SSRF-safe URL import, plan, shopping list, weekly reset) | Open (0.33) |
@@ -77,7 +77,7 @@ The detail is in [TODO.md](TODO.md).
 
 ### Prerequisites
 
-- **Before Phase 5 opens a dev DB:** add `file:*` to `.gitignore`. `*.db-wal` doesn't match SQLite shared-cache names like `file:memdb1-wal`.
+- Done in 0.30: `file:*` is in `.gitignore` (SQLite shared-cache names like `file:memdb1-wal`).
 
 ## Deploying
 
