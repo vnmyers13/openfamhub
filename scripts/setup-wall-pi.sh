@@ -1,61 +1,69 @@
 #!/bin/bash
+#
+# Turn a Raspberry Pi (Raspberry Pi OS Desktop) into an OpenFamHub wall display.
+# Safe to re-run: every step replaces its own config instead of appending.
+#
+#   sudo ./setup-wall-pi.sh [pairing-or-wall-url]
+#
+# With a pairing link from Admin > Wall displays the display pairs itself on
+# every boot (until it is unpaired). Default: https://openfamhub.local/wall
+set -euo pipefail
 
-# Check if running on Raspberry Pi OS (Debian-based)
-if [ ! -f /etc/os-release ]; then
-    echo "Error: This script must be run on a Debian-based system like Raspberry Pi OS."
-    exit 1
-fi
-
-if ! grep -qE "raspbian|debian" /etc/os-release; then
-    echo "Warning: This script is intended for Raspberry Pi OS. Proceeding anyway..."
-fi
-
-# Optional: the pairing link from Admin > Wall displays. With it, the display
-# pairs itself on every boot (until it is unpaired in the admin UI).
 WALL_URL="${1:-https://openfamhub.local/wall}"
 
-echo "Starting OpenFamHub Kiosk Setup..."
-
-# 1. Update and install dependencies
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y chromium-browser unclutter
-
-# 2. Configure LXDE Autostart
-# Note: This path is specific to Raspberry Pi OS Desktop (LXDE)
-AUTOSTART_FILE="/etc/xdg/lxsession/LXDE-pi/autostart"
-
-if [ -f "$AUTOSTART_FILE" ]; then
-    echo "Configuring LXDE autostart..."
-    # Disable screensaver and power management
-    echo "@xset s off" | sudo tee -a "$AUTOSTART_FILE" > /dev/null
-    echo "@xset -dpms" | sudo tee -a "$AUTOSTART_FILE" > /dev/null
-    echo "@xset s noblank" | sudo tee -a "$AUTOSTART_FILE" > /dev/null
-    echo "@unclutter -idle 0.5 -root" | sudo tee -a "$AUTOSTART_FILE" > /dev/null
-else
-    echo "Warning: Could not find LXDE autostart file at $AUTOSTART_FILE. Manual configuration might be required."
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Run with sudo: sudo $0 [url]" >&2
+    exit 1
+fi
+if ! grep -qiE "raspbian|debian" /etc/os-release 2>/dev/null; then
+    echo "Warning: this script targets Raspberry Pi OS; continuing anyway."
 fi
 
-# 3. Create Kiosk Desktop Entry
-# This ensures Chromium launches in kiosk mode on boot via the desktop environment.
-KIOSK_DIR="/etc/xdg/autostart"
-sudo mkdir -p "$KIOSK_DIR"
+echo "==> Installing the browser"
+apt-get update -q
+# Bookworm ships "chromium"; older releases ship "chromium-browser".
+if apt-cache show chromium >/dev/null 2>&1; then
+    apt-get install -y -q chromium
+    BROWSER=chromium
+else
+    apt-get install -y -q chromium-browser
+    BROWSER=chromium-browser
+fi
+apt-get install -y -q unclutter || true   # hides the mouse pointer on X11 desktops
 
-cat <<EOF | sudo tee "$KIOSK_DIR/homehub-kiosk.desktop" > /dev/null
+echo "==> Turning off screen blanking"
+if command -v raspi-config >/dev/null 2>&1; then
+    raspi-config nonint do_blanking 1 || true    # works on X11 and Wayland (Bookworm)
+fi
+# Older LXDE (X11) desktops: also disable DPMS in the session autostart.
+LXDE_AUTOSTART="/etc/xdg/lxsession/LXDE-pi/autostart"
+if [ -f "$LXDE_AUTOSTART" ]; then
+    for line in "@xset s off" "@xset -dpms" "@xset s noblank" "@unclutter -idle 0.5 -root"; do
+        grep -qxF "$line" "$LXDE_AUTOSTART" || echo "$line" >> "$LXDE_AUTOSTART"
+    done
+fi
+
+echo "==> Configuring kiosk autostart"
+# XDG autostart is honoured by LXDE (Bullseye) and by labwc/wayfire on
+# Bookworm (they run lxsession-xdg-autostart), so one .desktop file covers all.
+mkdir -p /etc/xdg/autostart
+rm -f /etc/xdg/autostart/homehub-kiosk.desktop   # pre-0.30 name
+cat > /etc/xdg/autostart/openfamhub-kiosk.desktop <<EOF
 [Desktop Entry]
 Type=Application
 Name=OpenFamHub Kiosk
-Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 $WALL_URL
-ExecRetry=3
+Exec=$BROWSER --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --ozone-platform-hint=auto --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 --check-for-update-interval=31536000 $WALL_URL
 X-GNOME-Autostart-enabled=true
 EOF
 
-echo "------------------------------------------------------------"
-echo "Setup Complete!"
-echo "------------------------------------------------------------"
-echo "Next Steps:"
-echo "1. Trust the server certificate on your Pi: see docs/cert-trust.md"
-echo "2. If you didn't pass a pairing link, open one on this screen once"
-echo "   (create it under Admin > Wall displays)."
-echo "3. Reboot the Raspberry Pi."
-echo "4. The wall display should launch automatically in kiosk mode."
-echo "------------------------------------------------------------"
+cat <<EOF
+------------------------------------------------------------
+Done. The display opens: $WALL_URL
+Next:
+ 1. LAN (openfamhub.local) installs only: trust the server certificate
+    (docs/cert-trust.md). Not needed behind a proxy with a real certificate.
+ 2. If you didn't pass a pairing link, open one on this screen once
+    (Admin > Wall displays).
+ 3. Reboot: sudo reboot
+------------------------------------------------------------
+EOF
