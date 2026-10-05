@@ -35,7 +35,8 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/api': 'http://localhost:8000',
+      // ws: true so the wall's /api/ws/wall socket works in dev too.
+      '/api': { target: 'http://localhost:8000', ws: true },
       '/photos': 'http://localhost:8000',
     },
   },

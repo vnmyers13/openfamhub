@@ -6,7 +6,8 @@ from pathlib import Path
 
 from app.core.config import settings
 
-_DATA_ROOT = Path(os.environ.get("DATA_PATH", Path(__file__).resolve().parent.parent.parent.parent.parent / "data"))
+# Docker sets DATA_PATH=/data; outside Docker default to <repo>/data.
+_DATA_ROOT = Path(os.environ.get("DATA_PATH", Path(__file__).resolve().parents[3] / "data"))
 _DB_DIR = _DATA_ROOT / "db"
 _BACKUPS_DIR = _DATA_ROOT / "backups"
 

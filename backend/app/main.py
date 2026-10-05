@@ -9,7 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.database import Base, engine
 
-_DATA_ROOT = Path(os.environ.get("DATA_PATH", Path(__file__).resolve().parent.parent.parent.parent / "data"))
+# Docker sets DATA_PATH=/data; outside Docker default to <repo>/data.
+_DATA_ROOT = Path(os.environ.get("DATA_PATH", Path(__file__).resolve().parents[2] / "data"))
 _PHOTOS_DIR = _DATA_ROOT / "photos"
 _DB_DIR = _DATA_ROOT / "db"
 _BACKUPS_DIR = _DATA_ROOT / "backups"
