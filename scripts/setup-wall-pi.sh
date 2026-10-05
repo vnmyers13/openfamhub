@@ -10,6 +10,10 @@ if ! grep -qE "raspbian|debian" /etc/os-release; then
     echo "Warning: This script is intended for Raspberry Pi OS. Proceeding anyway..."
 fi
 
+# Optional: the pairing link from Admin > Wall displays. With it, the display
+# pairs itself on every boot (until it is unpaired in the admin UI).
+WALL_URL="${1:-https://openfamhub.local/wall}"
+
 echo "Starting OpenFamHub Kiosk Setup..."
 
 # 1. Update and install dependencies
@@ -40,7 +44,7 @@ cat <<EOF | sudo tee "$KIOSK_DIR/homehub-kiosk.desktop" > /dev/null
 [Desktop Entry]
 Type=Application
 Name=OpenFamHub Kiosk
-Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 https://openfamhub.local/wall
+Exec=chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --touch-events=enabled --disable-pinch --overscroll-history-navigation=0 $WALL_URL
 ExecRetry=3
 X-GNOME-Autostart-enabled=true
 EOF
@@ -50,6 +54,8 @@ echo "Setup Complete!"
 echo "------------------------------------------------------------"
 echo "Next Steps:"
 echo "1. Trust the server certificate on your Pi: see docs/cert-trust.md"
-echo "2. Reboot the Raspberry Pi."
-echo "3. The wall display should launch automatically in kiosk mode."
+echo "2. If you didn't pass a pairing link, open one on this screen once"
+echo "   (create it under Admin > Wall displays)."
+echo "3. Reboot the Raspberry Pi."
+echo "4. The wall display should launch automatically in kiosk mode."
 echo "------------------------------------------------------------"

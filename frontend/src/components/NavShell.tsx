@@ -20,6 +20,7 @@ export default function NavShell() {
   const adminItems = [
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/calendars', label: 'Calendars' },
+    { to: '/admin/wall', label: 'Wall displays' },
     { to: '/admin/settings', label: 'Settings' },
   ]
 

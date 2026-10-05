@@ -1,21 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '../api/client'
-
-interface FamilyMember {
-  id: string
-  display_name: string
-  role: string
-  color_hex: string
-}
+import { useWallMembers } from '../api/wall'
 
 export default function WallMemberList() {
-  const { data: members = [] } = useQuery<FamilyMember[]>({
-    queryKey: ['family-members'],
-    queryFn: async () => {
-      const res = await apiClient.get('/users/')
-      return res.data
-    },
-  })
+  const { data: members = [] } = useWallMembers()
 
   return (
     <div className="flex flex-col gap-3">

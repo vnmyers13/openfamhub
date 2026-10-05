@@ -22,12 +22,24 @@ This guide explains how to set up a Raspberry Pi as a dedicated wall display for
   chmod +x setup-wall-pi.sh
   sudo ./setup-wall-pi.sh
   ```
+- Optionally pass the display's pairing link (see step 4) so it pairs itself on every boot:
+  ```bash
+  sudo ./setup-wall-pi.sh "https://openfamhub.local/wall?token=..."
+  ```
 
 ### 3. Trust the Server Certificate (CRITICAL)
 Since OpenFamHub uses local HTTPS (`https://openfamhub.local`), you must trust the Caddy certificate on the Pi to avoid "Your connection is not private" errors in Chromium.
 - Follow the steps in [docs/cert-trust.md](./docs/cert-trust.md) to import the CA certificate into the Pi's trusted store.
 
-### 4. Reboot and Verify
+### 4. Pair the Display
+The wall doesn't use a family member's login. Instead, each display is paired once:
+1. On a phone or computer, sign in as an admin and open **Admin › Wall displays**.
+2. Enter a name (e.g. "Kitchen") and click **Create pairing link**. The link is shown only once.
+3. Open that link on the Pi (or pass it to the setup script as above).
+
+The display then stays signed in indefinitely (its cookie refreshes on every load). To cut a display off, click **Unpair** on the same page. A display that isn't paired shows the clock and a short "not paired" message instead of the login page.
+
+### 5. Reboot and Verify
 - Reboot your Raspberry Pi: `sudo reboot`.
 - The system should automatically launch Chromium in kiosk mode, pointing to your wall display URL.
 
@@ -38,4 +50,5 @@ Since OpenFamHub uses local HTTPS (`https://openfamhub.local`), you must trust t
 | **Chromium won't start** | Missing `chromium-browser` or incorrect autostart path. | Ensure `unclutter` and `chromium-browser` are installed. Check `/etc/xdg/autostart/homehub-kiosk.desktop`. |
 | **Blank screen / No display** | Power management or HDMI issues. | Check if `xset` commands in autostart are working. Ensure the Pi is powered correctly. |
 | **Certificate Error** | The browser is blocking the connection due to untrusted SSL. | Re-follow the [cert trust steps](./docs/cert-trust.md). |
+| **"This display isn't paired"** | Never paired, unpaired by an admin, or browser data cleared. | Create a new pairing link under Admin › Wall displays and open it on the Pi. |
 | **Wall doesn't update** | Network issues or server downtime. | Ensure the Pi has a stable connection to `openfamhub.local`. |

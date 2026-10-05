@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { addDays, format, startOfDay } from 'date-fns'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCalendarEvents } from '../api/calendar'
+import { useWallEvents } from '../api/wall'
 import { cn } from '../lib/utils'
 import { eventDayKeys, eventStart } from '../lib/dates'
 
@@ -33,7 +33,7 @@ function useWallWebSocket() {
         try {
           const msg = JSON.parse(event.data)
           if (msg.type === 'calendar_updated') {
-            queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
+            queryClient.invalidateQueries({ queryKey: ['wall-events'] })
           }
         } catch {
           // ignore parse errors
@@ -68,7 +68,7 @@ export default function WallSevenDayStrip() {
   const startStr = days[0].toISOString()
   const endStr = addDays(days[6], 1).toISOString()
 
-  const { data: events = [] } = useCalendarEvents(
+  const { data: events = [] } = useWallEvents(
     new Date(startStr),
     new Date(endStr),
   )

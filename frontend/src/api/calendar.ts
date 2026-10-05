@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
 
-interface CalendarEvent {
+export interface CalendarEvent {
   id: string
   source_id: string
   title: string

@@ -18,6 +18,8 @@ import app.models.calendar_source
 import app.models.calendar_event
 import app.models.calendar_sync_log
 import app.models.family
+import app.models.auth
+import app.models.wall_device
 
 config = context.config
 if config.config_file_name is not None:

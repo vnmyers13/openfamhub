@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 import ManageUsers from './pages/ManageUsers'
 import CalendarPage from './pages/CalendarPage'
 import CalendarSettings from './pages/admin/CalendarSettings'
+import WallDisplays from './pages/admin/WallDisplays'
 import NavShell from './components/NavShell'
 import WallLayout from './wall/WallLayout'
 
@@ -18,12 +19,15 @@ function AppRoutes() {
   const navigate = useNavigate()
   const location = useLocation()
   const { setUser } = useAuthStore()
-  const [booting, setBooting] = useState(true)
+  // The wall display authenticates with its own device cookie (see WallLayout).
+  const [booting, setBooting] = useState(() => !window.location.pathname.startsWith('/wall'))
 
   useEffect(() => {
     // Read the path at mount time only; later navigation is the user's.
     const path = window.location.pathname
     let cancelled = false
+
+    if (path.startsWith('/wall')) return
 
     async function boot() {
       try {
@@ -67,6 +71,7 @@ function AppRoutes() {
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/admin/users" element={<ManageUsers />} />
         <Route path="/admin/calendars" element={<CalendarSettings />} />
+        <Route path="/admin/wall" element={<WallDisplays />} />
         <Route path="/admin/settings" element={<Dashboard />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
