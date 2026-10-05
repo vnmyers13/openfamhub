@@ -69,14 +69,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 os.makedirs(_PHOTOS_DIR, exist_ok=True)
 app.mount("/photos", StaticFiles(directory=str(_PHOTOS_DIR)), name="photos")
 
-from app.routers import auth, users, calendar, integrations, wall, ws
+from app.routers import auth, users, calendar, integrations, wall
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(calendar.router, prefix="/api/calendar", tags=["calendar"])
 app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
 app.include_router(wall.router, prefix="/api/wall", tags=["wall"])
-app.include_router(ws.router, prefix="/api/ws", tags=["ws"])
 
 
 @app.get("/api/health")

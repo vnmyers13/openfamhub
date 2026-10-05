@@ -10,17 +10,19 @@ import secrets
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal, get_db
 from app.core.security import require_role
 from app.models.family import Family
 from app.models.user import User
 from app.models.wall_device import WallDevice
 from app.schemas.calendar import CalendarEventResponse
+from app.routers.ws import manager
 from app.services.calendar import get_events_in_range
 
 router = APIRouter()
@@ -166,7 +168,11 @@ async def session(
     device.last_seen_at = datetime.now(timezone.utc)
     _set_cookie(response, wall_token)  # sliding expiry
     family = await db.get(Family, device.family_id)
-    return {"device": device.name, "family_name": family.name if family else None}
+    return {
+        "device": device.name,
+        "family_name": family.name if family else None,
+        "idle_timeout_seconds": settings.wall_idle_timeout_seconds,
+    }
 
 
 @router.get("/events", response_model=List[CalendarEventResponse])
@@ -203,3 +209,23 @@ async def wall_members(
         WallMember(id=u.id, display_name=u.display_name, color_hex=u.color_hex)
         for u in result.scalars().all()
     ]
+
+
+@router.websocket("/ws")
+async def wall_socket(ws: WebSocket) -> None:
+    """Live "calendar_updated" pushes for paired displays. Unpaired or revoked
+    displays are refused at the handshake (they still poll every 15 minutes)."""
+    async with AsyncSessionLocal() as db:
+        try:
+            await _device_for_token(db, ws.cookies.get(COOKIE))
+        except HTTPException:
+            await ws.close(code=4401)
+            return
+    try:
+        await manager.connect(ws)
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect(ws)

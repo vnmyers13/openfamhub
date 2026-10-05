@@ -1,11 +1,13 @@
+"""In-process fan-out of calendar changes to connected wall displays.
+
+The socket endpoint lives in routers/wall.py (/api/wall/ws) so it shares the
+wall device cookie and authentication.
+"""
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 
 from app.core.events import EventBus, event_bus
-
-router = APIRouter()
-
 
 class ConnectionManager:
     def __init__(self) -> None:
@@ -39,14 +41,3 @@ async def _forward_to_manager(event_type: str, payload: Dict[str, Any]) -> None:
 
 event_bus.subscribe(_forward_to_manager)
 
-
-@router.websocket("/wall")
-async def wall_websocket(ws: WebSocket) -> None:
-    try:
-        await manager.connect(ws)
-        while True:
-            await ws.receive_text()
-    except WebSocketDisconnect:
-        pass
-    finally:
-        manager.disconnect(ws)

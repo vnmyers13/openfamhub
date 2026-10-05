@@ -23,7 +23,7 @@ export async function pairWall(token: string) {
 
 export async function getWallSession() {
   const res = await apiClient.get('/wall/session')
-  return res.data as { device: string; family_name: string | null }
+  return res.data as { device: string; family_name: string | null; idle_timeout_seconds: number }
 }
 
 export function useWallEvents(start: Date, end: Date) {

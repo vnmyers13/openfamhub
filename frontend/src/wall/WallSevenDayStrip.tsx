@@ -23,7 +23,7 @@ function useWallWebSocket() {
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${protocol}//${window.location.host}/api/ws/wall`
+    const url = `${protocol}//${window.location.host}/api/wall/ws`
     let ws: WebSocket | null = null
     let reconnectTimer: ReturnType<typeof setTimeout>
 

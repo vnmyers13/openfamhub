@@ -5,7 +5,7 @@ import WallSevenDayStrip from './WallSevenDayStrip'
 import WallMemberList from './WallMemberList'
 import WallPhotoPlaceholder from './WallPhotoPlaceholder'
 
-const IDLE_MS = 300_000
+const DEFAULT_IDLE_MS = 300_000
 
 type PairState = 'checking' | 'paired' | 'unpaired'
 
@@ -15,6 +15,7 @@ type PairState = 'checking' | 'paired' | 'unpaired'
  */
 export default function WallLayout() {
   const [state, setState] = useState<PairState>('checking')
+  const [idleMs, setIdleMs] = useState(DEFAULT_IDLE_MS)
 
   useEffect(() => {
     let cancelled = false
@@ -27,8 +28,10 @@ export default function WallLayout() {
           // Keep the token out of history and screenshots.
           window.history.replaceState(null, '', '/wall')
         }
-        await getWallSession()
-        if (!cancelled) setState('paired')
+        const session = await getWallSession()
+        if (cancelled) return
+        if (session.idle_timeout_seconds > 0) setIdleMs(session.idle_timeout_seconds * 1000)
+        setState('paired')
       } catch {
         if (!cancelled) setState('unpaired')
       }
@@ -51,40 +54,34 @@ export default function WallLayout() {
       </div>
     )
   }
-  return <WallBoard />
+  return <WallBoard idleMs={idleMs} />
 }
 
-function WallBoard() {
+function WallBoard({ idleMs }: { idleMs: number }) {
   const [isIdle, setIsIdle] = useState(false)
   const idleRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  const resetIdle = () => {
-    setIsIdle(false)
-    if (idleRef.current) clearTimeout(idleRef.current)
-    idleRef.current = setTimeout(() => setIsIdle(true), IDLE_MS)
-  }
-
+  // Any touch or mouse movement wakes the board and restarts the countdown.
   useEffect(() => {
-    const handlers = ['touchstart', 'mousemove'] as const
-    for (const ev of handlers) {
-      window.addEventListener(ev, resetIdle)
+    const restart = () => {
+      setIsIdle(false)
+      if (idleRef.current) clearTimeout(idleRef.current)
+      idleRef.current = setTimeout(() => setIsIdle(true), idleMs)
     }
-    // Start the first idle countdown (state is already "not idle").
-    idleRef.current = setTimeout(() => setIsIdle(true), IDLE_MS)
+    const handlers = ['touchstart', 'mousemove', 'click'] as const
+    for (const ev of handlers) window.addEventListener(ev, restart)
+    // First countdown (state is already "not idle").
+    idleRef.current = setTimeout(() => setIsIdle(true), idleMs)
     return () => {
-      for (const ev of handlers) {
-        window.removeEventListener(ev, resetIdle)
-      }
+      for (const ev of handlers) window.removeEventListener(ev, restart)
       if (idleRef.current) clearTimeout(idleRef.current)
     }
-  }, [])
+  }, [idleMs])
 
   if (isIdle) {
     return (
-      <div
-        className="fixed inset-0 z-50 cursor-pointer"
-        onClick={resetIdle}
-      >
+      // A tap anywhere wakes the board (the window "click" listener above).
+      <div className="fixed inset-0 z-50 cursor-pointer">
         <WallPhotoPlaceholder fullscreen />
         <div className="absolute bottom-8 right-8">
           <WallClock />
