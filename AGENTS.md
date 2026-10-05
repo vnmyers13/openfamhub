@@ -1,6 +1,6 @@
 # Agent Context
 
-Read [docs/architecture.md](docs/architecture.md) first. Deployment is in [docs/deployment.md](docs/deployment.md), and dev and test commands are in [GETTING_STARTED.md](GETTING_STARTED.md).
+Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then [docs/architecture.md](docs/architecture.md). Deployment is in [docs/deployment.md](docs/deployment.md), and dev and test commands are in [GETTING_STARTED.md](GETTING_STARTED.md).
 
 ## Version and branches
 - Current version: **0.18**. The canonical source is `APP_VERSION` in `backend/app/core/config.py`; it's also in the `backend/Dockerfile` label and the README badge.
@@ -46,4 +46,4 @@ docker-compose.yml  build-from-source stack; image names match published ones
 - **CI** (`.github/workflows/build.yml`) runs on GitHub only. Forgejo has no runner yet.
 
 ## Open work
-See [TODO.md](TODO.md); it mirrors the remaining phases of the code-review fix plan.
+See [TODO.md](TODO.md): Phases 2–4 (review fixes) and 5–10 (porting the v0.29 feature set). CLAUDE.md has a status table.
