@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import sessionmaker
 from app.core.database import Base
 from app.core.config import settings
+import app.models  # noqa: F401  — registers tables on Base.metadata for create_all
 
 # Use an in-memory SQLite database for testing to ensure isolation and speed
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
@@ -24,29 +25,38 @@ async def db_session(db_engine):
     async with async_session() as session:
         try:
             yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
         finally:
             await session.close()
+
 
 @pytest.fixture(scope="function")
 async def setup_db(db_engine, db_session):
     """Ensures the database schema is created before each test."""
     async with db_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    yield db_session
-    async with db_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    try:
+        yield db_session
+        # Commit before dropping tables: fixture finalization runs in reverse
+        # order, so db_session's teardown runs after this one.
+        await db_session.commit()
+    except Exception:
+        await db_session.rollback()
+        raise
+    finally:
+        await db_session.close()
+        async with db_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
 
 @pytest.fixture
-def client(setup_db):
+async def client(setup_db):
     """Provides an AsyncClient with the test database session injected via dependency override."""
     from httpx import ASGITransport, AsyncClient
     from app.main import app
     from app.core.database import get_db
 
     app.dependency_overrides[get_db] = lambda: setup_db
-
-    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.pop(get_db, None)
