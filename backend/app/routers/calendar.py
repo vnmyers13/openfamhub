@@ -32,7 +32,7 @@ def _parse_dt(value: str, field: str) -> datetime:
         dt = datetime.fromisoformat(value)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Invalid datetime for {field}")
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def _build_event_response(event: CalendarEvent, color_hex: str) -> CalendarEventResponse:
