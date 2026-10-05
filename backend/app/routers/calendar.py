@@ -19,7 +19,12 @@ from app.schemas.calendar import (
     PatchEventRequest,
     SyncLogResponse,
 )
-from app.services.calendar import get_events_in_range, get_or_create_internal_source, get_source_logs
+from app.services.calendar import (
+    event_to_response,
+    get_events_in_range,
+    get_or_create_internal_source,
+    get_source_logs,
+)
 from app.jobs.calendar_sync import sync_source as run_source_sync
 from app.routers.ws import event_bus
 
@@ -48,26 +53,6 @@ def _check_can_edit(user: User, event: CalendarEvent, provider: str) -> None:
         raise HTTPException(status_code=403, detail="Viewers can't change events")
     if user.role != "admin" and event.created_by != user.id:
         raise HTTPException(status_code=403, detail="You can only change events you created")
-
-
-def _build_event_response(event: CalendarEvent, color_hex: str) -> CalendarEventResponse:
-    return CalendarEventResponse(
-        id=event.id,
-        source_id=event.source_id,
-        family_id=event.family_id,
-        external_uid=event.external_uid,
-        title=event.title,
-        start_dt=event.start_dt.isoformat() if event.start_dt else "",
-        end_dt=event.end_dt.isoformat() if event.end_dt else "",
-        all_day=event.all_day,
-        location=event.location,
-        description=event.description,
-        created_by=event.created_by,
-        is_deleted=event.is_deleted,
-        source_color_hex=color_hex,
-        created_at=event.created_at.isoformat() if event.created_at else None,
-        updated_at=event.updated_at.isoformat() if event.updated_at else None,
-    )
 
 
 @router.get("/events", response_model=List[CalendarEventResponse])
@@ -109,23 +94,7 @@ async def create_event(
     db.add(event)
     await db.flush()
     await event_bus.emit("calendar_updated", {"source_id": source.id})
-    return CalendarEventResponse(
-        id=event.id,
-        source_id=event.source_id,
-        family_id=event.family_id,
-        external_uid=event.external_uid,
-        title=event.title,
-        start_dt=event.start_dt.isoformat() if event.start_dt else "",
-        end_dt=event.end_dt.isoformat() if event.end_dt else "",
-        all_day=event.all_day,
-        location=event.location,
-        description=event.description,
-        created_by=event.created_by,
-        is_deleted=event.is_deleted,
-        source_color_hex=source.color_hex,
-        created_at=event.created_at.isoformat() if event.created_at else None,
-        updated_at=event.updated_at.isoformat() if event.updated_at else None,
-    )
+    return event_to_response(event, source.color_hex)
 
 
 @router.get("/events/{event_id}", response_model=CalendarEventResponse)
@@ -137,7 +106,7 @@ async def get_event(
     event, color_hex, _ = await _load_event_with_source(db, event_id, current_user.family_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    return _build_event_response(event, color_hex)
+    return event_to_response(event, color_hex)
 
 
 @router.patch("/events/{event_id}", response_model=CalendarEventResponse)
@@ -170,7 +139,7 @@ async def update_event(
         raise HTTPException(status_code=400, detail="end_dt must be after start_dt")
     await db.flush()
     await event_bus.emit("calendar_updated", {"source_id": event.source_id})
-    return _build_event_response(event, color_hex)
+    return event_to_response(event, color_hex)
 
 
 @router.delete("/events/{event_id}")

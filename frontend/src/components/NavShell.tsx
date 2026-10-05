@@ -7,7 +7,6 @@ import { cn } from '../lib/utils'
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: '🏠' },
   { to: '/calendar', label: 'Calendar', icon: '📅' },
-  { to: '/lists', label: 'Lists', icon: '📋' },
 ]
 
 export default function NavShell() {
@@ -22,7 +21,6 @@ export default function NavShell() {
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/calendars', label: 'Calendars' },
     { to: '/admin/wall', label: 'Wall displays' },
-    { to: '/admin/settings', label: 'Settings' },
   ]
 
   const handleLogout = async () => {
@@ -137,16 +135,16 @@ export default function NavShell() {
         ))}
         {user?.role === 'admin' && (
           <Link
-            to="/admin/settings"
+            to="/admin/users"
             className={cn(
               'flex flex-col items-center gap-0.5 rounded-lg px-3 py-1 text-xs transition-colors',
-              isActive('/admin/settings')
+              isActive('/admin/users')
                 ? 'text-primary'
                 : 'text-slate-500 hover:text-slate-300',
             )}
           >
             <span className="text-lg">⚙️</span>
-            Settings
+            Family
           </Link>
         )}
       </nav>

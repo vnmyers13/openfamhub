@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
+from app.schemas import validators
+
 
 class CalendarSourceResponse(BaseModel):
     id: str
@@ -30,11 +32,8 @@ class CreateCalendarSourceRequest(BaseModel):
 
     @field_validator("color_hex")
     @classmethod
-    def valid_hex(cls, v: str) -> str:
-        if not v.startswith("#") or len(v) != 7:
-            raise ValueError("color_hex must be #RRGGBB")
-        int(v[1:], 16)
-        return v
+    def check_color(cls, x):
+        return validators.hex_color(x)
 
     @field_validator("provider")
     @classmethod
@@ -50,6 +49,11 @@ class PatchCalendarSourceRequest(BaseModel):
     ics_url: Optional[str] = None
     sync_interval_hours: Optional[int] = None
     enabled: Optional[bool] = None
+
+    @field_validator("color_hex")
+    @classmethod
+    def check_color(cls, x):
+        return validators.hex_color(x)
 
 
 class CalendarEventResponse(BaseModel):

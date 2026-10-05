@@ -3,10 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 
-def _pin(v: Optional[str]) -> Optional[str]:
-    if v is not None and (not v.isdigit() or not 4 <= len(v) <= 8):
-        raise ValueError("pin must be 4-8 digits")
-    return v
+from app.schemas.validators import pin as _pin
 
 
 class SetupRequest(BaseModel):

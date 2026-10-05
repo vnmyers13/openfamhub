@@ -73,7 +73,6 @@ function AppRoutes() {
         <Route path="/admin/users" element={<ManageUsers />} />
         <Route path="/admin/calendars" element={<CalendarSettings />} />
         <Route path="/admin/wall" element={<WallDisplays />} />
-        <Route path="/admin/settings" element={<Dashboard />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>

@@ -2,129 +2,67 @@ from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
+from app.schemas import validators as v
 
-class CreateUserRequest(BaseModel):
+
+class _UserFields(BaseModel):
+    """Fields shared by create and update, with one copy of each rule."""
+
+    email: Optional[str] = None
+    password: Optional[str] = None
+    pin: Optional[str] = None
+    color_hex: Optional[str] = None
+    ui_mode: Optional[str] = None
+    role: Optional[str] = None
+    avatar: Optional[str] = None  # an emoji, shown in the sign-in picker
+
+    @field_validator("password")
+    @classmethod
+    def check_password(cls, x):
+        return v.password(x)
+
+    @field_validator("pin")
+    @classmethod
+    def check_pin(cls, x):
+        return v.pin(x)
+
+    @field_validator("color_hex")
+    @classmethod
+    def check_color(cls, x):
+        return v.hex_color(x)
+
+    @field_validator("role")
+    @classmethod
+    def check_role(cls, x):
+        return v.role(x)
+
+    @field_validator("ui_mode")
+    @classmethod
+    def check_ui_mode(cls, x):
+        return v.ui_mode(x)
+
+    @field_validator("avatar")
+    @classmethod
+    def check_avatar(cls, x):
+        return v.avatar(x)
+
+
+class CreateUserRequest(_UserFields):
     display_name: str
-    email: Optional[str] = None
-    password: Optional[str] = None
-    pin: Optional[str] = None
-    color_hex: Optional[str] = None
-    ui_mode: Optional[str] = None
-    role: Optional[str] = None
-    avatar: Optional[str] = None  # an emoji, shown in the sign-in picker
 
     @field_validator("display_name")
     @classmethod
-    def display_name_length(cls, v: str) -> str:
-        if len(v) < 1 or len(v) > 100:
-            raise ValueError("display_name must be 1-100 characters")
-        return v
-
-    @field_validator("password")
-    @classmethod
-    def password_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and len(v) < 8:
-            raise ValueError("password must be at least 8 characters")
-        return v
-
-    @field_validator("pin")
-    @classmethod
-    def pin_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and (not v.isdigit() or len(v) < 4 or len(v) > 8):
-            raise ValueError("pin must be 4-8 digits")
-        return v
-
-    @field_validator("avatar")
-    @classmethod
-    def avatar_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not 1 <= len(v) <= 16:
-            raise ValueError("avatar must be 1-16 characters (an emoji)")
-        return v
-
-    @field_validator("color_hex")
-    @classmethod
-    def valid_hex(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            if not v.startswith("#") or len(v) != 7:
-                raise ValueError("color_hex must be #RRGGBB")
-            int(v[1:], 16)
-        return v
-
-    @field_validator("role")
-    @classmethod
-    def valid_role(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and v not in ("admin", "member", "viewer"):
-            raise ValueError('role must be admin, member, or viewer')
-        return v
-
-    @field_validator("ui_mode")
-    @classmethod
-    def valid_ui_mode(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and v not in ("standard", "simple", "kiosk"):
-            raise ValueError('ui_mode must be standard, simple, or kiosk')
-        return v
+    def check_display_name(cls, x):
+        return v.display_name(x)
 
 
-class UpdateUserRequest(BaseModel):
+class UpdateUserRequest(_UserFields):
     display_name: Optional[str] = None
-    email: Optional[str] = None
-    password: Optional[str] = None
-    pin: Optional[str] = None
-    color_hex: Optional[str] = None
-    ui_mode: Optional[str] = None
-    role: Optional[str] = None
-    avatar: Optional[str] = None  # an emoji, shown in the sign-in picker
 
     @field_validator("display_name")
     @classmethod
-    def display_name_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and (len(v) < 1 or len(v) > 100):
-            raise ValueError("display_name must be 1-100 characters")
-        return v
-
-    @field_validator("password")
-    @classmethod
-    def password_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and len(v) < 8:
-            raise ValueError("password must be at least 8 characters")
-        return v
-
-    @field_validator("pin")
-    @classmethod
-    def pin_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and (not v.isdigit() or len(v) < 4 or len(v) > 8):
-            raise ValueError("pin must be 4-8 digits")
-        return v
-
-    @field_validator("avatar")
-    @classmethod
-    def avatar_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not 1 <= len(v) <= 16:
-            raise ValueError("avatar must be 1-16 characters (an emoji)")
-        return v
-
-    @field_validator("color_hex")
-    @classmethod
-    def valid_hex(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            if not v.startswith("#") or len(v) != 7:
-                raise ValueError("color_hex must be #RRGGBB")
-            int(v[1:], 16)
-        return v
-
-    @field_validator("role")
-    @classmethod
-    def valid_role(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and v not in ("admin", "member", "viewer"):
-            raise ValueError('role must be admin, member, or viewer')
-        return v
-
-    @field_validator("ui_mode")
-    @classmethod
-    def valid_ui_mode(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and v not in ("standard", "simple", "kiosk"):
-            raise ValueError('ui_mode must be standard, simple, or kiosk')
-        return v
+    def check_display_name(cls, x):
+        return v.display_name(x)
 
 
 class SetPinRequest(BaseModel):
@@ -132,10 +70,8 @@ class SetPinRequest(BaseModel):
 
     @field_validator("pin")
     @classmethod
-    def pin_length(cls, v: str) -> str:
-        if not v.isdigit() or len(v) < 4 or len(v) > 8:
-            raise ValueError("pin must be 4-8 digits")
-        return v
+    def check_pin(cls, x):
+        return v.pin(x)
 
 
 class UserResponse(BaseModel):

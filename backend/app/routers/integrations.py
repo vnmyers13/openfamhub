@@ -1,6 +1,8 @@
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
+
+from app.schemas import validators
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -22,11 +24,8 @@ class CreateIcalSourceRequest(BaseModel):
 
     @field_validator("color_hex")
     @classmethod
-    def valid_hex(cls, v: str) -> str:
-        if not v.startswith("#") or len(v) != 7:
-            raise ValueError("color_hex must be #RRGGBB")
-        int(v[1:], 16)
-        return v
+    def check_color(cls, x):
+        return validators.hex_color(x)
 
 
 @router.post("/ical", response_model=CalendarSourceResponse, status_code=201)

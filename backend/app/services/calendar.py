@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.calendar_source import CalendarSource
 from app.models.calendar_event import CalendarEvent
 from app.models.calendar_sync_log import SyncLog
+from app.schemas.calendar import CalendarEventResponse
 
 
 async def get_or_create_internal_source(db: AsyncSession, family_id: str) -> CalendarSource:
@@ -30,9 +31,30 @@ async def get_or_create_internal_source(db: AsyncSession, family_id: str) -> Cal
     return source
 
 
+def event_to_response(event: CalendarEvent, color_hex: str | None) -> CalendarEventResponse:
+    """The single place an event becomes an API response."""
+    return CalendarEventResponse(
+        id=event.id,
+        source_id=event.source_id,
+        family_id=event.family_id,
+        external_uid=event.external_uid,
+        title=event.title,
+        start_dt=event.start_dt.isoformat() if event.start_dt else "",
+        end_dt=event.end_dt.isoformat() if event.end_dt else "",
+        all_day=event.all_day,
+        location=event.location,
+        description=event.description,
+        created_by=event.created_by,
+        is_deleted=event.is_deleted,
+        source_color_hex=color_hex,
+        created_at=event.created_at,
+        updated_at=event.updated_at,
+    )
+
+
 async def get_events_in_range(
     db: AsyncSession, family_id: str, start: datetime, end: datetime
-) -> list[dict]:
+) -> list[CalendarEventResponse]:
     result = await db.execute(
         select(
             CalendarEvent,
@@ -52,28 +74,7 @@ async def get_events_in_range(
         )
         .order_by(CalendarEvent.start_dt)
     )
-    rows = result.all()
-    events = []
-    for event, color_hex, source_name in rows:
-        d = {
-            "id": event.id,
-            "source_id": event.source_id,
-            "family_id": event.family_id,
-            "external_uid": event.external_uid,
-            "title": event.title,
-            "start_dt": event.start_dt.isoformat() if event.start_dt else None,
-            "end_dt": event.end_dt.isoformat() if event.end_dt else None,
-            "all_day": event.all_day,
-            "location": event.location,
-            "description": event.description,
-            "created_by": event.created_by,
-            "is_deleted": event.is_deleted,
-            "source_color_hex": color_hex,
-            "created_at": event.created_at.isoformat() if event.created_at else None,
-            "updated_at": event.updated_at.isoformat() if event.updated_at else None,
-        }
-        events.append(d)
-    return events
+    return [event_to_response(event, color_hex) for event, color_hex, _name in result.all()]
 
 
 async def get_source_logs(db: AsyncSession, source_id: str, limit: int = 20) -> list[SyncLog]:
