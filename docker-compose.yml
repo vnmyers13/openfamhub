@@ -1,9 +1,21 @@
+# Local / build-from-source stack.
+#
+#   docker compose up -d --build      # build images from this checkout and run
+#   scripts/deploy.sh publish         # build multi-arch images and push them
+#
+# Image names match what `deploy.sh publish` pushes, so the same tags work on a
+# server that only pulls (see deploy/compose.yml and docs/deployment.md).
+# Variables come from .env (see .env.example).
+
 services:
   api:
+    image: ${REGISTRY:-openfamhub}/openfamhub-api:${OPENFAMHUB_VERSION:-latest}
     build: ./backend
+    env_file: .env
+    environment:
+      DATA_PATH: /data
     expose:
       - "8000"
-    env_file: .env
     volumes:
       - ./data/db:/data/db
       - ./data/photos:/data/photos
@@ -11,6 +23,7 @@ services:
     restart: unless-stopped
 
   web:
+    image: ${REGISTRY:-openfamhub}/openfamhub-web:${OPENFAMHUB_VERSION:-latest}
     build: ./frontend
     expose:
       - "3000"
@@ -18,13 +31,23 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    # Caddyfile = LAN mode with internal TLS; Caddyfile.proxy = plain HTTP
+    # behind another reverse proxy.
+    command: caddy run --config /etc/caddy/${CADDYFILE:-Caddyfile} --adapter caddyfile
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-openfamhub.local}
     ports:
-      - "80:80"
-      - "443:443"
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
     volumes:
-      - ./config/Caddyfile:/etc/caddy/Caddyfile
+      - ./config:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

@@ -1,0 +1,46 @@
+# Runtime stack for a server that pulls published images (no source needed).
+# Installed to ~/openfamhub on the server by `scripts/deploy.sh remote <host>`.
+# Settings live in ./.env next to this file (created from env.template).
+
+services:
+  api:
+    image: ${REGISTRY}/openfamhub-api:${OPENFAMHUB_VERSION}
+    env_file: .env
+    environment:
+      DATA_PATH: /data
+    expose:
+      - "8000"
+    volumes:
+      - ./data/db:/data/db
+      - ./data/photos:/data/photos
+      - ./data/backups:/data/backups
+    restart: unless-stopped
+
+  web:
+    image: ${REGISTRY}/openfamhub-web:${OPENFAMHUB_VERSION}
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    command: caddy run --config /etc/caddy/${CADDYFILE:-Caddyfile.proxy} --adapter caddyfile
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-openfamhub.local}
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./config:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

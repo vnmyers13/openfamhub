@@ -1,0 +1,5 @@
+# Behind-proxy mode: another reverse proxy (with the real certificate)
+# terminates HTTPS and forwards plain HTTP here. See docs/deployment.md.
+:80 {
+	import routes.caddy
+}
