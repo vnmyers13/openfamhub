@@ -24,11 +24,26 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/photos/],
+        // Workbox tests a RegExp against the full URL (https://host/...), so a
+        // /^\/api/ pattern never matched. Match on the pathname instead.
+        // /api/auth/* is deliberately not cached (a stale "signed in" is worse
+        // than an offline error).
         runtimeCaching: [
-          { urlPattern: /^\/api\/auth\/me/, handler: 'NetworkFirst', options: { cacheName: 'auth-cache' } },
-          { urlPattern: /^\/api\/users/, handler: 'NetworkFirst', options: { cacheName: 'users-cache' } },
-          { urlPattern: /^\/api\/calendar\/events/, handler: 'NetworkFirst', options: { cacheName: 'events-cache' } },
-          { urlPattern: /^\/api\/calendar\/sources/, handler: 'NetworkFirst', options: { cacheName: 'sources-cache' } },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/calendar/events'),
+            handler: 'NetworkFirst',
+            options: { cacheName: 'events-cache', networkTimeoutSeconds: 5 },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/calendar/sources'),
+            handler: 'NetworkFirst',
+            options: { cacheName: 'sources-cache', networkTimeoutSeconds: 5 },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/users'),
+            handler: 'NetworkFirst',
+            options: { cacheName: 'users-cache', networkTimeoutSeconds: 5 },
+          },
         ],
       },
     }),
