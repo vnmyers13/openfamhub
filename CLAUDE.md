@@ -48,6 +48,8 @@ When porting a feature, re-implement it rather than copying the file. TODO.md ha
 - Unauthenticated list endpoints (for example, announcements).
 - A "today's chores" query that returns everything ever completed (`completed_at != None` with no date guard).
 - v0.29's offline-sync code. Its mutation hook is never called and replays send no credentials. Design against the Phase 9 tests instead.
+- v0.29's chore completion, which never credits points, and its `every_N_days` generator, which drifts daily.
+- Unauthenticated meals GETs, and wall panels that need a family member's login.
 
 ## Roadmap status
 
@@ -56,20 +58,26 @@ The detail is in [TODO.md](TODO.md).
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Routing, login errors, time zones, ranges, Sync Now/Delete, source filter, wall pairing, `deploy.sh` | Done, v0.18 |
-| 2 | Security: event roles, login hardening, remove `/users/switch`, session revocation | Open |
-| 3 | iCal correctness: duplicate first occurrence, EXDATE/RECURRENCE-ID, all-day recurrences, storage window, batch UID lookup | Open |
-| 4 | Infra/cleanup: Alembic on start, CI, Workbox patterns, Pi script, dead code, settings | Open |
-| 5 | Port chores (templates, instances, claim/complete, generator at 06:00) | Open |
-| 6 | Port rewards (append-only points ledger, idempotent weekly allowance, catalog, badges/streaks) | Open; needs 5 |
-| 7 | Port meals and recipes (import, 7-day plan, shopping list, weekly reset) | Open |
-| 8 | Port books (awards points via 6), announcements, weather (Open-Meteo, cached) | Open; needs 6 |
-| 9 | Offline sync (frontend test runner, IndexedDB queue, conflict modal) | Open |
-| 10 | OCR shopping-list scan, wall cycling panels, timezone picker | Open; needs 7 |
+| 2 | Security: event roles, avatar + PIN sign-in with password for admins, remove `/users/switch`, session revocation | Open (0.30) |
+| 3 | iCal correctness: duplicate first occurrence, EXDATE/RECURRENCE-ID, all-day recurrences, storage window, batch UID lookup | Open (0.31) |
+| 4 | Infra/cleanup: Alembic on start, CI, Workbox patterns, Pi script, dead code, settings, `.gitignore` | Open (0.30) |
+| 5 | Port chores; fix v0.29's missing points credit, interval drift, UTC due dates | Open (0.31) |
+| 6 | Port rewards (append-only points ledger, idempotent weekly allowance in cents, catalog, badges/streaks) | Open (0.32); needs 5 |
+| 7 | Port meals and recipes (auth on every endpoint, SSRF-safe URL import, plan, shopping list, weekly reset) | Open (0.33) |
+| 8 | Port books (+ shared-library writes), announcements, weather, `/api/dashboard/summary` | Open (0.34); needs 6 |
+| 9 | Offline sync (frontend test runner, IndexedDB queue, conflict modal) | Open (0.35) |
+| 10 | OCR shopping-list scan, wall cycling panels via read-only wall endpoints | Open (0.36); needs 7 |
 
-### Open decisions and prerequisites
+### Decisions (2026-10-04)
 
-- **Version numbering:** both lines shipped a "0.18". Decide which keeps that number before Phase 5 ships, and record the decision in `CHANGELOG.md`.
-- **Before Phase 5 opens a dev DB:** add a `.gitignore` pattern for SQLite shared-cache files (for example `file:*`). `*.db-wal` doesn't match names like `file:memdb1-wal`.
+- **Port, don't merge:** v0.29 features are rebuilt on this codebase. Its backend is a spec. Its frontend pages are reused through an API adapter, and its tests serve as acceptance criteria.
+- **Fresh start:** there's no importer for v0.29 data.
+- **Sign-in:** an avatar picker + PIN for everyone (per-user, with failed-attempt lockout), and a password session for admin actions.
+- **Versioning:** the merged line continues at **0.30**. TODO.md maps releases 0.30–0.36 to phases.
+
+### Prerequisites
+
+- **Before Phase 5 opens a dev DB:** add `file:*` to `.gitignore`. `*.db-wal` doesn't match SQLite shared-cache names like `file:memdb1-wal`.
 
 ## Deploying
 

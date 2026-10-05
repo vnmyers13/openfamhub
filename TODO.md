@@ -2,6 +2,31 @@
 
 Known bugs and planned fixes, from the code review of 2026-10-04. Phase 1 shipped in v0.18.
 
+## Decisions (2026-10-04)
+- **Direction:** port v0.29's features onto this codebase (0.18 base). `origin/main` is reference only.
+- **Data:** start fresh. No importer from a v0.29 database.
+- **Sign-in:** an avatar picker + PIN for everyone; a password is required for admin actions.
+- **Versioning:** the merged line continues at **0.30**, above every existing tag. CHANGELOG notes that 0.19–0.29 belong to the retired `main` line.
+- **Order:** keep the phase order below.
+
+## Release plan
+| Release | Contents |
+|---|---|
+| 0.30 | Phases 2 + 4 (security, sign-in model, infra/CI) |
+| 0.31 | Phase 3 (iCal) + Phase 5 (chores) |
+| 0.32 | Phase 6 (rewards) |
+| 0.33 | Phase 7 (meals) |
+| 0.34 | Phase 8 (books, announcements, weather) + dashboard summary |
+| 0.35 | Phase 9 (offline sync) |
+| 0.36 | Phase 10 (OCR, wall panels) |
+
+Each release is published with `deploy.sh publish` and checked on the `test` VM before the next phase starts.
+
+## How to port each domain
+- **Backend:** rewrite on our models (`family_id`, `UTCDateTime`, Alembic, cookie auth). v0.29's backend is a spec, not code to copy.
+- **Frontend:** v0.29's pages (Chores, Meals, Rewards, Books, Announcements, wall panels; about 3k lines) are reusable UI. Port them with an API adapter: axios `withCredentials`, our routes, 401 → login and 403 → message (v0.29 logs users out on 403), and `lib/dates.ts` for dates.
+- **Tests:** v0.29's 65 backend tests are acceptance criteria. Re-express each one against our fixtures before writing the code it covers.
+
 ## Phase 2 — Security
 - [ ] Enforce roles on events. Viewers are read-only. Members edit their own and internal events. Admins can edit everything. Synced iCal events are read-only. Scope `PATCH /calendar/events` by family.
 - [ ] Rate-limit password login. Block deleted users at login. Make display names unique (case-insensitive) with a clear error.
@@ -9,6 +34,12 @@ Known bugs and planned fixes, from the code review of 2026-10-04. Phase 1 shippe
 - [ ] Server-side session revocation using the `sessions` table and a `jti` claim, so logout, password changes and user deletion revoke tokens.
 - [ ] Optional: authenticate the `/api/ws/wall` WebSocket.
 - [ ] Fix the remaining react-hooks lint error in `ManageUsers.tsx`.
+- [ ] **Sign-in model (decision above).**
+  - `GET /api/auth/profiles` returns name, avatar and color for the picker. It stays public, because the picker needs it before sign-in, but it returns no other fields.
+  - PIN login takes `user_id` + `pin` (never loop over users) and counts **failed** attempts per user with an escalating lockout.
+  - Sessions record the method (`amr: pin|password`). Admin endpoints require a password session, or a password re-check within the last 15 minutes.
+  - Users get an emoji avatar (reuse `avatar_type="emoji"`, `avatar_value`).
+  - Tests first: lockout after N failures; a PIN session gets 403 on an admin endpoint; a password session passes; profiles exposes no other fields.
 
 ## Phase 3 — iCal correctness
 - [ ] Don't duplicate the first occurrence of recurring events.
@@ -27,6 +58,8 @@ Known bugs and planned fixes, from the code review of 2026-10-04. Phase 1 shippe
 - [ ] Read `WALL_IDLE_TIMEOUT_SECONDS` and `FAMILY_NAME` from settings, or drop them.
 - [ ] Add tests for users and permissions.
 - [ ] Update `release_checklist.json` and the sprint manifests, or archive them.
+- [ ] `.gitignore`: add `file:*` (SQLite shared-cache files) now, before any Phase 5 dev DB.
+- [ ] Bump to 0.30 and add the CHANGELOG note about the retired 0.19–0.29 line.
 
 ## Phases 5–10 — Port the v0.29 feature set
 
@@ -47,6 +80,12 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 - [ ] Admin "By User" view: group by assignee with pending and completed counts.
 - [ ] Per-user completion stats.
 - [ ] `jobs/chore_generator.py` on the existing scheduler (06:00), not a second scheduler.
+- [ ] **Fix v0.29 bugs while porting:**
+  - Completing a chore never writes to the points ledger (only `points_earned` on the log), so chores earn no points. Credit the ledger in the same transaction, exactly once.
+  - `every_N_days` restarts from "today" on each run, so with a daily run every day gets an instance. Anchor the interval to the template's start date.
+  - Due dates use the UTC date. Use the family's timezone date.
+  - Anyone can claim an *assigned* chore. Only the assignee (or an admin) can.
+  - Add a unique (`template_id`, `due_date`) constraint so double generation is impossible.
 - Tests first: recurrence expansion across DST; instance generation idempotency; claim/complete role gating; admin view counts; generator does not double-generate.
 
 ### Phase 6 — Rewards
@@ -54,18 +93,23 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 - [ ] Weekly allowance distributor, Mondays 07:00, **idempotent per week**.
 - [ ] Reward catalog with both purchase and request → approve / reject flows.
 - [ ] Streaks and badge definitions with auto-award.
+- [ ] Allowance is stored as integer cents (v0.29 uses strings), with a unique (`user_id`, `week_start`) key. A missed Monday is caught up on the next run.
 - Tests first: ledger balances match the sum of entries; allowance re-run for the same week is a no-op; approve/reject adjusts the ledger exactly once; streak rollover at week boundaries.
 
 ### Phase 7 — Meals and recipes
 - [ ] `recipes` with dietary tags, plus text and JSON-LD import.
 - [ ] 7-day meal-plan grid with bulk update.
 - [ ] Shopping list tracking which recipe each item came from, regenerate, weekly reset job.
+- [ ] Every meals endpoint requires auth and family scope. v0.29's GETs for dietary tags, recipes, plans and the shopping list have **no auth**, and its weekly reset job is never registered.
+- [ ] Recipe URL import guards against SSRF: http(s) only; block private, loopback and link-local addresses after DNS resolution; size and time limits.
 - Tests first: import parsing for both formats; plan overwrite semantics; regenerate is idempotent; reset does not delete completed purchases.
 
 ### Phase 8 — Books, announcements, weather
 - [ ] Books: personal lists, shared family library, status transitions, 50-point award on completion (writes to the Phase 6 ledger).
 - [ ] Announcements: free text with pin/unpin.
-- [ ] Weather: Open-Meteo, no API key, cached ~10 minutes server-side. WMO code → emoji mapping.
+- [ ] Weather: Open-Meteo, no API key, cached ~10 minutes server-side. WMO code → emoji mapping. Location is a family setting.
+- [ ] Shared family library: implement `POST/PATCH/DELETE /books/shared…`. v0.29's UI calls these, but its backend only has `GET /books/shared`.
+- [ ] Dashboard: one `GET /api/dashboard/summary` (today's events, chore stats, points, allowance, this week's meals). v0.29's dashboard calls four `/api/dashboard/*` routes that don't exist.
 - Tests first: cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes.
 
 ### Phase 9 — Offline sync
@@ -80,6 +124,8 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 ### Phase 10 — OCR and wall panels
 - [ ] `ScanListModal` with `tesseract.js`: capture, OCR, preview, edit, then add to the shopping list.
 - [ ] Wall cycling panel mode with a live countdown.
+- [ ] Read-only wall endpoints (`/api/wall/chores`, `/meals`, `/announcements`, `/weather`) behind the paired-device cookie. v0.29's panels need a family member's login.
+- [ ] The wall timezone is a family setting edited by an admin. v0.29 lets the wall itself write it via an admin-only call.
 - [ ] `DateTimeWallPanel` with a timezone picker; reuse `frontend/src/lib/dates.ts` and the wall token flow.
 - Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device.
 
@@ -98,9 +144,8 @@ Each of these is in that tree. Porting a feature means reimplementing it correct
 - [ ] Its committed SQLite WAL (`backend/file:memdb1-wal`, 4.1 MB) contains a bcrypt hash. `.gitignore` already covers `*.db`, `*.db-wal` and `*.db-shm`, but SQLite shared-cache names (`file:memdb1-wal`) slip past them — add a pattern before Phase 5 opens a dev DB.
 
 ### Version numbering
-Both lineages independently shipped a `0.18` (ours: deploy/wall-pairing/UTC; v0.29's: chores/rewards/meals).
-`CHANGELOG.md` entries therefore collide on headings. Decide which tree keeps `0.18` before Phase 5 ships, and
-record the decision in `CHANGELOG.md` so the next bump is unambiguous.
+Decided: the merged line continues at **0.30** (see Decisions). Our 0.18 keeps its CHANGELOG entry. The 0.30 entry
+notes that 0.19–0.29 (and v0.29's own "0.18") belong to the retired `main` line.
 
 ## Completed
 - [x] v0.18: the Phase 1 fixes (routing, login errors, time zones, range queries, Sync Now, source delete, source filter, wall pairing, deploy script). See CHANGELOG.
