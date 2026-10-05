@@ -1,12 +1,13 @@
 #!/bin/bash
 
 # OpenFamHub Deployment Script
-# This script automte the deployment of OpenFamHub using Docker Compose.
+# This script automates the deployment of OpenFamHub using Docker Compose.
 
 set -e
 
 APP_NAME="openfamhub"
-DEPLOY_DIR=$(pwd)
+# Run from the repository root regardless of where the script is called from.
+cd "$(dirname "$0")/.."
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -26,12 +27,47 @@ usage() {
     echo "Usage: $0 [command]"
     echo ""
     echo "Commands:"
-    echo "  setup     Initial setup (environment, volumes, etc.)"
-    echo "  deploy    Deploy/Update the application"
+    echo "  setup     Initial setup (.env with a generated SECRET_KEY, data folders)"
+    echo "  deploy    Rebuild images from this checkout and (re)start the services"
+    echo "  update    git pull (fast-forward only), then deploy"
     echo "  status    Check the status of services"
-    echo "  logs      View service logs"
+    echo "  logs      View service logs (optionally: logs <service>)"
     echo "  stop      Stop all services"
     echo "  help      Display this help message"
+}
+
+require_env() {
+    [ -f ".env" ] || error ".env not found. Run '$0 setup' first."
+    if grep -q '^SECRET_KEY=REPLACE_WITH_64_CHAR_HEX' .env; then
+        error "SECRET_KEY in .env is still the placeholder. Run '$0 setup' or set it by hand."
+    fi
+}
+
+wait_for_health() {
+    log "Waiting for the API to become healthy..."
+    for _ in $(seq 1 30); do
+        if docker compose exec -T api python -c \
+            "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health', timeout=2).status == 200 else 1)" \
+            >/dev/null 2>&1; then
+            log "API is healthy."
+            return 0
+        fi
+        sleep 2
+    done
+    docker compose ps
+    error "API did not become healthy within 60s. Check: $0 logs api"
+}
+
+deploy() {
+    require_env
+    mkdir -p data/db data/photos data/backups
+    # Images are built from this checkout (docker-compose.yml uses build:),
+    # so --build is what actually picks up code changes.
+    log "Building images and starting services..."
+    docker compose up -d --build --remove-orphans
+    wait_for_health
+    docker compose ps
+    log "Deployment successful!"
 }
 
 case "$1" in
@@ -43,27 +79,27 @@ case "$1" in
         else
             log ".env already exists. Skipping creation."
         fi
+        if grep -q '^SECRET_KEY=REPLACE_WITH_64_CHAR_HEX' .env; then
+            command -v openssl >/dev/null || error "openssl is needed to generate SECRET_KEY"
+            key=$(openssl rand -hex 32)
+            # Portable in-place edit (GNU and BSD sed differ on -i).
+            tmp=$(mktemp)
+            sed "s/^SECRET_KEY=REPLACE_WITH_64_CHAR_HEX.*/SECRET_KEY=$key/" .env > "$tmp" && cat "$tmp" > .env && rm -f "$tmp"
+            log "Generated SECRET_KEY. Back it up in your password manager."
+        fi
         log "Ensuring data directories exist..."
-        mkdir -p backend/data/db docs/releases scripts/
-        log "Setup complete. Please review your .env file before running 'deploy'."
+        mkdir -p data/db data/photos data/backups
+        log "Setup complete. Review .env, then run '$0 deploy'."
         ;;
 
     deploy)
-        log "Starting deployment for $APP_NAME..."
-        # 1. Pull latest images (if using a registry)
-        log "Pulling latest Docker images..."
-        docker compose pull
+        deploy
+        ;;
 
-        # 2. Run docker-compose up
-        log "Launching services..."
-        docker compose up -d
-
-        # 3. Verify health
-        log "Verifying service status..."
-        sleep 5
-        docker compose ps
-
-        log "Deployment successful!"
+    update)
+        log "Pulling latest code..."
+        git pull --ff-only || error "git pull failed (local changes or diverged branch?)"
+        deploy
         ;;
 
     status)
