@@ -4,13 +4,31 @@ from datetime import datetime, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_password
+from app.core.security import hash_password, revoke_sessions
 from app.models.user import User
 from app.schemas.users import (
     CreateUserRequest,
     UpdateUserRequest,
     UserResponse,
 )
+
+
+class DuplicateNameError(ValueError):
+    pass
+
+
+async def _ensure_unique_name(db: AsyncSession, family_id: str, name: str, exclude_id: str | None = None) -> None:
+    """Display names are how people pick themselves and log in, so they must be
+    unique per family, ignoring case and surrounding spaces."""
+    stmt = select(User.id).where(
+        User.family_id == family_id,
+        User.is_deleted == False,  # noqa: E712
+        func.lower(func.trim(User.display_name)) == name.strip().lower(),
+    )
+    if exclude_id:
+        stmt = stmt.where(User.id != exclude_id)
+    if (await db.execute(stmt)).first():
+        raise DuplicateNameError(f'Someone in the family is already called "{name.strip()}"')
 
 
 async def list_users(db: AsyncSession, family_id: str) -> list[UserResponse]:
@@ -22,11 +40,12 @@ async def list_users(db: AsyncSession, family_id: str) -> list[UserResponse]:
 
 
 async def create_user(db: AsyncSession, data: CreateUserRequest, family_id: str) -> UserResponse:
+    await _ensure_unique_name(db, family_id, data.display_name)
     email = data.email or f"user{uuid.uuid4().hex[:8]}@family.local"
     role = data.role or "member"
     user = User(
         family_id=family_id,
-        display_name=data.display_name,
+        display_name=data.display_name.strip(),
         email=email,
         role=role,
         color_hex=data.color_hex or "#4F46E5",
@@ -36,6 +55,8 @@ async def create_user(db: AsyncSession, data: CreateUserRequest, family_id: str)
         user.hashed_password = hash_password(data.password)
     if data.pin:
         user.pin_hash = hash_password(data.pin)
+    if data.avatar:
+        user.avatar_type, user.avatar_value = "emoji", data.avatar
     db.add(user)
     await db.flush()
     return _user_to_response(user)
@@ -51,7 +72,13 @@ async def get_user(db: AsyncSession, user_id: str, family_id: str) -> UserRespon
     return _user_to_response(user)
 
 
-async def update_user(db: AsyncSession, user_id: str, data: UpdateUserRequest, family_id: str) -> UserResponse | None:
+async def update_user(
+    db: AsyncSession,
+    user_id: str,
+    data: UpdateUserRequest,
+    family_id: str,
+    current_session_id: str | None = None,
+) -> UserResponse | None:
     result = await db.execute(
         select(User).where(User.id == user_id, User.family_id == family_id, User.is_deleted == False)
     )
@@ -61,7 +88,8 @@ async def update_user(db: AsyncSession, user_id: str, data: UpdateUserRequest, f
 
     updates = {}
     if data.display_name is not None:
-        updates["display_name"] = data.display_name
+        await _ensure_unique_name(db, family_id, data.display_name, exclude_id=user_id)
+        updates["display_name"] = data.display_name.strip()
     if data.email is not None:
         updates["email"] = data.email
     if data.role is not None:
@@ -74,11 +102,16 @@ async def update_user(db: AsyncSession, user_id: str, data: UpdateUserRequest, f
         updates["hashed_password"] = hash_password(data.password)
     if data.pin is not None:
         updates["pin_hash"] = hash_password(data.pin)
+    if data.avatar is not None:
+        updates["avatar_type"], updates["avatar_value"] = "emoji", data.avatar
 
     if updates:
         for k, v in updates.items():
             setattr(user, k, v)
         await db.flush()
+    if data.password is not None:
+        # A new password signs the user out everywhere else.
+        await revoke_sessions(db, user_id, keep_session_id=current_session_id)
 
     return _user_to_response(user)
 
@@ -91,6 +124,7 @@ async def delete_user(db: AsyncSession, user_id: str, family_id: str) -> bool:
     if not user:
         return False
     user.is_deleted = True
+    await revoke_sessions(db, user_id)
     await db.flush()
     return True
 

@@ -11,6 +11,7 @@ class CreateUserRequest(BaseModel):
     color_hex: Optional[str] = None
     ui_mode: Optional[str] = None
     role: Optional[str] = None
+    avatar: Optional[str] = None  # an emoji, shown in the sign-in picker
 
     @field_validator("display_name")
     @classmethod
@@ -29,8 +30,15 @@ class CreateUserRequest(BaseModel):
     @field_validator("pin")
     @classmethod
     def pin_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and (len(v) < 4 or len(v) > 8):
-            raise ValueError("pin must be 4-8 characters")
+        if v is not None and (not v.isdigit() or len(v) < 4 or len(v) > 8):
+            raise ValueError("pin must be 4-8 digits")
+        return v
+
+    @field_validator("avatar")
+    @classmethod
+    def avatar_length(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not 1 <= len(v) <= 16:
+            raise ValueError("avatar must be 1-16 characters (an emoji)")
         return v
 
     @field_validator("color_hex")
@@ -65,6 +73,7 @@ class UpdateUserRequest(BaseModel):
     color_hex: Optional[str] = None
     ui_mode: Optional[str] = None
     role: Optional[str] = None
+    avatar: Optional[str] = None  # an emoji, shown in the sign-in picker
 
     @field_validator("display_name")
     @classmethod
@@ -83,8 +92,15 @@ class UpdateUserRequest(BaseModel):
     @field_validator("pin")
     @classmethod
     def pin_length(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and (len(v) < 4 or len(v) > 8):
-            raise ValueError("pin must be 4-8 characters")
+        if v is not None and (not v.isdigit() or len(v) < 4 or len(v) > 8):
+            raise ValueError("pin must be 4-8 digits")
+        return v
+
+    @field_validator("avatar")
+    @classmethod
+    def avatar_length(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not 1 <= len(v) <= 16:
+            raise ValueError("avatar must be 1-16 characters (an emoji)")
         return v
 
     @field_validator("color_hex")
@@ -117,13 +133,9 @@ class SetPinRequest(BaseModel):
     @field_validator("pin")
     @classmethod
     def pin_length(cls, v: str) -> str:
-        if len(v) < 4 or len(v) > 8:
-            raise ValueError("pin must be 4-8 characters")
+        if not v.isdigit() or len(v) < 4 or len(v) > 8:
+            raise ValueError("pin must be 4-8 digits")
         return v
-
-
-class SwitchUserRequest(BaseModel):
-    user_id: str
 
 
 class UserResponse(BaseModel):
