@@ -14,7 +14,7 @@ interface RBCEvent {
   start: Date
   end: Date
   allDay: boolean
-  resource: { color: string; sourceName: string }
+  resource: { color: string; sourceName: string; createdBy: string | null; synced: boolean }
 }
 
 const locales = { 'en-US': enUS }
@@ -122,6 +122,8 @@ export default function CalendarPage() {
         resource: {
           color: e.source_color_hex || '#4F46E5',
           sourceName: sourceNames.get(e.source_id) ?? 'Calendar',
+          createdBy: e.created_by,
+          synced: !!e.external_uid,
         },
       }))
   }, [events, hiddenIds, sourceNames])
@@ -245,7 +247,7 @@ export default function CalendarPage() {
               </div>
             )}
             <div className="flex gap-2 mt-4">
-              {currentUser?.role === 'admin' && (
+              {canEdit(currentUser, selectedEvent) && (
                 <button onClick={handleDeleteEvent} className="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded text-sm">
                   Delete
                 </button>
@@ -382,6 +384,13 @@ function CreateEventModal({
       </form>
     </div>
   )
+}
+
+// Mirrors the API's rules: subscribed-calendar events are read-only, viewers
+// can't change anything, members change their own events, admins any.
+function canEdit(user: { id: string; role: string } | null, event: RBCEvent): boolean {
+  if (!user || event.resource.synced || user.role === 'viewer') return false
+  return user.role === 'admin' || event.resource.createdBy === user.id
 }
 
 function getViewRange(view: ViewType, date: Date): { start: Date; end: Date } {

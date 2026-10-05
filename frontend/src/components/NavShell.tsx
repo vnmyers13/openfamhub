@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/auth'
-import { apiClient } from '../api/client'
+import { apiClient, requestPasswordPrompt } from '../api/client'
+import Avatar from './Avatar'
 import { cn } from '../lib/utils'
 
 const navItems = [
@@ -59,7 +60,7 @@ export default function NavShell() {
             </Link>
           ))}
 
-          {(user?.role === 'admin' || user?.role === 'co_admin') && (
+          {user?.role === 'admin' && (
             <>
               <div className="my-3 border-t border-slate-800" />
               <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-slate-600">
@@ -86,13 +87,20 @@ export default function NavShell() {
         <div className="border-t border-slate-800 px-4 py-3">
           {user && (
             <div className="flex items-center gap-3">
-              <span
-                className="inline-block h-8 w-8 rounded-full"
-                style={{ backgroundColor: user.color_hex || '#6366f1' }}
-              />
+              <Avatar name={user.display_name} color={user.color_hex} emoji={user.avatar_value} className="h-8 w-8 text-base" />
               <div className="flex-1 truncate">
                 <p className="text-sm font-medium text-white">{user.display_name}</p>
-                <p className="text-xs text-slate-500">{user.role}</p>
+                {user.role === 'admin' && !user.admin_unlocked ? (
+                  <button
+                    onClick={() => requestPasswordPrompt().catch(() => {})}
+                    className="text-xs text-amber-400 hover:text-amber-300"
+                    title="Signed in with a PIN: confirm your password to change settings"
+                  >
+                    🔒 Unlock admin
+                  </button>
+                ) : (
+                  <p className="text-xs text-slate-500">{user.role}</p>
+                )}
               </div>
               <button
                 onClick={handleLogout}
@@ -127,7 +135,7 @@ export default function NavShell() {
             {item.label}
           </Link>
         ))}
-        {(user?.role === 'admin' || user?.role === 'co_admin') && (
+        {user?.role === 'admin' && (
           <Link
             to="/admin/settings"
             className={cn(

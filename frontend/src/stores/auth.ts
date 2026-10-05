@@ -9,6 +9,10 @@ export interface User {
   avatar_type: string | null
   avatar_value: string | null
   family_id: string
+  /** "pin" or "password": how this browser signed in. */
+  auth_method?: string | null
+  /** Whether admin actions are allowed right now (password session or recent unlock). */
+  admin_unlocked?: boolean
 }
 
 interface AuthStore {

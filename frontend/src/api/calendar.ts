@@ -11,6 +11,8 @@ export interface CalendarEvent {
   location: string | null
   description: string | null
   created_by: string | null
+  /** Set for events from a subscribed calendar (read-only). */
+  external_uid?: string | null
   source_color_hex: string
   created_at: string | null
   updated_at: string | null

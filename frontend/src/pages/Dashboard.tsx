@@ -103,7 +103,7 @@ function SyncStatusWidget() {
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
-  const isAdmin = user?.role === 'admin' || user?.role === 'co_admin'
+  const isAdmin = user?.role === 'admin'
 
   return (
     <div className="flex flex-col gap-6 p-6">

@@ -11,6 +11,7 @@ import CalendarSettings from './pages/admin/CalendarSettings'
 import WallDisplays from './pages/admin/WallDisplays'
 import NavShell from './components/NavShell'
 import WallLayout from './wall/WallLayout'
+import PasswordPrompt from './components/PasswordPrompt'
 
 // Paths an authenticated user should be moved off of after boot.
 const ENTRY_PATHS = new Set(['/', '/login', '/setup'])
@@ -83,6 +84,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppRoutes />
+      <PasswordPrompt />
     </BrowserRouter>
   )
 }

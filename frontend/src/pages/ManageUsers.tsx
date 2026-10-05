@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import { apiClient } from '../api/client'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiClient, errorDetail } from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import Avatar from '../components/Avatar'
 
 interface User {
   id: string
@@ -18,103 +20,108 @@ interface User {
   created_at: string | null
 }
 
+const AVATARS = ['🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐵', '🦄', '🐙', '🐢', '🦖', '🐝', '🌟', '🚀', '⚽', '🎸']
+const ROLES = [
+  { value: 'admin', label: 'Admin (parents)' },
+  { value: 'member', label: 'Member' },
+  { value: 'viewer', label: 'Viewer (read-only)' },
+]
+
+interface FormValues {
+  display_name: string
+  role: string
+  color_hex: string
+  avatar: string
+  pin: string
+  password: string
+}
+
 export default function ManageUsers() {
   const { user: currentUser } = useAuthStore()
-  const [users, setUsers] = useState<User[]>([])
+  const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [editId, setEditId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<User | null>(null)
 
-  const fetchUsers = useCallback(async () => {
-    const res = await apiClient.get('/users/')
-    setUsers(res.data)
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    fetchUsers()
-  }, [fetchUsers])
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this user?')) return
-    await apiClient.delete(`/users/${id}`)
-    fetchUsers()
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => (await apiClient.get('/users/')).data as User[],
+  })
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['users'] })
+    qc.invalidateQueries({ queryKey: ['auth-profiles'] })
   }
+  const remove = useMutation({
+    mutationFn: async (id: string) => apiClient.delete(`/users/${id}`),
+    onSuccess: refresh,
+  })
 
   if (currentUser?.role !== 'admin') {
-    return <div className="text-gray-400 p-8 text-center">Access denied</div>
+    return <div className="p-8 text-center text-gray-400">Access denied</div>
   }
 
   return (
     <div className="min-h-screen bg-gray-950 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">Manage Users</h1>
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">Family members</h1>
           <button
-            onClick={() => setShowCreate(true)}
-            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded font-medium"
+            onClick={() => {
+              setEditing(null)
+              setShowCreate(true)
+            }}
+            className="rounded bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark"
           >
-            Add User
+            Add member
           </button>
         </div>
 
-        {showCreate && (
-          <CreateUserForm
+        {(showCreate || editing) && (
+          <UserForm
+            key={editing?.id ?? 'new'}
+            user={editing}
             onDone={() => {
               setShowCreate(false)
-              fetchUsers()
+              setEditing(null)
+              refresh()
+            }}
+            onCancel={() => {
+              setShowCreate(false)
+              setEditing(null)
             }}
           />
         )}
 
-        {editId && (
-          <EditUserForm
-            userId={editId}
-            onDone={() => {
-              setEditId(null)
-              fetchUsers()
-            }}
-          />
-        )}
-
-        {loading ? (
-          <div className="text-gray-400 text-center py-8">Loading...</div>
+        {isLoading ? (
+          <div className="py-8 text-center text-gray-400">Loading...</div>
         ) : (
           <div className="space-y-3">
             {users.map((u) => (
-              <div
-                key={u.id}
-                className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex items-center justify-between"
-              >
+              <div key={u.id} className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900 p-4">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
-                    style={{ backgroundColor: u.color_hex }}
-                  >
-                    {u.display_name[0].toUpperCase()}
-                  </div>
+                  <Avatar name={u.display_name} color={u.color_hex} emoji={u.avatar_value} className="h-10 w-10 text-xl" />
                   <div>
-                    <div className="text-white font-medium">{u.display_name}</div>
-                    <div className="text-gray-400 text-sm">
-                      {u.role}{u.email ? ` · ${u.email}` : ''}
+                    <div className="font-medium text-white">{u.display_name}</div>
+                    <div className="text-sm text-gray-400">
+                      {u.role}
+                      {u.has_pin ? ' · PIN' : ''}
+                      {u.has_password ? ' · password' : ''}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {u.id !== currentUser?.id && (
-                    <button
-                      onClick={() => handleDelete(u.id)}
-                      className="text-red-400 hover:text-red-300 text-sm"
-                    >
-                      Delete
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setEditId(u.id)}
-                    className="text-gray-400 hover:text-white text-sm ml-2"
-                  >
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setEditing(u)} className="text-sm text-gray-400 hover:text-white">
                     Edit
                   </button>
+                  {u.id !== currentUser?.id && (
+                    <button
+                      onClick={() => {
+                        if (confirm(`Remove ${u.display_name}? They will be signed out everywhere.`)) remove.mutate(u.id)
+                      }}
+                      className="text-sm text-red-400 hover:text-red-300"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -125,180 +132,102 @@ export default function ManageUsers() {
   )
 }
 
-function CreateUserForm({ onDone }: { onDone: () => void }) {
-  const [displayName, setDisplayName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [color, setColor] = useState('#4F46E5')
+function UserForm({ user, onDone, onCancel }: { user: User | null; onDone: () => void; onCancel: () => void }) {
+  const isNew = user === null
+  const [values, setValues] = useState<FormValues>({
+    display_name: user?.display_name ?? '',
+    role: user?.role ?? 'member',
+    color_hex: user?.color_hex ?? '#4F46E5',
+    avatar: user?.avatar_value ?? AVATARS[0],
+    pin: '',
+    password: '',
+  })
   const [error, setError] = useState('')
+  const set = (k: keyof FormValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setValues((v) => ({ ...v, [k]: e.target.value }))
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const save = useMutation({
+    mutationFn: async () => {
+      const body = {
+        display_name: values.display_name,
+        role: values.role,
+        color_hex: values.color_hex,
+        avatar: values.avatar,
+        pin: values.pin || undefined,
+        password: values.password || undefined,
+      }
+      return isNew ? apiClient.post('/users/', body) : apiClient.patch(`/users/${user!.id}`, body)
+    },
+    onSuccess: onDone,
+    onError: (err) => setError(errorDetail(err, 'Could not save')),
+  })
+
+  const submit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    try {
-      await apiClient.post('/users/', {
-        display_name: displayName,
-        email: email || undefined,
-        password: password || undefined,
-        color_hex: color,
-      })
-      onDone()
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to create user'
-      setError(msg)
-    }
+    if (values.pin && !/^\d{4,8}$/.test(values.pin)) return setError('PIN must be 4-8 digits')
+    if (values.password && values.password.length < 8) return setError('Password must be at least 8 characters')
+    if (isNew && !values.pin && !values.password) return setError('Give them a PIN, a password, or both')
+    if (values.role === 'admin' && isNew && !values.password) return setError('Admins need a password for admin changes')
+    save.mutate()
   }
 
+  const input = 'w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white'
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4 space-y-3">
-      {error && <div className="bg-red-900/50 text-red-300 px-4 py-2 rounded text-sm">{error}</div>}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Display Name</label>
-          <input
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Email</label>
-          <input
-            type="email"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Password</label>
-          <input
-            type="password"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Color</label>
-          <input
-            type="color"
-            className="w-full h-9 bg-gray-800 border border-gray-700 rounded cursor-pointer"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-          />
+    <form onSubmit={submit} className="mb-4 space-y-4 rounded-lg border border-gray-800 bg-gray-900 p-4">
+      <h2 className="font-semibold text-white">{isNew ? 'Add a family member' : `Edit ${user!.display_name}`}</h2>
+      {error && <div className="rounded bg-red-900/50 px-4 py-2 text-sm text-red-300">{error}</div>}
+      <div>
+        <span className="mb-1 block text-sm text-gray-300">Avatar</span>
+        <div className="flex flex-wrap gap-2">
+          {AVATARS.map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setValues((v) => ({ ...v, avatar: a }))}
+              className={`flex h-10 w-10 items-center justify-center rounded-full text-xl ${values.avatar === a ? 'ring-2 ring-white' : ''}`}
+              style={{ backgroundColor: values.color_hex }}
+              aria-label={`Avatar ${a}`}
+            >
+              {a}
+            </button>
+          ))}
         </div>
       </div>
-      <div className="flex justify-end gap-2">
-        <button type="button" onClick={onDone} className="text-gray-400 hover:text-white text-sm px-3 py-1">
-          Cancel
-        </button>
-        <button type="submit" className="bg-primary hover:bg-primary-dark text-white text-sm px-4 py-1 rounded">
-          Create
-        </button>
-      </div>
-    </form>
-  )
-}
-
-function EditUserForm({ userId, onDone }: { userId: string; onDone: () => void }) {
-  const [displayName, setDisplayName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [role, setRole] = useState('')
-  const [color, setColor] = useState('#4F46E5')
-  const [error, setError] = useState('')
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    apiClient.get(`/users/${userId}`).then((res) => {
-      setDisplayName(res.data.display_name || '')
-      setEmail(res.data.email || '')
-      setRole(res.data.role || 'member')
-      setColor(res.data.color_hex || '#4F46E5')
-      setLoaded(true)
-    })
-  }, [userId])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    try {
-      await apiClient.patch(`/users/${userId}`, {
-        display_name: displayName || undefined,
-        email: email || undefined,
-        password: password || undefined,
-        role: role || undefined,
-        color_hex: color || undefined,
-      })
-      onDone()
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to update user'
-      setError(msg)
-    }
-  }
-
-  if (!loaded) return null
-
-  return (
-    <form onSubmit={handleSubmit} className="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4 space-y-3">
-      {error && <div className="bg-red-900/50 text-red-300 px-4 py-2 rounded text-sm">{error}</div>}
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Display Name</label>
-          <input
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Email</label>
-          <input
-            type="email"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">New Password</label>
-          <input
-            type="password"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Role</label>
-          <select
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="admin">Admin</option>
-            <option value="member">Member</option>
-            <option value="viewer">Viewer</option>
+        <label className="text-sm text-gray-300">
+          Name
+          <input className={input} value={values.display_name} onChange={set('display_name')} required maxLength={100} />
+        </label>
+        <label className="text-sm text-gray-300">
+          Role
+          <select className={input} value={values.role} onChange={set('role')}>
+            {ROLES.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
           </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Color</label>
-          <input
-            type="color"
-            className="w-full h-9 bg-gray-800 border border-gray-700 rounded cursor-pointer"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-          />
-        </div>
+        </label>
+        <label className="text-sm text-gray-300">
+          {isNew ? 'PIN (4-8 digits)' : 'New PIN (leave blank to keep)'}
+          <input className={input} value={values.pin} onChange={set('pin')} inputMode="numeric" autoComplete="off" maxLength={8} />
+        </label>
+        <label className="text-sm text-gray-300">
+          {isNew ? 'Password (optional for kids)' : 'New password (leave blank to keep)'}
+          <input className={input} type="password" value={values.password} onChange={set('password')} autoComplete="new-password" />
+        </label>
+        <label className="text-sm text-gray-300">
+          Color
+          <input type="color" className="h-9 w-full cursor-pointer rounded border border-gray-700 bg-gray-800" value={values.color_hex} onChange={set('color_hex')} />
+        </label>
       </div>
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onDone} className="text-gray-400 hover:text-white text-sm px-3 py-1">
+        <button type="button" onClick={onCancel} className="px-3 py-1 text-sm text-gray-400 hover:text-white">
           Cancel
         </button>
-        <button type="submit" className="bg-primary hover:bg-primary-dark text-white text-sm px-4 py-1 rounded">
-          Save
+        <button type="submit" disabled={save.isPending} className="rounded bg-primary px-4 py-1 text-sm text-white hover:bg-primary-dark disabled:opacity-50">
+          {save.isPending ? 'Saving...' : 'Save'}
         </button>
       </div>
     </form>

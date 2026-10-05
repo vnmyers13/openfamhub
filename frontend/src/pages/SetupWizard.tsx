@@ -10,6 +10,7 @@ export default function SetupWizard() {
   const [timezone, setTimezone] = useState('UTC')
   const [adminName, setAdminName] = useState('')
   const [password, setPassword] = useState('')
+  const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -20,6 +21,10 @@ export default function SetupWizard() {
       setError('Password must be at least 8 characters')
       return
     }
+    if (pin && !/^\d{4,8}$/.test(pin)) {
+      setError('PIN must be 4-8 digits')
+      return
+    }
     setLoading(true)
     try {
       const res = await apiClient.post('/auth/setup', {
@@ -27,6 +32,7 @@ export default function SetupWizard() {
         timezone,
         admin_display_name: adminName,
         admin_password: password,
+        admin_pin: pin || undefined,
       })
       setUser(res.data)
       navigate('/dashboard')
@@ -86,6 +92,18 @@ export default function SetupWizard() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Your PIN (optional, 4-8 digits)</label>
+            <input
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={8}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-primary"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-gray-500">For quick sign-in from the family picker. Admin changes still ask for the password.</p>
           </div>
           <button
             type="submit"
