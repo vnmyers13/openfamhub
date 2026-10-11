@@ -38,6 +38,8 @@ PUBLIC_URL=https://openfamhub.vernonmyers.cloud \
   scripts/deploy.sh remote test                               # install/upgrade the "test" VM over SSH
 ```
 
+Registry login can use the 1Password Development item `forgejo.vernonmyers.cloud`; the full guide also covers LAN DNS for the registry hostname and server-side pull credentials.
+
 [docs/deployment.md](docs/deployment.md) covers:
 
 - registry login

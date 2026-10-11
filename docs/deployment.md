@@ -42,26 +42,34 @@ Images come from the Forgejo container registry (`forgejo.vernonmyers.cloud/vern
 
 - Install **Docker Desktop** (it includes `buildx`) and **openssl** (macOS has it).
 - Set up an SSH login to the server that needs no password: `ssh test` should work. A `Host test` entry in `~/.ssh/config` is the easiest way.
-- Log in to the registry with a Forgejo access token. Create it under Forgejo › Settings › Applications with the **package: read and write** scope:
+- Log in to the registry with a Forgejo access token. In 1Password, use the Development vault item `forgejo.vernonmyers.cloud` and pipe the concealed password field into Docker so the token is not printed:
 
   ```bash
-  docker login forgejo.vernonmyers.cloud     # username = your Forgejo user, password = the token
+  op read 'op://Development/forgejo.vernonmyers.cloud/password' \
+    | docker login forgejo.vernonmyers.cloud --username vernon --password-stdin
   ```
+
+  If you create a new token in Forgejo, create it under Forgejo › Settings › Applications with **package: read and write** scope for publishing.
 
 ### On the server (the `test` VM)
 
 - Install Docker Engine with the Compose plugin. `docker compose version` must work for the SSH user, so add that user to the `docker` group (`sudo usermod -aG docker $USER`, then log in again).
-- If the packages are **private**, log in once so the server can pull them. A token with **package: read** is enough:
-
-  ```bash
-  docker login forgejo.vernonmyers.cloud
-  ```
+- If the packages are **private**, log in once so the server can pull them. A token with **package: read** is enough. Use `docker login forgejo.vernonmyers.cloud` on the server and paste the read token when prompted.
 
 - Allow the reverse proxy to reach port **8080**. Ideally only the proxy host can reach it.
 
 ### Registry address: HTTPS name vs. LAN IP
 
 Use the HTTPS name (`forgejo.vernonmyers.cloud`). Docker requires HTTPS for registries by default.
+
+The server must resolve `forgejo.vernonmyers.cloud` to the Forgejo host. On the LAN this may need local DNS or an `/etc/hosts` entry; the current Forgejo host is `192.168.10.2`:
+
+```bash
+ssh 192.168.10.80 'getent hosts forgejo.vernonmyers.cloud || true'
+ssh 192.168.10.80 'printf "192.168.10.2 forgejo.vernonmyers.cloud\n" | sudo tee -a /etc/hosts'
+```
+
+Only add the hosts entry if DNS does not already return the correct address.
 
 To use `192.168.10.2:3002` (plain HTTP) instead, set `REGISTRY=192.168.10.2:3002/vernon` in `.env`, and also:
 
@@ -108,9 +116,10 @@ PUBLIC_URL=https://openfamhub.vernonmyers.cloud scripts/deploy.sh remote test
 `remote` does the following over SSH:
 
 1. Copies `deploy/compose.yml` and `config/{Caddyfile,Caddyfile.proxy,routes.caddy}` to `~/openfamhub` on the host. Set `REMOTE_DIR` to use another folder.
-2. **First run only:** creates `~/openfamhub/.env` from `deploy/env.template`, with a freshly generated `SECRET_KEY`, `ALLOWED_ORIGINS=$PUBLIC_URL`, behind-proxy mode on port 8080, and the file locked to mode `600`. Later runs only update `OPENFAMHUB_VERSION`.
-3. Runs `docker compose pull` and `up -d`.
-4. Waits until the API's healthcheck reports healthy.
+2. **First run:** creates `~/openfamhub/.env` from `deploy/env.template`, with a freshly generated `SECRET_KEY`, `ALLOWED_ORIGINS=$PUBLIC_URL`, behind-proxy mode on port 8080, and the file locked to mode `600`. Later runs preserve existing secrets/settings and upsert `REGISTRY` plus `OPENFAMHUB_VERSION`.
+3. Validates `docker compose config` on the server before pulling images, so missing image variables fail before deployment changes containers.
+4. Runs `docker compose pull` and `up -d`.
+5. Waits until the API's healthcheck reports healthy.
 
 ### First deploy checklist
 
@@ -202,11 +211,13 @@ These are also read from the environment of `deploy.sh`: `PLATFORMS` (publish), 
 
 - The API copies the database to `data/backups/homehub_YYYY-MM-DD.db` every day at `BACKUP_TIME`, using SQLite's online-backup API, so the copy is safe while the app is running. Copies older than `BACKUP_RETENTION_DAYS` are deleted.
 - All app state is in `data/` (the `db`, `backups` and `photos` folders) plus your `.env`. Copy `data/backups` somewhere else as well, for example a NAS or cloud drive.
-- **Before an upgrade**, take a manual backup:
+- **Before an upgrade**, take a manual backup. Because SQLite runs in WAL mode, do not copy only `homehub.db` while the API is writing. Prefer the app's backup directory, or stop the API before copying the database files:
 
   ```bash
-  ssh test 'cd ~/openfamhub && cp data/db/homehub.db data/backups/manual_$(date +%F_%H%M).db'
+  ssh test 'cd ~/openfamhub && sh -c '\''set -eu; docker compose stop api; trap "docker compose start api" EXIT; ts=$(date +%F_%H%M); cp data/db/homehub.db data/backups/manual_${ts}.db; [ ! -f data/db/homehub.db-wal ] || cp data/db/homehub.db-wal data/backups/manual_${ts}.db-wal; [ ! -f data/db/homehub.db-shm ] || cp data/db/homehub.db-shm data/backups/manual_${ts}.db-shm'\'''
   ```
+
+  The scheduled backup job uses SQLite's online-backup API and is safe while the app is running.
 
 **Restore:**
 
@@ -241,6 +252,7 @@ By default this runs in **LAN mode**: Caddy listens on 80/443 and serves `https:
 |---|---|
 | `publish`: `unauthorized` / `denied` | Run `docker login forgejo.vernonmyers.cloud` with a token that has **package: write**. |
 | `remote`: `pull access denied` / `unauthorized` | The packages are private: run `docker login` on the server (token with package: read), or make the packages public in Forgejo. |
+| `remote`: image is `/openfamhub-api:` or compose says `REGISTRY` / `OPENFAMHUB_VERSION` is unset | Re-run the current `scripts/deploy.sh remote <host>`; it upserts both variables in the remote `.env` and validates `docker compose config` before pulling. |
 | `http: server gave HTTP response to HTTPS client` | You're using the plain-HTTP registry address; see *Registry address* in section 2. |
 | `413 Request Entity Too Large` while pushing | A proxy in front of Forgejo limits body size; raise or remove the limit. |
 | `exec format error` on the server | The image wasn't built for the server's architecture; publish with the default `PLATFORMS` or include the server's. |
@@ -256,4 +268,4 @@ By default this runs in **LAN mode**: Caddy listens on 80/443 and serves `https:
 
 ## CI
 
-`.github/workflows/build.yml` still runs the tests and pushes images to GitHub's registry (`ghcr.io`) on pushes to `main`/`master` in the GitHub repository. Publishing to Forgejo is done with `deploy.sh publish`. Moving CI to Forgejo Actions (which needs a runner) is tracked in [TODO.md](../TODO.md).
+`.github/workflows/build.yml` runs backend tests plus frontend lint/build on pushes and pull requests to `master`. It only publishes GHCR images on pushes to canonical `master`; Forgejo publishing still happens through `scripts/deploy.sh publish`. Moving CI to Forgejo Actions, once a runner exists, is tracked in [TODO.md](../TODO.md).
