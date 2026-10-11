@@ -191,6 +191,7 @@ The start of the job should become:
 Run:
 
 ```bash
+grep -n "pull_request:\|branches: \[master\]\|if: github.event_name" .github/workflows/build.yml
 ```
 
 Expected: output contains `pull_request:`, two `branches: [master]` lines, and the build job `if:` line.
