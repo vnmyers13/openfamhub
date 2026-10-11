@@ -156,8 +156,22 @@ remote() {
     scp -q config/Caddyfile config/Caddyfile.proxy config/routes.caddy "$host:$dir/config/"
 
     if ssh "$host" "test -f '$dir/.env'"; then
-        log "Pinning OPENFAMHUB_VERSION=$VERSION in existing $dir/.env"
-        ssh "$host" "sed -i 's|^OPENFAMHUB_VERSION=.*|OPENFAMHUB_VERSION=$VERSION|' '$dir/.env'"
+        log "Pinning REGISTRY=$REGISTRY and OPENFAMHUB_VERSION=$VERSION in existing $dir/.env"
+        ssh "$host" "REGISTRY='$REGISTRY' VERSION='$VERSION' ENV_FILE='$dir/.env' sh -s" <<'REMOTE_ENV'
+set -eu
+upsert_env() {
+    key="$1"
+    value="$2"
+    file="$3"
+    if grep -q "^${key}=" "$file"; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+    else
+        printf '%s=%s\n' "$key" "$value" >> "$file"
+    fi
+}
+upsert_env REGISTRY "$REGISTRY" "$ENV_FILE"
+upsert_env OPENFAMHUB_VERSION "$VERSION" "$ENV_FILE"
+REMOTE_ENV
     else
         command -v openssl >/dev/null || error "openssl is needed to generate SECRET_KEY"
         local key
@@ -170,6 +184,9 @@ remote() {
         log "Created $dir/.env on $host with a generated SECRET_KEY (back it up)."
         log "Review it with: ssh $host \"\${EDITOR:-nano} $dir/.env\""
     fi
+
+    log "Validating compose config on $host..."
+    ssh "$host" "cd '$dir' && docker compose config >/dev/null"
 
     log "Pulling images and starting services on $host..."
     ssh "$host" "cd '$dir' && docker compose pull && docker compose up -d --remove-orphans"
