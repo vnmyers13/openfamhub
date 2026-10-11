@@ -22,6 +22,38 @@ Known bugs and planned fixes, from the code review of 2026-10-04. Phase 1 shippe
 
 Each release is published with `deploy.sh publish` and checked on the `test` VM before the next phase starts.
 
+## Review backlog (2026-10-11)
+
+Findings from the codebase review. Each item should be handled with tests first where practical, and can be picked up independently unless noted.
+
+### Backend security and data correctness
+- [ ] Require password/elevation for admin self-updates to security-sensitive fields. A PIN-only admin session can currently change its own `password`, then use that password for admin actions (`backend/app/routers/users.py`, `backend/app/services/users.py`). Add a regression test for PIN login + self password/PIN/role update returning 403 `password_required`.
+- [ ] Harden iCal feed fetching against SSRF. Calendar URLs are fetched server-side with redirects and no host/IP restrictions (`backend/app/integrations/ical_feed.py`, `backend/app/routers/integrations.py`). Restrict schemes, reject private/loopback/link-local/multicast targets after DNS resolution, validate redirect targets, and cover blocked hosts in tests.
+- [ ] Delete stale events when a successful iCal sync returns zero events. `sync_source()` only soft-deletes stale events when `incoming_uids` is non-empty (`backend/app/jobs/calendar_sync.py`). Add a test that syncs one event, then an empty feed, and expects the old event hidden.
+- [ ] Treat all-day iCal events without `DTEND` or `DURATION` as one-day events. The parser currently falls back to one hour (`backend/app/integrations/ical_feed.py`). Add parser tests for `DTSTART;VALUE=DATE` with no end.
+- [ ] Preserve `all_day` on recurring iCal expansions and avoid duplicating the first occurrence. This overlaps Phase 3; keep it there if fixing as part of 0.31 (`backend/app/integrations/ical_feed.py`).
+- [ ] Decide whether public auth queries must enforce a single-family invariant or explicit family scope. `profiles()`, password login, and PIN login are global today (`backend/app/routers/auth.py`); add multi-family regression tests or document/enforce one-family-per-install at the DB/application boundary.
+- [ ] Reject `provider: "internal"` on calendar source creation. The admin source API can create extra internal sources that are then protected from deletion (`backend/app/routers/calendar.py`, `backend/app/schemas/calendar.py`).
+- [ ] Add `CalendarEvent.family_id == family_id` to event reads, in addition to source family joins, so malformed rows cannot cross tenants (`backend/app/services/calendar.py`, `backend/app/routers/calendar.py`).
+
+### Frontend wall, auth, and role behavior
+- [ ] Make the wall 7-day window roll over after midnight. `WallSevenDayStrip` computes `today` once and keeps querying/highlighting the stale range until reload (`frontend/src/wall/WallSevenDayStrip.tsx`).
+- [ ] Show timed events on every local day they overlap. `eventDayKeys()` returns only the start day for timed events, so wall views drop events that span midnight (`frontend/src/lib/dates.ts`, `frontend/src/wall/WallSevenDayStrip.tsx`).
+- [ ] Clear wall state and cached wall queries when a paired display receives 401 after revocation. Wall requests intentionally skip the global login redirect, but no wall-specific handler switches the board back to unpaired (`frontend/src/wall/WallLayout.tsx`, `frontend/src/api/client.ts`, `frontend/src/api/wall.ts`).
+- [ ] Prevent wall WebSocket reconnect timers from surviving unmount/React StrictMode cleanup. Add a stopped flag or remove handlers before closing (`frontend/src/wall/WallSevenDayStrip.tsx`).
+- [ ] Queue or coalesce concurrent `password_required` prompts. The prompt component stores one pending request, so simultaneous admin requests can orphan the earlier promise (`frontend/src/api/client.ts`, `frontend/src/components/PasswordPrompt.tsx`).
+- [ ] Hide or disable event creation for viewer users and show API error details when create/update fails (`frontend/src/pages/CalendarPage.tsx`).
+- [ ] Add a frontend admin guard for every `/admin/*` route/page. `CalendarSettings` and `WallDisplays` are directly reachable by non-admin users and can show misleading 403-derived empty states (`frontend/src/App.tsx`, `frontend/src/pages/admin/CalendarSettings.tsx`, `frontend/src/pages/admin/WallDisplays.tsx`).
+- [ ] Add a frontend test runner and cover the high-risk date/auth/wall cases above. Suggested first tests: `lib/dates.ts`, wall midnight rollover, wall revocation handling, password elevation concurrency, and role-gated event creation.
+
+### Infra, deployment, and test coverage
+- [ ] Restrict GHCR `latest` image publishing to the canonical `master` branch. The GitHub workflow currently runs on both `main` and `master`, but `main` is the retired/divergent v0.29 line (`.github/workflows/build.yml`).
+- [ ] Upsert `OPENFAMHUB_VERSION` during remote deploy. `scripts/deploy.sh remote` only replaces the line if it already exists, leaving older `.env` files with an unset image tag (`scripts/deploy.sh`, `deploy/compose.yml`). Validate with `docker compose config` before pull.
+- [ ] Stop caching service worker assets as immutable for one year. Add no-cache rules for `/sw.js`, Workbox files, and the manifest; keep immutable caching for hashed `/assets/*` (`frontend/nginx.conf`).
+- [ ] Add a production-startup/migration smoke test. Current backend tests create metadata directly and do not exercise Alembic startup or scheduler registration (`backend/tests/conftest.py`, `backend/app/main.py`).
+- [ ] Fix manual backup docs for SQLite WAL mode. The deployment docs copy only `homehub.db`; document online backup, stopping the API first, or copying `homehub.db`, `homehub.db-wal`, and `homehub.db-shm` together (`docs/deployment.md`).
+- [ ] Run CI on pull requests without pushing images. Add a PR trigger for `master`; gate image publishing to push events (`.github/workflows/build.yml`).
+
 ## How to port each domain
 - **Backend:** rewrite on our models (`family_id`, `UTCDateTime`, Alembic, cookie auth). v0.29's backend is a spec, not code to copy.
 - **Frontend:** v0.29's pages (Chores, Meals, Rewards, Books, Announcements, wall panels; about 3k lines) are reusable UI. Port them with an API adapter: axios `withCredentials`, our routes, 401 → login and 403 → message (v0.29 logs users out on 403), and `lib/dates.ts` for dates.

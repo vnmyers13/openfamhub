@@ -138,6 +138,7 @@ async def update_event(
     if event.end_dt <= event.start_dt:
         raise HTTPException(status_code=400, detail="end_dt must be after start_dt")
     await db.flush()
+    await db.refresh(event)
     await event_bus.emit("calendar_updated", {"source_id": event.source_id})
     return event_to_response(event, color_hex)
 
