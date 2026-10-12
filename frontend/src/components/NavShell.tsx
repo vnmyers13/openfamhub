@@ -4,6 +4,9 @@ import { apiClient, requestPasswordPrompt } from '../api/client'
 import Avatar from './Avatar'
 import { cn } from '../lib/utils'
 
+// Set at image build time (deploy.sh publish -> OPENFAMHUB_BUILD, e.g. 0.30.17).
+const APP_BUILD = (import.meta.env.VITE_APP_BUILD as string | undefined) || 'dev'
+
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: '🏠' },
   { to: '/calendar', label: 'Calendar', icon: '📅' },
@@ -108,6 +111,9 @@ export default function NavShell() {
               </button>
             </div>
           )}
+          <p className="mt-2 text-[10px] text-slate-600" title="Deployed build">
+            OpenFamHub {APP_BUILD}
+          </p>
         </div>
       </aside>
 

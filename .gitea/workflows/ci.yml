@@ -7,6 +7,8 @@ on:
 
 env:
   SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
+  # Each run publishes and deploys its own image tag: <APP_VERSION>.<run>, e.g. 0.30.17.
+  BUILD_NUMBER: ${{ gitea.run_number }}
 
 jobs:
   backend:

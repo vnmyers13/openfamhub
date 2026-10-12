@@ -6,7 +6,10 @@ class TestAuth:
     async def test_health_endpoint(self, client):
         response = await client.get("/api/health")
         assert response.status_code == 200
-        assert response.json() == {"status": "ok", "version": settings.app_version}
+        body = response.json()
+        assert body["status"] == "ok"
+        assert body["version"] == settings.app_version
+        assert body["build"].startswith(settings.app_version) or body["build"] == "dev"
 
     async def test_setup_flow(self, client):
         setup_data = {

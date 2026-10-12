@@ -12,6 +12,9 @@ APP_VERSION = "0.30"
 
 class Settings(BaseSettings):
     app_version: str = APP_VERSION
+    # Baked into published images (OPENFAMHUB_BUILD / OPENFAMHUB_COMMIT env).
+    openfamhub_build: str = ""
+    openfamhub_commit: str = ""
     family_name: str = "OpenFamHub"
     timezone: str = "UTC"
     secret_key: str

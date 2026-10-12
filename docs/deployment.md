@@ -97,7 +97,7 @@ scripts/deploy.sh publish            # version = APP_VERSION in backend/app/core
 scripts/deploy.sh publish 0.30-rc1   # or an explicit tag
 ```
 
-This builds `linux/amd64` and `linux/arm64` images for the API and web app and pushes each one as `:<version>` and `:latest`.
+This builds `linux/amd64` and `linux/arm64` images for the API and web app and pushes each one as `:<version>` and `:latest`. CI sets `BUILD_NUMBER`, which turns the version into a per-push build such as `0.30.17` (and also moves `:0.30`); see [ci.md](ci.md). The build is baked into the images: `/api/health` reports `build` and `commit`, and the app's sidebar shows it.
 
 - The first run creates a buildx builder named `openfamhub`.
 - If the server and the Mac share an architecture, `PLATFORMS=linux/amd64 scripts/deploy.sh publish` is faster.
@@ -164,8 +164,8 @@ docker compose down                # stop (data in ./data is kept)
 scripts/deploy.sh publish
 scripts/deploy.sh remote test
 
-# Roll back to any version that was published
-scripts/deploy.sh remote test 0.30
+# Roll back to any version or CI build that was published
+scripts/deploy.sh remote test 0.30.12
 ```
 
 **Database changes:** from 0.30, the API applies Alembic migrations automatically at startup. Installs from before 0.30 are recognized and brought up to date. Migrations only move forward: rolling back to an older version across a schema change isn't supported, so take a backup before upgrading (see below).

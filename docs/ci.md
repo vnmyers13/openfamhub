@@ -21,6 +21,15 @@ test VM (`192.168.10.80`).
 into `~/openfamhub`, pins `REGISTRY`/`OPENFAMHUB_VERSION`, and pulls + restarts
 the stack.
 
+**Build numbers.** Every run sets `BUILD_NUMBER` to the run number, so a push to
+`master` publishes its own immutable tag, `<APP_VERSION>.<run>` (for example
+`0.30.17`), and also moves `:0.30` and `:latest`. `deploy` pins that exact tag in
+`~/openfamhub/.env`. To see what's running, check the sidebar footer in the app
+(`OpenFamHub 0.30.17`) or `curl -s https://openfamhub.vernonmyers.cloud/api/health`
+(`build` and `commit` fields). To roll the test VM back to an earlier build, run
+`scripts/deploy.sh server "$HOME/openfamhub" 0.30.12` on the VM (or
+`scripts/deploy.sh remote test 0.30.12` from the Mac).
+
 Pull requests run the checks only; they never publish or deploy.
 
 ## One-time setup

@@ -43,11 +43,12 @@ Registry workflow:
                         \$REGISTRY (default: $DEFAULT_REGISTRY)
   remote <host> [ver]   Install or upgrade OpenFamHub on <host> over SSH using the
                         published images (first run creates ~/openfamhub/.env)
-  server [dir]          Install the deploy bundle into [dir] (default: openfamhub)
+  server [dir] [ver]    Install the deploy bundle into [dir] (default: openfamhub)
                         and pull + restart the stack locally (no SSH)
 
 Environment overrides:
-  REGISTRY, OPENFAMHUB_VERSION, PLATFORMS (publish),
+  REGISTRY, OPENFAMHUB_VERSION, PLATFORMS (publish), BUILD_NUMBER (CI: appends
+  .<n> to APP_VERSION so each push gets its own tag),
   PUBLIC_URL, REMOTE_DIR (remote; defaults https://openfamhub.local, openfamhub)
 EOF
 }
@@ -67,9 +68,17 @@ resolve_registry() {
     REGISTRY="${REGISTRY:-$DEFAULT_REGISTRY}"
 }
 
+# Version precedence: explicit argument > $OPENFAMHUB_VERSION > .env > APP_VERSION.
+# When falling back to APP_VERSION, CI's $BUILD_NUMBER makes every push its own
+# immutable tag, e.g. 0.30.17 (the base tag 0.30 and :latest still move).
 resolve_version() {
     VERSION="${1:-${OPENFAMHUB_VERSION:-$(env_value OPENFAMHUB_VERSION)}}"
-    VERSION="${VERSION:-$(app_version)}"
+    if [ -z "$VERSION" ]; then
+        VERSION="$(app_version)"
+        if [ -n "${BUILD_NUMBER:-}" ]; then
+            VERSION="$VERSION.$BUILD_NUMBER"
+        fi
+    fi
     [ -n "$VERSION" ] || error "Could not determine the version"
 }
 
@@ -121,19 +130,27 @@ publish() {
         docker buildx create --name "$APP_NAME" --driver docker-container >/dev/null
     fi
 
-    local sha
+    local sha base
     sha=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+    base=$(app_version)
     for component in api web; do
         local context=backend
         [ "$component" = web ] && context=frontend
         local image="$REGISTRY/$APP_NAME-$component"
+        local tags=(-t "$image:$VERSION" -t "$image:latest")
+        # A build tag (0.30.17) also moves the release tag (0.30).
+        if [ "$VERSION" != "$base" ] && [ "${VERSION#"$base".}" != "$VERSION" ]; then
+            tags+=(-t "$image:$base")
+        fi
         log "Building and pushing $image:$VERSION ($platforms)..."
         docker buildx build \
             --builder "$APP_NAME" \
             --platform "$platforms" \
             --label "org.opencontainers.image.revision=$sha" \
-            -t "$image:$VERSION" \
-            -t "$image:latest" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --build-arg "OPENFAMHUB_BUILD=$VERSION" \
+            --build-arg "OPENFAMHUB_COMMIT=$sha" \
+            "${tags[@]}" \
             --push \
             "$context"
     done
@@ -278,7 +295,7 @@ case "${1:-help}" in
         ;;
     publish) publish "${2:-}" ;;
     remote)  remote "${2:-}" "${3:-}" ;;
-    server)  server "${2:-}" ;;
+    server)  server "${2:-}" "${3:-}" ;;
     status)  docker compose ps ;;
     logs)
         if [ -z "${2:-}" ]; then docker compose logs -f; else docker compose logs -f "$2"; fi

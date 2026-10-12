@@ -5,6 +5,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+# Shown in the app's sidebar so you can tell which build is deployed.
+ARG OPENFAMHUB_BUILD=dev
+ENV VITE_APP_BUILD=$OPENFAMHUB_BUILD
 RUN npm run build
 
 FROM nginx:alpine

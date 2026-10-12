@@ -80,4 +80,10 @@ app.include_router(wall.router, prefix="/api/wall", tags=["wall"])
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": settings.app_version}
+    return {
+        "status": "ok",
+        "version": settings.app_version,
+        # e.g. "0.30.17": which CI build is running ("dev" for local builds).
+        "build": settings.openfamhub_build or settings.app_version,
+        "commit": settings.openfamhub_commit or None,
+    }
