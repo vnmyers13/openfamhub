@@ -16,6 +16,7 @@ Node 20.19+ or 22 is needed (Vite 8).
 ```bash
 git clone http://192.168.10.2:3002/vernon/OpenFamHub.git
 cd OpenFamHub
+git config core.hooksPath .githooks    # the pre-commit hook bumps VERSION (release string 0.<n>)
 scripts/deploy.sh setup                # .env with a generated SECRET_KEY, ./data folders
 
 # Backend

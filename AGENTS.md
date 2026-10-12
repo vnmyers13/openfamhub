@@ -6,6 +6,7 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 - Current version: **0.30**. The canonical source is `APP_VERSION` in `backend/app/core/config.py`; it's also in the `backend/Dockerfile` label and the README badge.
 - Default branch: `master`. Remotes: `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary) and `origin` (GitHub mirror).
 - Work on a branch with one commit per logical change.
+- After cloning, run `git config core.hooksPath .githooks`. The `pre-commit` hook bumps `VERSION` (repo root) by one on every commit; the release string is `0.<VERSION>`. The next commit is `0.31`. Do not edit `VERSION` by hand.
 
 ## Registries
 - Primary: Forgejo container registry, `forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}`, pushed by `scripts/deploy.sh publish`.
