@@ -119,6 +119,33 @@ class TestSources:
         events = await _list(client, admin, "2026-10-07T00:00:00Z", "2026-10-08T00:00:00Z")
         assert [e["title"] for e in events] == ["Field trip"]
 
+    async def test_empty_feed_hides_previous_events(self, client, admin, monkeypatch):
+        from datetime import datetime, timezone
+
+        async def one_event(url):
+            return [{
+                "external_uid": "abc",
+                "title": "Field trip",
+                "start_dt": datetime(2026, 10, 7, 13, tzinfo=timezone.utc),
+                "end_dt": datetime(2026, 10, 7, 15, tzinfo=timezone.utc),
+                "all_day": False,
+                "location": None,
+                "description": None,
+            }]
+
+        async def empty_feed(url):
+            return []
+
+        source = await self._ical_source(client, admin)
+        monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", one_event)
+        await client.post(f"/api/calendar/sources/{source['id']}/sync", headers=admin)
+        assert len(await _list(client, admin, "2026-10-07T00:00:00Z", "2026-10-08T00:00:00Z")) == 1
+
+        monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", empty_feed)
+        res = await client.post(f"/api/calendar/sources/{source['id']}/sync", headers=admin)
+        assert res.json() == {"ok": True, "error": None}
+        assert await _list(client, admin, "2026-10-07T00:00:00Z", "2026-10-08T00:00:00Z") == []
+
     async def test_sync_error_is_reported(self, client, admin, monkeypatch):
         async def failing_fetch(url):
             raise ValueError("ICS fetch returned HTTP 404")

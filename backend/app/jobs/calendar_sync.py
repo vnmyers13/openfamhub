@@ -55,18 +55,19 @@ async def sync_source(source: CalendarSource, db: AsyncSession) -> None:
                 db.add(ev)
             upserted += 1
 
-        if incoming_uids:
-            result = await db.execute(
-                select(CalendarEvent).where(
-                    CalendarEvent.source_id == source.id,
-                    CalendarEvent.external_uid.isnot(None),
-                    CalendarEvent.external_uid.notin_(incoming_uids),
-                )
+        # A successful sync with an empty feed means every previously synced
+        # event is gone, so stale handling must run even when incoming_uids is empty.
+        result = await db.execute(
+            select(CalendarEvent).where(
+                CalendarEvent.source_id == source.id,
+                CalendarEvent.external_uid.isnot(None),
+                CalendarEvent.external_uid.notin_(incoming_uids),
             )
-            stale = list(result.scalars().all())
-            for s in stale:
-                s.is_deleted = True
-                deleted += 1
+        )
+        stale = list(result.scalars().all())
+        for s in stale:
+            s.is_deleted = True
+            deleted += 1
 
         source.last_synced_at = datetime.now(timezone.utc)
         source.sync_error = None
