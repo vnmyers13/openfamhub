@@ -9,6 +9,7 @@ if [ "${1:-}" = "--step" ]; then
         exit 0
     fi
     [ -n "$parent" ] || exit 0
+    case "$parent" in ''|*[!0-9]*) echo "renumber: parent VERSION is not numeric ('$parent')" >&2; exit 1;; esac
     n=$((parent + 1))
     printf '%s\n' "$n" > VERSION
     if [ -f README.md ]; then
@@ -17,7 +18,9 @@ if [ "${1:-}" = "--step" ]; then
         git add README.md
     fi
     git add VERSION
-    git commit --amend --no-edit >/dev/null
+    # --no-verify: core.hooksPath runs .githooks/pre-commit on the amend, which
+    # would bump VERSION a second time and land the commit at parent+2.
+    git commit --amend --no-edit --no-verify >/dev/null
     exit 0
 fi
 
