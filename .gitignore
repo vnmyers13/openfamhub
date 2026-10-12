@@ -12,6 +12,7 @@ node_modules/
 dist/
 .DS_Store
 .worktrees/
+.superpowers/
 caddy_data/
 caddy_config/
 
