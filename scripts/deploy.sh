@@ -61,7 +61,12 @@ env_value() {
 
 app_version() {
     [ -f VERSION ] || error "VERSION file not found"
-    printf '0.%s' "$(tr -d '[:space:]' < VERSION)"
+    local n
+    n=$(tr -d '[:space:]' < VERSION)
+    case "$n" in
+        ''|*[!0-9]*) error "VERSION must be a single integer, got '$n'";;
+    esac
+    printf '0.%s' "$n"
 }
 
 resolve_registry() {
@@ -99,9 +104,12 @@ exit 1
 
 deploy_local() {
     require_env
+    # Resolve the version the same way publish() does, so an explicit
+    # OPENFAMHUB_VERSION (or .env) is honoured instead of being clobbered.
+    resolve_version
+    export OPENFAMHUB_VERSION="$VERSION"
     mkdir -p data/db data/photos data/backups
     # docker-compose.yml builds from this checkout, so --build is what picks up changes.
-    export OPENFAMHUB_VERSION="$(app_version)"
     log "Building images and starting services..."
     docker compose up -d --build --remove-orphans
     log "Waiting for the API to become healthy..."
