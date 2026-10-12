@@ -335,7 +335,7 @@ git commit -m "feat: add scripts/renumber for post-rebase renumbering"
 
 Rules:
 - `<master>`: for each commit in `git rev-list --first-parent --reverse <base>..<head>`, skip if it is a merge (more than one parent), has no parent, or its parent has no `VERSION`; otherwise fail unless `VERSION == parent VERSION + 1`.
-- `<branch>`: for each commit in `<base>..<head>`, skip merges / no-parent / parent-without-`VERSION`; otherwise fail unless `VERSION > base VERSION`.
+- `<branch>`: for each commit in `<base>..<head>`, skip merges / no-parent / parent-without-`VERSION`; otherwise fail unless `VERSION > parent VERSION`.
 
 - [ ] **Step 1: Write the failing test harness**
 
@@ -351,19 +351,37 @@ tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 cd "$tmp"; git init -q; git config user.email t@t; git config user.name t
 printf '30\n' > VERSION; git add VERSION; git commit -qm init; git branch -m master
 init=$(git rev-parse HEAD)
-# good +1
+
+# A clean +1 chain on master passes.
 printf '31\n' > VERSION; git add VERSION; git commit -qm ok; good=$(git rev-parse HEAD)
-# bad: no bump
-git commit -q --allow-empty --no-verify -m stale; stale=$(git rev-parse HEAD)
-# bad: +2
-printf '33\n' > VERSION; git add VERSION; git commit -qm jump; jump=$(git rev-parse HEAD)
-"$check" master "$init" "$good" && echo "good-pass"
-"$check" master "$init" "$stale" 2>/dev/null && { echo "stale-NOT-detected"; exit 1; } || echo "stale-caught"
-"$check" master "$init" "$jump"  2>/dev/null && { echo "jump-NOT-detected"; exit 1; } || echo "jump-caught"
-# merge commit is skipped
-git checkout -q -b side "$good"; printf '50\n' > VERSION; git add VERSION; git commit -qm side
-git checkout -q master; git merge -q --no-ff -m merge side
-"$check" master "$init" "$(git rev-parse HEAD)" && echo "merge-skipped"
+printf '32\n' > VERSION; git add VERSION; git commit -qm ok2; good2=$(git rev-parse HEAD)
+"$check" master "$init" "$good2" && echo "master-ok"
+
+# Branch mode: strictly increasing passes.
+git checkout -q -b feat "$good"
+printf '40\n' > VERSION; git add VERSION; git commit -qm b1
+"$check" branch "$init" HEAD && echo "branch-ok"
+
+# Branch mode: a --no-verify commit that did not bump is caught.
+git commit -q --allow-empty --no-verify -m stale
+"$check" branch "$init" HEAD 2>/dev/null && { echo "stale-NOT-detected"; exit 1; } || echo "stale-caught"
+
+# Branch mode: a backwards number is caught.
+printf '39\n' > VERSION; git add VERSION; git commit -qm back
+"$check" branch "$init" HEAD 2>/dev/null && { echo "back-NOT-detected"; exit 1; } || echo "back-caught"
+
+# Master mode: a +2 jump is caught.
+git checkout -q master
+printf '34\n' > VERSION; git add VERSION; git commit -qm jump
+"$check" master "$init" HEAD 2>/dev/null && { echo "jump-NOT-detected"; exit 1; } || echo "jump-caught"
+
+# A merge commit on master is skipped; the next commit continues the chain.
+git reset -q --hard "$good2"
+git checkout -q -b side "$good2"; echo side > side.txt; git add side.txt; git commit -qm side
+git checkout -q master
+git merge -q --no-ff -m merge side
+printf '33\n' > VERSION; git add VERSION; git commit -qm after-merge
+"$check" master "$init" HEAD && echo "merge-skipped"
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
@@ -385,9 +403,6 @@ version_at() { git show "$1:VERSION" 2>/dev/null | tr -d '[:space:]'; }
 
 fail() { echo "check-version: $1" >&2; exit 1; }
 
-base_version=$(version_at "$base")
-[ -n "$base_version" ] || fail "$base has no VERSION (adoption commit) - nothing to check"
-
 if [ "$mode" = "master" ]; then
     revs=$(git rev-list --first-parent --reverse "$base..$head")
 else
@@ -396,17 +411,17 @@ fi
 
 for c in $revs; do
     parents=$(git rev-list --parents -n1 "$c" | wc -w)
-    [ "$parents" -gt 2 ] && continue            # merge commit
+    [ "$parents" -gt 2 ] && continue            # merge commit: no number
     parent=$(git rev-parse "$c^" 2>/dev/null || true)
-    [ -n "$parent" ] || continue
+    [ -n "$parent" ] || continue                # initial commit
     pv=$(version_at "$parent")
-    [ -n "$pv" ] || continue                    # parent is the adoption commit
+    [ -n "$pv" ] || continue                    # parent predates adoption
     cv=$(version_at "$c")
     case "$cv" in ''|*[!0-9]*) fail "$c has no usable VERSION ('$cv')";; esac
     if [ "$mode" = "master" ]; then
         [ "$cv" -eq "$((pv + 1))" ] || fail "$c VERSION=$cv but parent $pv (expected $((pv + 1)))"
     else
-        [ "$cv" -gt "$base_version" ] || fail "$c VERSION=$cv does not exceed base $base_version"
+        [ "$cv" -gt "$pv" ] || fail "$c VERSION=$cv does not exceed its parent $pv"
     fi
 done
 echo "check-version: ok ($mode, $base..$head)"
@@ -415,7 +430,7 @@ echo "check-version: ok ($mode, $base..$head)"
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `bash scripts/tests/check-version-test.sh`
-Expected: prints `good-pass`, `stale-caught`, `jump-caught`, `merge-skipped`.
+Expected: prints `master-ok`, `branch-ok`, `stale-caught`, `back-caught`, `jump-caught`, `merge-skipped`.
 
 - [ ] **Step 5: Commit**
 
@@ -462,7 +477,7 @@ resolve_version() {
 
 - [ ] **Step 3: Remove the base-tag move and pass the label arg**
 
-In `publish()`: delete the `base=`/`if [ "$VERSION" != "$base" ] … tags+=(-t "$image:$base")` block, and add `--build-arg "APP_VERSION=$VERSION" \` next to the existing `OPENFAMHUB_BUILD` build arg.
+In `publish()`: delete the `base=$(app_version)` assignment and the `if [ "$VERSION" != "$base" ] … tags+=(-t "$image:$base")` block (and drop `base` from the `local sha base` declaration), and add `--build-arg "APP_VERSION=$VERSION" \` next to the existing `OPENFAMHUB_BUILD` build arg.
 
 - [ ] **Step 4: Create and push the release tag**
 
@@ -505,11 +520,11 @@ Run:
 
 ```bash
 bash -n scripts/deploy.sh && echo syntax-ok
-( set -- --help; source scripts/deploy.sh >/dev/null 2>&1; app_version )
+bash -c 'set -- --help; source scripts/deploy.sh >/dev/null 2>&1; app_version'
 grep -n BUILD_NUMBER scripts/deploy.sh || echo "no-build-number"
 ```
 
-Expected: `syntax-ok`, then `0.31` (the current `VERSION` plus one-prefix — whatever `VERSION` holds now), then `no-build-number`.
+Expected: `syntax-ok`, then `0.<n>` (the current `VERSION` with the `0.` prefix), then `no-build-number`. Note the sourcing must go through `bash -c` (or `.venv`'s shell is zsh, which cannot source this bash script) and must run from the repo root.
 
 - [ ] **Step 8: Commit**
 
@@ -535,7 +550,7 @@ Delete the workflow-level `env.BUILD_NUMBER` line and its comment.
 
 - [ ] **Step 2: Add the `version` job**
 
-Add, before `publish`:
+Add, before `publish`. Note: the check needs parent commits, so it requires full history. If `builtin:checkout` ignores `fetch-depth`, replace the checkout's `with:` block with a following `git fetch --unshallow --tags origin` (or `git fetch --tags origin "+refs/heads/*:refs/remotes/origin/*"`) step before the check.
 
 ```yaml
   version:
