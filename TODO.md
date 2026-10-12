@@ -12,18 +12,19 @@ Known bugs and planned fixes, from the code review of 2026-10-04. Phase 1 shippe
 ## Release plan
 | Release | Contents |
 |---|---|
-| 0.30 | Phases 2 + 4 (security, sign-in model, infra/CI) |
-| 0.31 | Phase 3 (iCal) + Phase 5 (chores) |
-| 0.32 | Phase 6 (rewards) |
-| 0.33 | Phase 7 (meals) |
-| 0.34 | Phase 8 (books, announcements, weather) + dashboard summary |
-| 0.35 | Phase 9 (offline sync) |
-| 0.36 | Phase 10 (OCR, wall panels) |
-| 0.37 | Phase 11 (notifications and reminders) |
-| 0.38 | Phase 12 (Home Assistant, AI, notes) |
-| 0.39 | Phase 13 (two-way calendar sync) |
+| 0.30 | Phases 2 + 4 (security, sign-in model, infra/CI). 0.30.x builds add the review fixes below. **Not yet confirmed on the test VM** (check `/api/health` or the sidebar build number). |
+| 0.31 | Phase 3 (iCal correctness) + **Phase 3b (wall essentials: photo slideshow, sleep schedule)** |
+| 0.32 | Phase 5 (chores, to-dos, routines) |
+| 0.33 | Phase 6 (rewards) |
+| 0.34 | Phase 7 (meals) |
+| 0.35 | Phase 8 (books, announcements, weather, birthdays) + dashboard summary |
+| 0.36 | Phase 9 (offline sync) |
+| 0.37 | Phase 10 (OCR, wall panels) |
+| 0.38 | Phase 11 (notifications and reminders) |
+| 0.39 | Phase 12 (Home Assistant, AI, notes) |
+| 0.40 | Phase 13 (two-way calendar sync) |
 
-Each release is published with `deploy.sh publish` and checked on the `test` VM before the next phase starts.
+Every push to `master` is published by CI as its own build (`<version>.<run>`, e.g. `0.30.17`) and deployed to the `test` VM. A release is done when its phase's tests pass in CI and the build has been checked on the `test` VM; then bump `APP_VERSION` for the next phase.
 
 ## Review backlog (2026-10-11)
 
@@ -53,6 +54,11 @@ Findings from the codebase review. Each item should be handled with tests first 
 - [x] Restrict GHCR `latest` image publishing to the canonical `master` branch. The GitHub workflow currently runs on both `main` and `master`, but `main` is the retired/divergent v0.29 line (`.github/workflows/build.yml`).
 - [x] Upsert `OPENFAMHUB_VERSION` during remote deploy. `scripts/deploy.sh remote` only replaces the line if it already exists, leaving older `.env` files with an unset image tag (`scripts/deploy.sh`, `deploy/compose.yml`). Validate with `docker compose config` before pull.
 - [x] Stop caching service worker assets as immutable for one year. Add no-cache rules for `/sw.js`, Workbox files, and the manifest; keep immutable caching for hashed `/assets/*` (`frontend/nginx.conf`).
+- [x] Push live wall updates after background and automatic iCal syncs, and only after the change is committed (`queue_event`/`publish_queued`, `backend/tests/test_realtime.py`).
+- [x] Close the SSRF DNS-rebinding window: `fetch_ics_bytes` connects to the IP the guard approved (Host header + TLS SNI keep the name) and caps feeds at 10 MB (`TestDnsRebinding`, `TestResponseLimits` in `backend/tests/test_ssrf.py`; see `docs/security-notes.md`).
+- [x] Give every CI publish its own image tag (`<version>.<run>`) and show the running build in `/api/health` and the app sidebar, so "what's deployed?" has an answer and rollback can target a build.
+- [ ] Production path: CI deploys only to `test`. Add a `prod` host and a deliberate promotion step (`scripts/deploy.sh remote <prod-host> <build>`) once the family uses it daily.
+- [ ] Code-split the frontend (route-level `React.lazy`). The main bundle is 623 KB (Vite warns at 500 KB) before chores, meals and the rest add pages.
 - [ ] Add a production-startup/migration smoke test. Current backend tests create metadata directly and do not exercise Alembic startup or scheduler registration (`backend/tests/conftest.py`, `backend/app/main.py`). ([#16](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/16))
 - [x] Fix manual backup docs for SQLite WAL mode. The deployment docs copy only `homehub.db`; document online backup, stopping the API first, or copying `homehub.db`, `homehub.db-wal`, and `homehub.db-shm` together (`docs/deployment.md`).
 - [x] Run CI on pull requests without pushing images. Add a PR trigger for `master`; gate image publishing to push events (`.github/workflows/build.yml`).
@@ -81,8 +87,8 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
 | Reminders and notifications | NEW, Phase 11 |
 | Wellness reminders (hydration, mindfulness) | NEW, Phase 11 |
 | Custom widgets, pages, templates, wallpaper | NEW, Phase 8 |
-| Photo/video screensaver | NEW, Phase 10 |
-| Sleep mode (screen schedule) | NEW, Phase 10 |
+| Photo/video screensaver | NEW, Phase 3b (0.31) |
+| Sleep mode (screen schedule) | NEW, Phase 3b (0.31) |
 | Birthdays | NEW, Phase 8 |
 | Companion phone app | ✅ PWA; offline sync in Phase 9 |
 | Device syncing | ✅ server-centric |
@@ -119,6 +125,19 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
 - [ ] Keep `all_day` on expanded recurrences.
 - [ ] Store a window only (about 90 days back to 365 days ahead) instead of full history.
 - [ ] Look up existing UIDs in one batch query per sync.
+- [ ] Floating times (no `TZID`, no `Z`) are local wall-clock times: interpret them in the family timezone, not UTC.
+- [ ] All-day events without `DTEND`/`DURATION` last one day ([#3](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/3)); keep `all_day` on recurrences and drop the duplicate first occurrence ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
+- [ ] `add_ical_source` downloads the feed twice (a reachability check, then the sync). Run the sync once and turn a failed first sync into the 400 response.
+- Tests first: a recurring event yields each occurrence once; EXDATE removes an instance and RECURRENCE-ID moves one; all-day recurrences stay all-day; floating times land at the family's local time; events outside the window are not stored.
+
+## Phase 3b — Wall essentials (0.31)
+Pulled forward from Phase 10: these are what make the wall worth looking at every day.
+- [ ] **Photo/video slideshow screensaver.** Family media library: upload from the PWA (admins and members), list, delete; the idle wall screen cycles through it (replaces `WallPhotoPlaceholder`). Store originals and thumbnails under `data/photos` (already mounted and served at `/photos`).
+  - Uploads: size limit, image/video MIME allow-list, strip EXIF (location), generate a wall-sized rendition and a thumbnail; `family_id` on every media row (migration 006).
+  - The wall reads media through a paired-device endpoint (`/api/wall/media`), never a user session.
+- [ ] **Sleep schedule.** Family setting for screen off/on times (separate from the idle timeout); the wall goes dark on schedule and wakes on touch. Evaluated in the family timezone.
+- [ ] **Off-host backups.** Photos make the data worth more: document (and optionally script) copying `data/backups` and `data/photos` to the NAS, and include photos in the restore steps.
+- Tests first: an upload with a disallowed type or size is rejected; EXIF GPS is stripped; another family's media is never listed; the slideshow uses every item before repeating; the sleep schedule respects the family timezone across DST; an unpaired wall can't read media.
 
 ## Phase 4 — Infra and cleanup ✅ (0.30)
 - [x] Run Alembic migrations on container start instead of `create_all`.
@@ -141,13 +160,13 @@ parallel product line (chores/rewards/meals), not 11 releases ahead of us. We po
 *our* architecture, one domain at a time, and inherit our auth, `family_id` tenant scoping,
 `UTCDateTime`, deploy tooling and CI rather than its code. Phases 11–13 extend past v0.29 with the Cozyla-parity items listed above.
 
-Each phase writes its tests **before** the code, in the same change. Baseline: 17 backend tests in 2
-files; `v0.29` has 65 in 13. No frontend test runner exists yet — the first phase that needs one adds it.
+Each phase writes its tests **before** the code, in the same change. Baseline (0.30.x): 63 backend tests in 5
+files; `v0.29` has 65 in 13. No frontend test runner exists yet ([#15](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/15)); add it no later than Phase 3b, whose slideshow and sleep logic need it.
 
 Ordering is by dependency: rewards spends the points ledger chores introduce, and books awards points.
 
 ### Phase 5 — Chores
-- [ ] `chore_templates` and `chore_instances` models + Alembic migration `005`. `UTCDateTime` throughout, `family_id` on both.
+- [ ] `chore_templates` and `chore_instances` models + the next Alembic migration (005 is taken; 006 goes to Phase 3b media). `UTCDateTime` throughout, `family_id` on both.
 - [ ] Recurrence expansion into instances (reuse the Phase 3 iCal recurrence work where it fits).
 - [ ] Claim / complete lifecycle, quick-add, completion audit log.
 - [ ] Admin "By User" view: group by assignee with pending and completed counts.
@@ -208,26 +227,25 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 - [ ] Read-only wall endpoints (`/api/wall/chores`, `/meals`, `/announcements`, `/weather`) behind the paired-device cookie. v0.29's panels need a family member's login.
 - [ ] The wall timezone is a family setting edited by an admin. v0.29 lets the wall itself write it via an admin-only call.
 - [ ] `DateTimeWallPanel` with a timezone picker; reuse `frontend/src/lib/dates.ts` and the wall token flow.
-- [ ] **Photo/video slideshow screensaver:** family media library (upload/manage) and an idle slideshow; completes `WallPhotoPlaceholder` and the `/photos` mount.
-- [ ] **Sleep schedule:** family setting for screen off/on times, distinct from the idle timeout.
+- Photo slideshow and sleep schedule moved to Phase 3b (0.31).
 - [ ] **Smart Import (photo → recipe):** reuse the OCR pipeline.
-- Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device; the slideshow exhausts the library before repeating; the sleep schedule respects the family timezone.
+- Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device.
 
-### Phase 11 — Notifications and reminders (0.37)
+### Phase 11 — Notifications and reminders (0.38)
 - [ ] Reminder engine on the existing scheduler: events, chores, to-dos, birthdays, pantry expiry, allowance payouts.
 - [ ] Channels: Web Push (PWA), ntfy, and SMTP email, with per-user preferences.
-- [ ] Quiet hours aware of the Phase 10 sleep schedule.
+- [ ] Quiet hours aware of the Phase 3b sleep schedule.
 - [ ] Optional wellness reminders per user (hydration, mindfulness).
 - Tests first: a reminder fires exactly once; quiet hours suppress delivery; per-user channel preference; timezone/DST correctness.
 
-### Phase 12 — Home Assistant, AI, and notes (0.38)
+### Phase 12 — Home Assistant, AI, and notes (0.39)
 - [ ] Home Assistant local integration: long-lived token, chosen entities as cards on the dashboard and wall, optional scene triggers from routines; degrades gracefully when HA is unreachable.
 - [ ] Smart-home widgets for those entities (climate, lights, sensors).
 - [ ] AI voice agent, local-first (local STT + LLM; cloud optional and opt-in): add/edit events, chores and to-dos conversationally.
 - [ ] Notes: family note board with photos, stickers and sketching; export as an image; wall panel.
 - Tests first: HA outage degrades gracefully; voice intent parsing fixtures for add/edit; notes render and export.
 
-### Phase 13 — Two-way calendar sync (0.39)
+### Phase 13 — Two-way calendar sync (0.40)
 - [ ] Google Calendar two-way sync: OAuth, incremental sync tokens, write-back of local edits, delete propagation.
 - [ ] Outlook/Microsoft Graph two-way sync.
 - [ ] CalDAV two-way sync (Apple Calendar, Nextcloud), including discovery.
@@ -246,7 +264,7 @@ Each of these is in that tree. Porting a feature means reimplementing it correct
 - [ ] PIN login that iterates every active user and checks the rate limit *after* a match (`v0.29 backend/app/routers/auth.py:91`).
 - [ ] `announcements.py` list endpoint with no auth dependency.
 - [ ] `ChoreInstance.completed_at != None` with no date guard (`v0.29 backend/app/routers/chores.py:284`) — "today's chores" returns everything ever completed.
-- [ ] Its committed SQLite WAL (`backend/file:memdb1-wal`, 4.1 MB) contains a bcrypt hash. `.gitignore` already covers `*.db`, `*.db-wal` and `*.db-shm`, but SQLite shared-cache names (`file:memdb1-wal`) slip past them — add a pattern before Phase 5 opens a dev DB.
+- [x] Its committed SQLite WAL (`backend/file:memdb1-wal`, 4.1 MB) contains a bcrypt hash. `.gitignore` already covers `*.db`, `*.db-wal` and `*.db-shm`, but SQLite shared-cache names (`file:memdb1-wal`) slip past them — add a pattern before Phase 5 opens a dev DB.
 
 ### Version numbering
 Decided: the merged line continues at **0.30** (see Decisions). Our 0.18 keeps its CHANGELOG entry. The 0.30 entry

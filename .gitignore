@@ -18,3 +18,7 @@ caddy_config/
 
 # SQLite shared-cache / URI-named files (e.g. "file:memdb1-wal") from tests
 file:*
+
+# graphify: keep the readable report, not the regenerated graph/cache
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md

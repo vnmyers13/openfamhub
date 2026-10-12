@@ -15,7 +15,7 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 ```
 backend/app/        FastAPI app: core/ models/ schemas/ routers/ services/ integrations/ jobs/
 backend/scripts/    one-off maintenance (fix_event_timezones.py)
-backend/tests/      pytest (conftest.py, test_auth.py, test_phase1.py, test_phase2.py)
+backend/tests/      pytest (conftest.py, test_auth.py, test_phase1.py, test_phase2.py, test_ssrf.py, test_realtime.py)
 backend/alembic/    migrations 001–005 (004 = wall_devices, 005 = session auth_method); run at startup
 frontend/src/       React app: api/ lib/dates.ts pages/ wall/ components/
 config/             Caddyfile (LAN TLS), Caddyfile.proxy (behind proxy), routes.caddy (shared)
@@ -40,6 +40,8 @@ docker-compose.yml  build-from-source stack; image names match published ones
 - **Range queries** use overlap, not start-in-range.
 - **Schema:** startup runs Alembic (`app/core/migrate.py`; pre-0.30 databases are stamped first). Add a migration for every model change (next: 006), and import new models in `models/__init__.py` and `alembic/env.py`.
 - **Auth:** every user token's `jti` is a `sessions` row (revoked on logout, password change and removal). Sessions record `auth_method` (pin|password); admin endpoints need a password session or `/auth/elevate` within 15 min, otherwise 403 `password_required`. Failed sign-ins lock out per person (`login_throttle`). Wall displays use a `wall_token` cookie scoped to `/api/wall` (SHA-256 stored). The axios 401 handler skips `/auth/*` and `/wall/*`.
+- **Live updates:** never call `event_bus.emit` from request or job code; use `queue_event(db, ...)` so the notice is published after commit (`get_db` / `publish_queued`).
+- **Server-side fetches of user URLs:** use `resolve_public_addresses` and connect to the returned IP (see `fetch_ics_bytes`), never a plain `httpx.get(url)`.
 - **Single API worker:** the scheduler, event bus, WebSocket hub and PIN rate limiter are all in-process. Don't add uvicorn workers.
 - **node_modules on the Mac** holds macOS binaries. `vite build` fails in Linux containers or VMs that reuse it, so `frontend/.dockerignore` excludes it.
 - **Test fixtures:** `client` overrides `get_db` with one shared session per test. Cookies are `Secure`, so tests pass them as an explicit `Cookie` header (see `_cookie()` in `test_phase1.py`).

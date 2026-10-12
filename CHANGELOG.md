@@ -1,3 +1,14 @@
+## [Unreleased] - 0.30.x builds
+
+### Added
+- Every CI publish is its own build, `0.30.<run>` (and moves `:0.30`/`:latest`). `/api/health` reports `build` and `commit`, and the sidebar shows the build, so you can tell what's deployed and roll back to a specific build.
+
+### Fixed
+- Wall displays now update live after scheduled and automatic calendar syncs, not only after manual changes. Live-update notices are sent only after the change is saved, so a wall never re-reads stale data.
+- Calendar-feed fetches connect to the address the safety check approved (closing a DNS-rebinding gap) and refuse feeds over 10 MB.
+
+---
+
 ## [0.30] - 2026-10-05
 
 > **Version numbering:** this release follows 0.18. Versions 0.19–0.29 (and the
