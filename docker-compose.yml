@@ -10,7 +10,11 @@
 services:
   api:
     image: ${REGISTRY:-openfamhub}/openfamhub-api:${OPENFAMHUB_VERSION:-latest}
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        APP_VERSION: ${OPENFAMHUB_VERSION:-dev}
+        OPENFAMHUB_BUILD: ${OPENFAMHUB_VERSION:-dev}
     env_file: .env
     environment:
       DATA_PATH: /data
@@ -24,7 +28,11 @@ services:
 
   web:
     image: ${REGISTRY:-openfamhub}/openfamhub-web:${OPENFAMHUB_VERSION:-latest}
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        APP_VERSION: ${OPENFAMHUB_VERSION:-dev}
+        OPENFAMHUB_BUILD: ${OPENFAMHUB_VERSION:-dev}
     expose:
       - "3000"
     restart: unless-stopped
