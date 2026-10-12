@@ -76,7 +76,6 @@ server() {
     local dir="${1:-${REMOTE_DIR:-openfamhub}}"
     resolve_registry
     resolve_version "${2:-}"
-    [ -d "$dir" ] || error "Deploy directory '$dir' does not exist."
 
     log "Installing deploy bundle into $dir ..."
     mkdir -p "$dir/config" "$dir/data/db" "$dir/data/photos" "$dir/data/backups"
