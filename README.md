@@ -85,3 +85,4 @@ PWA PNG icons (180/192/512, maskable) are generated from the source SVGs in `fro
 ## License
 
 MIT
+
