@@ -143,3 +143,77 @@ class TestFetchAndParse:
             await fetch_and_parse(
                 f"http://{PUBLIC_IP}/missing.ics", transport=httpx.MockTransport(handler)
             )
+
+
+class TestDnsRebinding:
+    """The connection must go to the address the guard approved."""
+
+    async def test_connects_to_the_validated_address_not_a_second_lookup(self, monkeypatch):
+        calls = []
+
+        def rebinding_getaddrinfo(host, port, *args, **kwargs):
+            # First answer public (what the guard checks); any later lookup
+            # answers loopback, as a rebinding attacker's DNS would.
+            calls.append(host)
+            ip = PUBLIC_IP if len(calls) == 1 else "127.0.0.1"
+            return [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (ip, port))]
+
+        monkeypatch.setattr(socket, "getaddrinfo", rebinding_getaddrinfo)
+        seen = []
+
+        def handler(request):
+            seen.append((request.url.host, request.headers["host"]))
+            return httpx.Response(200, content=VALID_ICS)
+
+        events = await fetch_and_parse(
+            "http://calendar.example.com/cal.ics", transport=httpx.MockTransport(handler)
+        )
+        assert [e["external_uid"] for e in events] == ["abc"]
+        # Pinned to the approved IP, original name kept for virtual hosting.
+        assert seen == [(PUBLIC_IP, "calendar.example.com")]
+        assert calls == ["calendar.example.com"]  # resolved exactly once
+
+    async def test_https_keeps_the_name_for_tls(self, monkeypatch):
+        monkeypatch.setattr(socket, "getaddrinfo", _fake_getaddrinfo(PUBLIC_IP))
+        seen = []
+
+        def handler(request):
+            seen.append((request.url.scheme, request.url.host, request.extensions.get("sni_hostname")))
+            return httpx.Response(200, content=VALID_ICS)
+
+        await fetch_and_parse(
+            "https://calendar.example.com/cal.ics", transport=httpx.MockTransport(handler)
+        )
+        assert seen == [("https", PUBLIC_IP, "calendar.example.com")]
+
+    async def test_each_redirect_hop_is_pinned(self, monkeypatch):
+        other_public = "93.184.216.35"
+        table = {"a.example.com": PUBLIC_IP, "b.example.com": other_public}
+        monkeypatch.setattr(
+            socket,
+            "getaddrinfo",
+            lambda host, port, *a, **k: [
+                (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (table[host], port))
+            ],
+        )
+        seen = []
+
+        def handler(request):
+            seen.append((request.url.host, request.headers["host"]))
+            if request.headers["host"] == "a.example.com":
+                return httpx.Response(302, headers={"location": "http://b.example.com/real.ics"})
+            return httpx.Response(200, content=VALID_ICS)
+
+        await fetch_and_parse("http://a.example.com/start.ics", transport=httpx.MockTransport(handler))
+        assert seen == [(PUBLIC_IP, "a.example.com"), (other_public, "b.example.com")]
+
+
+class TestResponseLimits:
+    async def test_rejects_oversized_feeds(self, monkeypatch):
+        monkeypatch.setattr("app.integrations.ical_feed.MAX_ICS_BYTES", 100)
+
+        def handler(request):
+            return httpx.Response(200, content=b"X" * 500)
+
+        with pytest.raises(ValueError, match="larger than"):
+            await fetch_and_parse(f"http://{PUBLIC_IP}/big.ics", transport=httpx.MockTransport(handler))

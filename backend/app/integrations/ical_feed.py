@@ -5,9 +5,11 @@ import httpx
 from dateutil.rrule import rrulestr
 from icalendar import Calendar as ICalendar
 
-from app.core.url_safety import assert_public_http_url
+from app.core.url_safety import resolve_public_addresses
 
 MAX_REDIRECTS = 5
+# Real family/school feeds are well under 1 MB; refuse anything absurd.
+MAX_ICS_BYTES = 10_000_000
 
 
 def _to_utc(dt: datetime | date) -> datetime:
@@ -76,21 +78,44 @@ async def fetch_ics_bytes(
     *,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> bytes:
-    """Fetch an ICS payload, rejecting non-public hosts on every hop."""
+    """Fetch an ICS payload safely.
+
+    - Every hop (the URL and each redirect target) is validated by the SSRF
+      guard before connecting; redirects are followed here, not by httpx.
+    - The connection goes to the address the guard approved (the URL's host is
+      replaced by that IP, with the original name kept in the Host header and,
+      for https, as the TLS SNI/certificate name). httpx never re-resolves the
+      name, which closes the DNS-rebinding window between check and connect.
+    - The body is capped at MAX_ICS_BYTES.
+    """
     target = normalize_ics_url(url)
     async with httpx.AsyncClient(timeout=30.0, transport=transport) as client:
         for _ in range(MAX_REDIRECTS + 1):
-            assert_public_http_url(target)
-            resp = await client.get(target, follow_redirects=False)
-            if resp.is_redirect:
-                location = resp.headers.get("location")
-                if not location:
-                    raise ValueError("ICS fetch returned a redirect without a Location header")
-                target = str(httpx.URL(target).join(location))
-                continue
-            if resp.status_code != 200:
-                raise ValueError(f"ICS fetch returned HTTP {resp.status_code}")
-            return resp.content
+            addresses = resolve_public_addresses(target)
+            original = httpx.URL(target)
+            ip = addresses[0]
+            pinned = original.copy_with(host=f"[{ip}]" if ip.version == 6 else str(ip))
+            headers = {"Host": original.netloc.decode("ascii")}
+            extensions = {"sni_hostname": original.host} if original.scheme == "https" else {}
+
+            async with client.stream(
+                "GET", pinned, headers=headers, extensions=extensions, follow_redirects=False
+            ) as resp:
+                if resp.is_redirect:
+                    location = resp.headers.get("location")
+                    if not location:
+                        raise ValueError("ICS fetch returned a redirect without a Location header")
+                    target = str(original.join(location))
+                    continue
+                if resp.status_code != 200:
+                    raise ValueError(f"ICS fetch returned HTTP {resp.status_code}")
+                chunks, size = [], 0
+                async for chunk in resp.aiter_bytes():
+                    size += len(chunk)
+                    if size > MAX_ICS_BYTES:
+                        raise ValueError(f"ICS feed is larger than {MAX_ICS_BYTES // 1_000_000} MB")
+                    chunks.append(chunk)
+                return b"".join(chunks)
     raise ValueError(f"ICS fetch exceeded {MAX_REDIRECTS} redirects")
 
 
