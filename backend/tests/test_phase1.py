@@ -149,6 +149,15 @@ class TestSources:
         assert source["id"] not in [s["id"] for s in sources]
         assert await _list(client, admin, "2026-10-08T00:00:00Z", "2026-10-09T00:00:00Z") == []
 
+    async def test_private_ical_url_is_rejected(self, client, admin):
+        res = await client.post(
+            "/api/integrations/ical",
+            json={"display_name": "Sneaky", "ics_url": "http://169.254.169.254/latest/meta-data"},
+            headers=admin,
+        )
+        assert res.status_code == 400
+        assert "Blocked non-public" in res.json()["detail"]
+
     async def test_internal_source_cannot_be_deleted(self, client, admin):
         ev = await _create_event(
             client, admin, "Dinner", "2026-10-04T22:00:00Z", "2026-10-04T23:00:00Z"

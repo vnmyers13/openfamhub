@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import require_role
-from app.integrations.ical_feed import normalize_ics_url
+from app.integrations.ical_feed import fetch_ics_bytes
 from app.jobs.calendar_sync import sync_source
 from app.models.calendar_source import CalendarSource
 from app.models.user import User
@@ -35,11 +35,10 @@ async def add_ical_source(
     current_user: User = Depends(require_role("admin")),
 ):
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            # GET, not HEAD: several calendar hosts reject HEAD requests.
-            resp = await client.get(normalize_ics_url(data.ics_url), follow_redirects=True)
-        if resp.status_code >= 400:
-            raise HTTPException(status_code=400, detail=f"ICS URL returned HTTP {resp.status_code}")
+        # Validates reachability and rejects non-public hosts (SSRF guard).
+        await fetch_ics_bytes(data.ics_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except httpx.TimeoutException:
         raise HTTPException(status_code=400, detail="ICS URL timed out")
     except httpx.RequestError as exc:

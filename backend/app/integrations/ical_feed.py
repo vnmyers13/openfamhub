@@ -5,6 +5,10 @@ import httpx
 from dateutil.rrule import rrulestr
 from icalendar import Calendar as ICalendar
 
+from app.core.url_safety import assert_public_http_url
+
+MAX_REDIRECTS = 5
+
 
 def _to_utc(dt: datetime | date) -> datetime:
     if isinstance(dt, date) and not isinstance(dt, datetime):
@@ -67,13 +71,33 @@ def normalize_ics_url(url: str) -> str:
     return url
 
 
-async def fetch_and_parse(url: str) -> list[dict]:
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-        resp = await client.get(normalize_ics_url(url))
-    if resp.status_code != 200:
-        raise ValueError(f"ICS fetch returned HTTP {resp.status_code}")
+async def fetch_ics_bytes(
+    url: str,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> bytes:
+    """Fetch an ICS payload, rejecting non-public hosts on every hop."""
+    target = normalize_ics_url(url)
+    async with httpx.AsyncClient(timeout=30.0, transport=transport) as client:
+        for _ in range(MAX_REDIRECTS + 1):
+            assert_public_http_url(target)
+            resp = await client.get(target, follow_redirects=False)
+            if resp.is_redirect:
+                location = resp.headers.get("location")
+                if not location:
+                    raise ValueError("ICS fetch returned a redirect without a Location header")
+                target = str(httpx.URL(target).join(location))
+                continue
+            if resp.status_code != 200:
+                raise ValueError(f"ICS fetch returned HTTP {resp.status_code}")
+            return resp.content
+    raise ValueError(f"ICS fetch exceeded {MAX_REDIRECTS} redirects")
 
-    calendar = ICalendar.from_ical(resp.content)
+
+async def fetch_and_parse(url: str, *, transport=None) -> list[dict]:
+    content = await fetch_ics_bytes(url, transport=transport)
+
+    calendar = ICalendar.from_ical(content)
 
     events = []
     for component in calendar.walk():
