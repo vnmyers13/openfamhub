@@ -10,7 +10,7 @@ test VM (`192.168.10.80`).
 
 | Job | Runs on | Trigger |
 |---|---|---|
-| `backend` | `openfamhub-python` (container `python:3.12-slim`) | every push and PR |
+| `backend` | `openfamhub-python` (container `python:3.12`) | every push and PR |
 | `frontend` | `openfamhub-node` (container `node:22`) | every push and PR |
 | `publish` | `openfamhub` (host) | push to `master` only |
 | `deploy` | `openfamhub` (host) | push to `master` only |
@@ -43,7 +43,7 @@ Pull requests run the checks only; they never publish or deploy.
      --instance https://forgejo.vernonmyers.cloud \
      --token '<repo runner token>' \
      --name openfamhub-vm \
-     --labels 'openfamhub:host,openfamhub-python:docker://python:3.12-slim,openfamhub-node:docker://node:22'
+     --labels 'openfamhub:host,openfamhub-python:docker://python:3.12,openfamhub-node:docker://node:22'
    ```
 
    This writes a `.runner` file (mode `600`) next to the runner config. Do not
@@ -99,4 +99,4 @@ or push to `master` to publish and deploy.
 | `publish`: `unauthorized` | `REGISTRY_TOKEN` is missing or lacks package write scope. |
 | arm64 build fails or is extremely slow | binfmt/QEMU not installed (step 5), or the emulated `pip install` timed out. Re-run; the buildx cache speeds up later runs. |
 | `deploy` succeeds but the site is stale | Check `docker compose ps` in `~/openfamhub`; the API should be `healthy` and `OPENFAMHUB_VERSION` should match `APP_VERSION`. |
-| `builtin:checkout` fails | `git` on the runner host is older than 2.34.1. |
+| `builtin:checkout` fails with `needs git on PATH` | The job's container image has no `git` (e.g. a `-slim` image). Use an image that ships `git` (the `openfamhub-python` label maps to `python:3.12`). `git` on the runner host itself must also be ≥ 2.34.1. |

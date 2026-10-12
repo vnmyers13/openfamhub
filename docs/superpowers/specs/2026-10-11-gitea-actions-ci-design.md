@@ -21,7 +21,7 @@ Install the `gitea-runner` binary (v5.x, the former `act_runner`) on the test VM
 - Runs as user `vernon` (member of the `docker` group) with access to `~/openfamhub` and `.env`.
 - Registered at **repository level** with three labels that select the executor per job:
   - `openfamhub:host` — publish and deploy, using native VM Docker paths and the existing tooling.
-  - `openfamhub-python:docker://python:3.12-slim` — backend tests in a container.
+  - `openfamhub-python:docker://python:3.12` — backend tests in a container.
   - `openfamhub-node:docker://node:22` — frontend lint/build in a container.
 - Registration is non-interactive:
 
@@ -30,12 +30,12 @@ Install the `gitea-runner` binary (v5.x, the former `act_runner`) on the test VM
     --instance https://forgejo.vernonmyers.cloud \
     --token <repo runner token> \
     --name openfamhub-vm \
-    --labels 'openfamhub:host,openfamhub-python:docker://python:3.12-slim,openfamhub-node:docker://node:22'
+    --labels 'openfamhub:host,openfamhub-python:docker://python:3.12,openfamhub-node:docker://node:22'
   ```
 
   The registration token comes from the repo's `Settings → Actions → Runners`. The resulting `.runner` file is mode `600` and is not committed.
-- Labels are set at registration; a `runner.labels` entry in `config.yaml` would override the `--labels` flag, so only one is used. A `config.yaml` sets `container.sweep: false` and enables a local cache; the systemd unit runs `gitea-runner -c <config> daemon`.
-- Because `openfamhub:host` jobs run with the VM's real Docker access (not through the runner's Docker proxy), the deploy job's `docker compose up` is **not** swept. `container.sweep: false` is set as a belt-and-braces guard.
+- Labels are set at registration via `--labels`; no `config.yaml` is used (a `runner.labels` entry in `config.yaml` would override the flag). The systemd unit runs `gitea-runner daemon` with `WorkingDirectory=~/gitea-runner`.
+- Because `openfamhub:host` jobs run directly on the VM (not in a job container), the runner's container sweep has nothing to remove, and the deploy job's `docker compose up` containers are untouched. The default sweep behavior is therefore safe; no `container.sweep: false` guard is needed.
 
 ### One-time host and repo setup
 

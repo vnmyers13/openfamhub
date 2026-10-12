@@ -303,7 +303,7 @@ test VM (`192.168.10.80`).
 
 | Job | Runs on | Trigger |
 |---|---|---|
-| `backend` | `openfamhub-python` (container `python:3.12-slim`) | every push and PR |
+| `backend` | `openfamhub-python` (container `python:3.12`) | every push and PR |
 | `frontend` | `openfamhub-node` (container `node:22`) | every push and PR |
 | `publish` | `openfamhub` (host) | push to `master` only |
 | `deploy` | `openfamhub` (host) | push to `master` only |
@@ -336,7 +336,7 @@ Pull requests run the checks only; they never publish or deploy.
      --instance https://forgejo.vernonmyers.cloud \
      --token '<repo runner token>' \
      --name openfamhub-vm \
-     --labels 'openfamhub:host,openfamhub-python:docker://python:3.12-slim,openfamhub-node:docker://node:22'
+     --labels 'openfamhub:host,openfamhub-python:docker://python:3.12,openfamhub-node:docker://node:22'
    ```
 
    This writes a `.runner` file (mode `600`) next to the runner config. Do not
@@ -490,7 +490,7 @@ ssh 192.168.10.80 'curl -fL -o /tmp/gitea-runner https://dl.gitea.com/gitea-runn
 Then register (replace `<repo runner token>`; keep it out of logs):
 
 ```bash
-ssh -T 192.168.10.80 'mkdir -p ~/gitea-runner && cd ~/gitea-runner && gitea-runner register --no-interactive --instance https://forgejo.vernonmyers.cloud --token "<repo runner token>" --name openfamhub-vm --labels "openfamhub:host,openfamhub-python:docker://python:3.12-slim,openfamhub-node:docker://node:22"'
+ssh -T 192.168.10.80 'mkdir -p ~/gitea-runner && cd ~/gitea-runner && gitea-runner register --no-interactive --instance https://forgejo.vernonmyers.cloud --token "<repo runner token>" --name openfamhub-vm --labels "openfamhub:host,openfamhub-python:docker://python:3.12,openfamhub-node:docker://node:22"'
 ```
 
 Expected: `Runner registered successfully.` and `~/gitea-runner/.runner` created. Confirm in the UI that `openfamhub-vm` is listed with all three labels.
