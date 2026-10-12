@@ -249,7 +249,7 @@ Replace the `manifest` object (currently `name` through `icons`) with:
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: '/icons/maskable-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-          { src: '/icons/apple-touch-icon-180x180.png', sizes: '180x180', type: 'image/png', purpose: 'apple-touch-icon' },
+          { src: '/icons/apple-touch-icon-180x180.png', sizes: '180x180', type: 'image/png' },
         ],
       },
 ```
@@ -292,14 +292,13 @@ grep -o '"theme_color":"[^"]*"' dist/manifest.webmanifest
 grep -o '"background_color":"[^"]*"' dist/manifest.webmanifest
 grep -o '"description":"[^"]*"' dist/manifest.webmanifest
 grep -o '"maskable"' dist/manifest.webmanifest
-grep -o '"apple-touch-icon"' dist/manifest.webmanifest
 grep -o 'theme-color[^>]*' dist/index.html
 grep -o 'apple-touch-icon[^>]*' dist/index.html
 ls dist/icons/
 ```
 Expected:
 - `"theme_color":"#4F46E5"`, `"background_color":"#1E1B4B"`, `"description":"OpenFamHub — family calendar for home"`
-- `maskable` and `apple-touch-icon` purposes present
+- `maskable` purpose present (and no non-standard purposes)
 - `dist/index.html` has `name="theme-color" content="#4F46E5"` and the `apple-touch-icon` link
 - `dist/icons/` contains the four PNGs plus `favicon.svg` (copied via `includeAssets` behavior — verify `icon-512.png` and `maskable-icon-512.png` at minimum).
 
@@ -327,7 +326,7 @@ git commit -m "feat(pwa): refresh manifest and iOS metadata"
 Insert between the Stack table (ends line 81) and `## License` (line 83):
 
 ```markdown
-PWA icons (`favicon.svg`, 180/192/512, maskable) are generated from the source SVGs in `frontend/public/icons/` with `npm run icons` (from `frontend/`).
+PWA PNG icons (180/192/512, maskable) are generated from the source SVGs in `frontend/public/icons/` with `npm run icons` (from `frontend/`).
 ```
 
 - [ ] **Step 2: Full frontend verification**

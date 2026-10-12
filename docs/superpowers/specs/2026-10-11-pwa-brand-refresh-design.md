@@ -59,7 +59,7 @@ icon stays legible at 16px instead of showing a tiny rounded tile.
   - `/icons/icon-192.png` (no purpose),
   - `/icons/icon-512.png` (no purpose),
   - `/icons/maskable-icon-512.png` (`purpose: "maskable"`),
-  - `/icons/apple-touch-icon-180x180.png` (`purpose: "apple-touch-icon"`).
+  - `/icons/apple-touch-icon-180x180.png` (no manifest purpose — iOS consumes it via the `apple-touch-icon` link).
 - `includeAssets: "icons/*.png"` already covers all of the above.
 
 ## 3. `frontend/index.html`
