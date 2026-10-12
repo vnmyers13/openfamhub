@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-OpenFamHub: a self-hosted family calendar and organizer (a home version of a Skylight-style wall calendar). FastAPI + SQLite backend, React frontend, Docker/Caddy deployment, Raspberry Pi wall display. Current version: **0.30** (`APP_VERSION` in `backend/app/core/config.py`).
+OpenFamHub: a self-hosted family calendar and organizer (a home version of a Skylight-style wall calendar). FastAPI + SQLite backend, React frontend, Docker/Caddy deployment, Raspberry Pi wall display. Current version: the integer in `VERSION` (repo root); the release string is `0.<n>`.
 
 Read these before changing code:
 
@@ -11,7 +11,7 @@ Read these before changing code:
 
 ## Which code is canonical
 
-- **`master` is the product.** Feature work branches from it. 0.30 is merged; CI publishes every `master` push as its own build (`0.30.<run>`) and deploys it to the `test` VM (see docs/ci.md).
+- **`master` is the product.** Feature work branches from it. CI publishes every `master` push as its own per-commit build (`0.<n>`, the integer in `VERSION`) and deploys it to the `test` VM (see docs/ci.md).
 - **`origin/main` (tagged v0.29) is a different codebase with no shared history.** Use it only as a reference for features to port (Phases 5–10). Never merge, rebase onto or cherry-pick from it. Re-implement each feature on our architecture: our auth, `family_id` scoping, `UTCDateTime`, Alembic migrations, deploy tooling and CI.
 - **Remotes:** `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary) and `origin` (GitHub). Push to both.
 

@@ -6,12 +6,13 @@ test VM (`192.168.10.80`).
 
 ## Pipeline
 
-`.gitea/workflows/ci.yml` has four jobs:
+`.gitea/workflows/ci.yml` has five jobs:
 
 | Job | Runs on | Trigger |
 |---|---|---|
 | `backend` | `openfamhub-python` (container `python:3.12`) | every push and PR |
 | `frontend` | `openfamhub-node` (container `node:22`) | every push and PR |
+| `version` | `openfamhub` (host) | push to `master` or PR to `master` |
 | `publish` | `openfamhub` (host) | push to `master` only |
 | `deploy` | `openfamhub` (host) | push to `master` only |
 
