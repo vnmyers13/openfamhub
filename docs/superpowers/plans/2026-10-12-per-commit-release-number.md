@@ -267,7 +267,7 @@ git commit -m "feat: resolve the release number from VERSION and build args"
 
 **Interfaces:**
 - Produces: `scripts/renumber [base]` — renumbers every commit in `base..HEAD` so `VERSION` is `base_value + 1, +2, …`; `base` defaults to `git merge-base HEAD master`.
-- Produces: `scripts/renumber --step` — used by `git rebase --exec`; sets `VERSION` to `HEAD^`'s value plus one and amends the current commit (also refreshing the README badge).
+- Produces: `scripts/renumber --step` — used by `git rebase --exec`; sets `VERSION` to `HEAD^`'s value plus one and amends the current commit (also refreshing the README badge). If `HEAD^` has no `VERSION`, the commit predates adoption: leave it untouched (no `VERSION`, no badge rewrite, no amend) and exit 0.
 
 - [ ] **Step 1: Write the script**
 
@@ -280,7 +280,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [ "${1:-}" = "--step" ]; then
-    parent=$(git show HEAD^:VERSION)
+    # A parent without VERSION means this commit predates adoption: it must carry no number.
+    if ! parent=$(git show HEAD^:VERSION 2>/dev/null | tr -d '[:space:]'); then
+        exit 0
+    fi
+    [ -n "$parent" ] || exit 0
     n=$((parent + 1))
     printf '%s\n' "$n" > VERSION
     if [ -f README.md ]; then
