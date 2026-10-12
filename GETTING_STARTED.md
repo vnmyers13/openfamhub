@@ -80,7 +80,7 @@ npm run build      # tsc -b + vite build; fails on type errors
 
 ## Releasing
 
-1. Bump `APP_VERSION` in `backend/app/core/config.py`, the label in `backend/Dockerfile` and the badge in `README.md`.
+1. Bump `APP_VERSION` in `backend/app/core/config.py`, the label in `backend/Dockerfile` and the badge in `README.md`. After a rebase, run `scripts/renumber` to restore the per-commit VERSION sequence.
 2. Add a section to `CHANGELOG.md`.
 3. Run the tests and checks above.
 4. Commit and tag: `git tag v0.30 && git push forgejo master --tags` (and `origin` if you mirror to GitHub).

@@ -1,0 +1,21 @@
+#!/bin/bash
+# Renumber commits after a rebase so VERSION is base+1, base+2, ... (see the design spec).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ "${1:-}" = "--step" ]; then
+    parent=$(git show HEAD^:VERSION)
+    n=$((parent + 1))
+    printf '%s\n' "$n" > VERSION
+    if [ -f README.md ]; then
+        sed -i.bak "s|version-0\.[0-9][0-9]*-blue|version-0.${n}-blue|g" README.md
+        rm -f README.md.bak
+        git add README.md
+    fi
+    git add VERSION
+    git commit --amend --no-edit >/dev/null
+    exit 0
+fi
+
+base="${1:-$(git merge-base HEAD master)}"
+exec git rebase --exec "$0 --step" "$base"
