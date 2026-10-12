@@ -7,8 +7,6 @@ on:
 
 env:
   SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
-  # Each run publishes and deploys its own image tag: <APP_VERSION>.<run>, e.g. 0.30.17.
-  BUILD_NUMBER: ${{ gitea.run_number }}
 
 jobs:
   backend:
@@ -34,8 +32,32 @@ jobs:
       - name: Build
         run: npm run build
 
+  version:
+    runs-on: openfamhub
+    if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master' || gitea.event_name == 'pull_request' && gitea.base_ref == 'master'
+    steps:
+      - uses: builtin:checkout
+        with:
+          fetch-depth: 0
+      - name: Enforce the release-number rule
+        run: |
+          set -euo pipefail
+          head=HEAD
+          if [ "${{ gitea.ref }}" = "refs/heads/master" ]; then
+            mode=master
+            base='${{ gitea.event.before }}'
+            if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] \
+               || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+              base="${head}^"
+            fi
+          else
+            mode=branch
+            base=$(git merge-base HEAD origin/master 2>/dev/null || git rev-parse HEAD^)
+          fi
+          scripts/check-version.sh "$mode" "$base" "$head"
+
   publish:
-    needs: [backend, frontend]
+    needs: [backend, frontend, version]
     if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master'
     runs-on: openfamhub
     steps:
@@ -46,7 +68,7 @@ jobs:
         run: scripts/deploy.sh publish
 
   deploy:
-    needs: [publish]
+    needs: [publish, version]
     if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master'
     runs-on: openfamhub
     steps:
