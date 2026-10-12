@@ -3,7 +3,7 @@
 set -euo pipefail
 repo_root=$(cd "$(dirname "$0")/../.." && pwd)
 check="$repo_root/scripts/check-version.sh"
-tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+tmp=$(mktemp -d); tmp2=$(mktemp -d); trap 'rm -rf "$tmp" "$tmp2"' EXIT
 cd "$tmp"; git init -q; git config user.email t@t; git config user.name t
 printf '30\n' > VERSION; git add VERSION; git commit -qm init; git branch -m master
 init=$(git rev-parse HEAD)
@@ -38,3 +38,16 @@ git checkout -q master
 git merge -q --no-ff -m merge side
 printf '33\n' > VERSION; git add VERSION; git commit -qm after-merge
 "$check" master "$init" HEAD && echo "merge-skipped"
+
+# Adoption boundary: a repo whose root commit predates VERSION. The commit that
+# first adds VERSION must be skipped (its parent has no number), the next must
+# obey +1, and a later jump must still be caught.
+cd "$tmp2"; git init -q; git config user.email t@t; git config user.name t
+echo no-version > README; git add README; git commit -qm pre-adoption
+pre_adoption=$(git rev-parse HEAD)
+printf '30\n' > VERSION; git add VERSION; git commit -qm adopt; git branch -m master
+printf '31\n' > VERSION; git add VERSION; git commit -qm after-adopt
+"$check" master "$pre_adoption" HEAD >/dev/null || { echo "adoption-NOT-passed"; exit 1; }
+echo "adoption-ok"
+printf '34\n' > VERSION; git add VERSION; git commit -qm adopt-jump
+"$check" master "$pre_adoption" HEAD 2>/dev/null && { echo "adoptjump-NOT-detected"; exit 1; } || echo "adoptjump-caught"

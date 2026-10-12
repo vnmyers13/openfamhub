@@ -5,7 +5,7 @@ set -euo pipefail
 mode="${1:?usage: check-version.sh <master|branch> <base> <head>}"
 base="${2:?}"; head="${3:?}"
 
-version_at() { git show "$1:VERSION" 2>/dev/null | tr -d '[:space:]'; }
+version_at() { git show "$1:VERSION" 2>/dev/null | tr -d '[:space:]' || true; }
 
 fail() { echo "check-version: $1" >&2; exit 1; }
 
