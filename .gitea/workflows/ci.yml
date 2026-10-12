@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
+
+jobs:
+  backend:
+    runs-on: openfamhub-python
+    steps:
+      - uses: builtin:checkout
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest pytest-asyncio httpx
+      - name: Run backend tests
+        run: pytest backend/tests -v
+
+  frontend:
+    runs-on: openfamhub-node
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: builtin:checkout
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+
+  publish:
+    needs: [backend, frontend]
+    if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master'
+    runs-on: openfamhub
+    steps:
+      - uses: builtin:checkout
+      - name: Log in to the Forgejo registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login forgejo.vernonmyers.cloud --username vernon --password-stdin
+      - name: Build and push images
+        run: scripts/deploy.sh publish
+
+  deploy:
+    needs: [publish]
+    if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master'
+    runs-on: openfamhub
+    steps:
+      - uses: builtin:checkout
+      - name: Install bundle and restart the stack
+        run: scripts/deploy.sh server "$HOME/openfamhub"
