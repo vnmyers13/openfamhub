@@ -26,7 +26,7 @@ from app.services.calendar import (
     get_source_logs,
 )
 from app.jobs.calendar_sync import sync_source as run_source_sync
-from app.routers.ws import event_bus
+from app.core.events import queue_event
 
 router = APIRouter()
 
@@ -93,7 +93,7 @@ async def create_event(
     )
     db.add(event)
     await db.flush()
-    await event_bus.emit("calendar_updated", {"source_id": source.id})
+    queue_event(db, "calendar_updated", {"source_id": source.id})
     return event_to_response(event, source.color_hex)
 
 
@@ -139,7 +139,7 @@ async def update_event(
         raise HTTPException(status_code=400, detail="end_dt must be after start_dt")
     await db.flush()
     await db.refresh(event)
-    await event_bus.emit("calendar_updated", {"source_id": event.source_id})
+    queue_event(db, "calendar_updated", {"source_id": event.source_id})
     return event_to_response(event, color_hex)
 
 
@@ -155,7 +155,7 @@ async def delete_event(
     _check_can_edit(current_user, event, provider)
     event.is_deleted = True
     await db.flush()
-    await event_bus.emit("calendar_updated", {"source_id": event.source_id})
+    queue_event(db, "calendar_updated", {"source_id": event.source_id})
     return {"ok": True}
 
 
@@ -248,7 +248,7 @@ async def delete_source(
     source.enabled = False
     source.is_deleted = True
     await db.flush()
-    await event_bus.emit("calendar_updated", {"source_id": source.id})
+    queue_event(db, "calendar_updated", {"source_id": source.id})
     return {"ok": True}
 
 
@@ -271,8 +271,7 @@ async def sync_source(
     if source.provider != "ical" or not source.ics_url:
         raise HTTPException(status_code=400, detail="Only iCal sources can be synced")
     # sync_source records its own errors on the source and in the sync log.
-    await run_source_sync(source, db)
-    await event_bus.emit("calendar_updated", {"source_id": source.id})
+    await run_source_sync(source, db)  # queues the live-update notice itself
     return {"ok": source.sync_error is None, "error": source.sync_error}
 
 

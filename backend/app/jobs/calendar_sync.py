@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
+from app.core.events import publish_queued, queue_event
 from app.integrations.ical_feed import fetch_and_parse
 from app.models.calendar_event import CalendarEvent
 from app.models.calendar_source import CalendarSource
@@ -89,6 +90,10 @@ async def sync_source(source: CalendarSource, db: AsyncSession) -> None:
     db.add(log)
     await db.flush()
 
+    # Tell paired walls to re-fetch. Queued, so it is published only after the
+    # caller commits (get_db for API requests, sync_all_due for the scheduler).
+    queue_event(db, "calendar_updated", {"source_id": source.id})
+
 
 async def sync_all_due() -> None:
     async with AsyncSessionLocal() as db:
@@ -112,6 +117,7 @@ async def sync_all_due() -> None:
                     await sync_source(source, db)
 
         await db.commit()
+        await publish_queued(db)
 
 
 def register_sync_jobs(scheduler):

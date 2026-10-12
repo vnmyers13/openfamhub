@@ -27,10 +27,15 @@ class Base(DeclarativeBase):
 
 
 async def get_db():
+    from app.core.events import discard_queued, publish_queued
+
     async with AsyncSessionLocal() as session:
         try:
             yield session
             await session.commit()
         except Exception:
             await session.rollback()
+            discard_queued(session)
             raise
+        # Live-update notices go out only once the change is committed.
+        await publish_queued(session)
