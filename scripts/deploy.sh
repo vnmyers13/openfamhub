@@ -47,8 +47,8 @@ Registry workflow:
                         and pull + restart the stack locally (no SSH)
 
 Environment overrides:
-  REGISTRY, OPENFAMHUB_VERSION, PLATFORMS (publish), BUILD_NUMBER (CI: appends
-  .<n> to APP_VERSION so each push gets its own tag),
+  REGISTRY, OPENFAMHUB_VERSION, PLATFORMS (publish). The version defaults to
+  0.<VERSION> (VERSION in the repo root), bumped by the pre-commit hook.
   PUBLIC_URL, REMOTE_DIR (remote; defaults https://openfamhub.local, openfamhub)
 EOF
 }
@@ -60,7 +60,8 @@ env_value() {
 }
 
 app_version() {
-    sed -n 's/^APP_VERSION = "\(.*\)"/\1/p' backend/app/core/config.py
+    [ -f VERSION ] || error "VERSION file not found"
+    printf '0.%s' "$(tr -d '[:space:]' < VERSION)"
 }
 
 resolve_registry() {
@@ -68,16 +69,11 @@ resolve_registry() {
     REGISTRY="${REGISTRY:-$DEFAULT_REGISTRY}"
 }
 
-# Version precedence: explicit argument > $OPENFAMHUB_VERSION > .env > APP_VERSION.
-# When falling back to APP_VERSION, CI's $BUILD_NUMBER makes every push its own
-# immutable tag, e.g. 0.30.17 (the base tag 0.30 and :latest still move).
+# Version precedence: explicit argument > $OPENFAMHUB_VERSION > .env > app_version().
 resolve_version() {
     VERSION="${1:-${OPENFAMHUB_VERSION:-$(env_value OPENFAMHUB_VERSION)}}"
     if [ -z "$VERSION" ]; then
         VERSION="$(app_version)"
-        if [ -n "${BUILD_NUMBER:-}" ]; then
-            VERSION="$VERSION.$BUILD_NUMBER"
-        fi
     fi
     [ -n "$VERSION" ] || error "Could not determine the version"
 }
@@ -105,6 +101,7 @@ deploy_local() {
     require_env
     mkdir -p data/db data/photos data/backups
     # docker-compose.yml builds from this checkout, so --build is what picks up changes.
+    export OPENFAMHUB_VERSION="$(app_version)"
     log "Building images and starting services..."
     docker compose up -d --build --remove-orphans
     log "Waiting for the API to become healthy..."
@@ -130,18 +127,13 @@ publish() {
         docker buildx create --name "$APP_NAME" --driver docker-container >/dev/null
     fi
 
-    local sha base
+    local sha
     sha=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
-    base=$(app_version)
     for component in api web; do
         local context=backend
         [ "$component" = web ] && context=frontend
         local image="$REGISTRY/$APP_NAME-$component"
         local tags=(-t "$image:$VERSION" -t "$image:latest")
-        # A build tag (0.30.17) also moves the release tag (0.30).
-        if [ "$VERSION" != "$base" ] && [ "${VERSION#"$base".}" != "$VERSION" ]; then
-            tags+=(-t "$image:$base")
-        fi
         log "Building and pushing $image:$VERSION ($platforms)..."
         docker buildx build \
             --builder "$APP_NAME" \
@@ -149,11 +141,26 @@ publish() {
             --label "org.opencontainers.image.revision=$sha" \
             --label "org.opencontainers.image.version=$VERSION" \
             --build-arg "OPENFAMHUB_BUILD=$VERSION" \
+            --build-arg "APP_VERSION=$VERSION" \
             --build-arg "OPENFAMHUB_COMMIT=$sha" \
             "${tags[@]}" \
             --push \
             "$context"
     done
+
+    if [ "$VERSION" = "$(app_version)" ]; then
+        if ! git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            git tag -a "v$VERSION" -m "Release $VERSION"
+            tag_remote=origin
+            if git remote | grep -qx forgejo; then
+                tag_remote=forgejo
+            fi
+            if ! git push "$tag_remote" "v$VERSION" 2>/dev/null; then
+                warn "Could not push tag v$VERSION; push it by hand."
+            fi
+        fi
+    fi
+
     log "Published $REGISTRY/$APP_NAME-{api,web}:$VERSION (and :latest)."
 }
 
