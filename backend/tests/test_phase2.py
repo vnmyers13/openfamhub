@@ -129,6 +129,39 @@ class TestAdminPasswordGate:
         assert res.status_code == 403
         assert res.json()["detail"] != "password_required"
 
+    async def test_pin_admin_cannot_change_own_password_pin_or_role(self, client, admin):
+        pin_admin = await self._admin_pin_session(client, admin)
+        uid = pin_admin["id"]
+
+        res = await client.patch(f"/api/users/{uid}", json={"password": "new-admin-pass-1"}, headers=_h(pin_admin))
+        assert res.status_code == 403 and res.json()["detail"] == "password_required"
+
+        res = await client.patch(f"/api/users/{uid}", json={"pin": "9753"}, headers=_h(pin_admin))
+        assert res.status_code == 403 and res.json()["detail"] == "password_required"
+
+        res = await client.post(f"/api/users/{uid}/pin", json={"pin": "9753"}, headers=_h(pin_admin))
+        assert res.status_code == 403 and res.json()["detail"] == "password_required"
+
+        res = await client.patch(f"/api/users/{uid}", json={"role": "member"}, headers=_h(pin_admin))
+        assert res.status_code == 403 and res.json()["detail"] == "password_required"
+
+        res = await client.patch(f"/api/users/{uid}", json={"display_name": "Mom 2"}, headers=_h(pin_admin))
+        assert res.status_code == 200 and res.json()["display_name"] == "Mom 2"
+
+    async def test_pin_admin_can_change_own_password_after_elevation(self, client, admin):
+        pin_admin = await self._admin_pin_session(client, admin)
+        res = await client.post("/api/auth/elevate", json={"password": SETUP["admin_password"]}, headers=_h(pin_admin))
+        assert res.status_code == 200
+        res = await client.patch(
+            f"/api/users/{pin_admin['id']}", json={"password": "elevated-new-pass-1"}, headers=_h(pin_admin)
+        )
+        assert res.status_code == 200
+
+    async def test_member_pin_session_can_still_change_own_pin(self, client, admin):
+        kid = await _member(client, admin, pin="1357")
+        res = await client.patch(f"/api/users/{kid['id']}", json={"pin": "8642"}, headers=_h(kid))
+        assert res.status_code == 200
+
 
 class TestSessions:
     async def test_logout_revokes_the_token(self, client, admin):

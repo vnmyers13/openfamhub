@@ -17,10 +17,14 @@ from app.services import users as users_service
 router = APIRouter()
 
 
-def _authorize_change(auth: Auth, user_id: str, action: str) -> None:
+def _authorize_change(auth: Auth, user_id: str, action: str, *, sensitive: bool = False) -> None:
     """Anyone may change their own profile. Changing someone else's needs an admin
-    whose session may do admin actions (password sign-in or recent elevation)."""
+    whose session may do admin actions (password sign-in or recent elevation).
+    An admin changing their own credentials or role also needs an unlocked
+    session, so a PIN sign-in on a shared device can't take over the account."""
     if auth.user.id == user_id:
+        if sensitive and auth.user.role == "admin" and not auth.admin_unlocked:
+            raise HTTPException(status_code=403, detail=PASSWORD_REQUIRED)
         return
     if auth.user.role != "admin":
         raise HTTPException(status_code=403, detail=f"Cannot {action} other users")
@@ -69,7 +73,8 @@ async def update_user(
     db: AsyncSession = Depends(get_db),
     auth: Auth = Depends(get_auth),
 ):
-    _authorize_change(auth, user_id, "update")
+    sensitive = data.password is not None or data.pin is not None or data.role is not None
+    _authorize_change(auth, user_id, "update", sensitive=sensitive)
     if auth.user.role != "admin" and data.role is not None:
         raise HTTPException(status_code=403, detail="Cannot change role")
     try:
@@ -104,7 +109,7 @@ async def set_pin(
     db: AsyncSession = Depends(get_db),
     auth: Auth = Depends(get_auth),
 ):
-    _authorize_change(auth, user_id, "set the PIN for")
+    _authorize_change(auth, user_id, "set the PIN for", sensitive=True)
     user = await users_service.set_pin(db, user_id, data.pin, auth.user.family_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
