@@ -123,7 +123,7 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
 ## Phase 4 — Infra and cleanup ✅ (0.30)
 - [x] Run Alembic migrations on container start instead of `create_all`.
 - [x] CI: set `SECRET_KEY` for tests; add a frontend lint + build job.
-- [ ] Move CI to Forgejo Actions once a runner exists (still GitHub Actions only).
+- [x] Move CI to Forgejo Actions once a runner exists. Done: `.gitea/workflows/ci.yml` runs on a Gitea Actions runner on the test VM and publishes + deploys on `master` (see [docs/ci.md](docs/ci.md)).
 - [x] Fix the Workbox `runtimeCaching` URL patterns (they're matched against the full URL, so they never match).
 - [x] `setup-wall-pi.sh`: make it idempotent and Bookworm-compatible (`chromium`, labwc/Wayland autostart).
 - [x] Remove dead code and placeholders: `notifications.py`, the `/lists` nav link, the `co_admin` role checks, and `/admin/settings` rendering the Dashboard.

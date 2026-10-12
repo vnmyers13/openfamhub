@@ -43,7 +43,7 @@ docker-compose.yml  build-from-source stack; image names match published ones
 - **Single API worker:** the scheduler, event bus, WebSocket hub and PIN rate limiter are all in-process. Don't add uvicorn workers.
 - **node_modules on the Mac** holds macOS binaries. `vite build` fails in Linux containers or VMs that reuse it, so `frontend/.dockerignore` excludes it.
 - **Test fixtures:** `client` overrides `get_db` with one shared session per test. Cookies are `Secure`, so tests pass them as an explicit `Cookie` header (see `_cookie()` in `test_phase1.py`).
-- **CI** (`.github/workflows/build.yml`) runs on GitHub only. Forgejo has no runner yet.
+- **CI** runs on the Gitea instance via Gitea Actions (`.gitea/workflows/ci.yml`), on a runner hosted on the test VM. It publishes the Forgejo registry and deploys on `master`; see [docs/ci.md](docs/ci.md).
 
 ## Open work
 See [TODO.md](TODO.md): Phases 2–4 (review fixes) and 5–10 (porting the v0.29 feature set). CLAUDE.md has a status table.

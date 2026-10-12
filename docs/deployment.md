@@ -268,4 +268,8 @@ By default this runs in **LAN mode**: Caddy listens on 80/443 and serves `https:
 
 ## CI
 
-`.github/workflows/build.yml` runs backend tests plus frontend lint/build on pushes and pull requests to `master`. It only publishes GHCR images on pushes to canonical `master`; Forgejo publishing still happens through `scripts/deploy.sh publish`. Moving CI to Forgejo Actions, once a runner exists, is tracked in [TODO.md](../TODO.md).
+CI runs on the self-hosted Gitea instance via Gitea Actions. `.gitea/workflows/ci.yml`
+runs backend tests and frontend lint/build on every push and pull request, then
+publishes `forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}` (amd64 + arm64)
+and deploys the test VM on pushes to `master`. The one-time runner and secret
+setup is in [ci.md](ci.md).
