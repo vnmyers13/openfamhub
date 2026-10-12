@@ -80,6 +80,8 @@ In **Admin › Calendars › Add ICS Feed**, paste a calendar's ICS (or `webcal:
 | Edge | Caddy 2: internal TLS on the LAN, or plain HTTP behind another proxy |
 | Packaging | Docker Compose; images published to the Forgejo container registry |
 
+PWA icons (`favicon.svg`, 180/192/512, maskable) are generated from the source SVGs in `frontend/public/icons/` with `npm run icons` (from `frontend/`).
+
 ## License
 
 MIT
