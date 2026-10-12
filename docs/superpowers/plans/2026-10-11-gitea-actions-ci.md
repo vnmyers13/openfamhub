@@ -392,7 +392,7 @@ or push to `master` to publish and deploy.
 | `publish`: `unauthorized` | `REGISTRY_TOKEN` is missing or lacks package write scope. |
 | arm64 build fails or is extremely slow | binfmt/QEMU not installed (step 5), or the emulated `pip install` timed out. Re-run; the buildx cache speeds up later runs. |
 | `deploy` succeeds but the site is stale | Check `docker compose ps` in `~/openfamhub`; the API should be `healthy` and `OPENFAMHUB_VERSION` should match `APP_VERSION`. |
-| `builtin:checkout` fails | `git` on the runner host is older than 2.34.1. |
+| `builtin:checkout` fails with `needs git on PATH` | The job's container image has no `git` (e.g. a `-slim` image). Use an image that ships `git` (the `openfamhub-python` label maps to `python:3.12`). `git` on the runner host itself must also be ≥ 2.34.1. |
 ````
 
 - [ ] **Step 2: Rewrite the `docs/deployment.md` CI section**

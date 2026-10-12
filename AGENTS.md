@@ -9,7 +9,7 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 
 ## Registries
 - Primary: Forgejo container registry, `forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}`, pushed by `scripts/deploy.sh publish`.
-- Legacy: GitHub Actions pushes to `ghcr.io/<repo>/openfamhub-*`; the Docker Hub user is `vnmyers13`. Tokens come from the password manager. Never commit them.
+- Legacy: GitHub Actions used to push `ghcr.io/<repo>/openfamhub-*`, retired in 0.30 when CI moved to Gitea; the Docker Hub user is `vnmyers13`. Tokens come from the password manager. Never commit them.
 
 ## Layout
 ```
