@@ -39,6 +39,10 @@ jobs:
       - uses: builtin:checkout
         with:
           fetch-depth: 0
+      - name: Run the versioning harnesses
+        run: |
+          set -euo pipefail
+          for t in scripts/tests/*-test.sh; do echo "== $t"; bash "$t"; done
       - name: Enforce the release-number rule
         run: |
           set -euo pipefail
