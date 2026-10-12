@@ -1,0 +1,28 @@
+#!/bin/bash
+# Bump VERSION by one for every commit (see docs/superpowers/specs/2026-10-12-per-commit-release-number-design.md).
+set -euo pipefail
+
+# A merge does not invent a number.
+[ -e "$(git rev-parse --git-dir)/MERGE_HEAD" ] && exit 0
+
+if [ ! -f VERSION ]; then
+    echo "pre-commit: VERSION file is missing; refusing to commit." >&2
+    exit 1
+fi
+n=$(tr -d '[:space:]' < VERSION)
+case "$n" in
+    ''|*[!0-9]*)
+        echo "pre-commit: VERSION must contain a single integer, got '$n'." >&2
+        exit 1
+        ;;
+esac
+n=$((n + 1))
+printf '%s\n' "$n" > VERSION
+git add VERSION
+
+# Keep the README badge honest. `sed -i.bak` is portable across macOS and GNU sed.
+if [ -f README.md ]; then
+    sed -i.bak "s|version-[0-9][0-9]*-blue|version-0.${n}-blue|g" README.md
+    rm -f README.md.bak
+    git add README.md
+fi
