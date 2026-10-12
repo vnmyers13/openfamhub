@@ -61,12 +61,15 @@ The detail is in [TODO.md](TODO.md).
 | 2 | Security: event roles, avatar + PIN sign-in with password for admins, remove `/users/switch`, session revocation | Done, 0.30 |
 | 3 | iCal correctness: duplicate first occurrence, EXDATE/RECURRENCE-ID, all-day recurrences, storage window, batch UID lookup | Open (0.31) |
 | 4 | Infra/cleanup: Alembic on start, CI, Workbox patterns, Pi script, dead code, settings, `.gitignore` | Done, 0.30 |
-| 5 | Port chores; fix v0.29's missing points credit, interval drift, UTC due dates | Open (0.31) |
-| 6 | Port rewards (append-only points ledger, idempotent weekly allowance in cents, catalog, badges/streaks) | Open (0.32); needs 5 |
-| 7 | Port meals and recipes (auth on every endpoint, SSRF-safe URL import, plan, shopping list, weekly reset) | Open (0.33) |
-| 8 | Port books (+ shared-library writes), announcements, weather, `/api/dashboard/summary` | Open (0.34); needs 6 |
+| 5 | Port chores (+ to-dos, routines); fix v0.29's missing points credit, interval drift, UTC due dates | Open (0.31) |
+| 6 | Port rewards (append-only points ledger, idempotent weekly allowance in cents, catalog, badges/streaks) + progress widget | Open (0.32); needs 5 |
+| 7 | Port meals and recipes (auth on every endpoint, SSRF-safe URL import, plan, pantry, shopping list, recipe catalog) | Open (0.33) |
+| 8 | Port books (+ shared-library writes), announcements, birthdays, weather, dashboard summary + customization | Open (0.34); needs 6 |
 | 9 | Offline sync (frontend test runner, IndexedDB queue, conflict modal) | Open (0.35) |
-| 10 | OCR shopping-list scan, wall cycling panels via read-only wall endpoints | Open (0.36); needs 7 |
+| 10 | OCR shopping-list scan, wall cycling panels via read-only wall endpoints, photo slideshow + sleep schedule | Open (0.36); needs 7 |
+| 11 | Notifications and reminders (events, chores, to-dos, birthdays, pantry; Web Push/ntfy/SMTP; quiet hours, wellness) | Open (0.37); needs 5, 7–8 |
+| 12 | Home Assistant local integration, local-first AI voice agent, notes board | Open (0.38) |
+| 13 | Two-way calendar sync (Google OAuth, Outlook Graph, CalDAV; conflict policy, mapping UI) | Open (0.39); needs 3 |
 
 ### Decisions (2026-10-04)
 

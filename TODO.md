@@ -19,6 +19,9 @@ Known bugs and planned fixes, from the code review of 2026-10-04. Phase 1 shippe
 | 0.34 | Phase 8 (books, announcements, weather) + dashboard summary |
 | 0.35 | Phase 9 (offline sync) |
 | 0.36 | Phase 10 (OCR, wall panels) |
+| 0.37 | Phase 11 (notifications and reminders) |
+| 0.38 | Phase 12 (Home Assistant, AI, notes) |
+| 0.39 | Phase 13 (two-way calendar sync) |
 
 Each release is published with `deploy.sh publish` and checked on the `test` VM before the next phase starts.
 
@@ -53,6 +56,43 @@ Findings from the codebase review. Each item should be handled with tests first 
 - [ ] Add a production-startup/migration smoke test. Current backend tests create metadata directly and do not exercise Alembic startup or scheduler registration (`backend/tests/conftest.py`, `backend/app/main.py`). ([#16](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/16))
 - [x] Fix manual backup docs for SQLite WAL mode. The deployment docs copy only `homehub.db`; document online backup, stopping the API first, or copying `homehub.db`, `homehub.db-wal`, and `homehub.db-shm` together (`docs/deployment.md`).
 - [x] Run CI on pull requests without pushing images. Add a PR trigger for `master`; gate image publishing to push events (`.github/workflows/build.yml`).
+
+## Cozyla Calendar+ parity (2026-10-11)
+
+Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases 5–10 and the new Phases 11–13 come from this list; `N/A` rows are device/OS-specific and are deliberately not planned.
+
+| Cozyla feature | OpenFamHub |
+|---|---|
+| Shared calendar, profiles, color tags | ✅ have |
+| Day/week/month views | ✅ have (plus agenda) |
+| Personal vs family view | NEW, Phase 8 |
+| URL iCal import (read-only) | ✅ have; correctness fixes in Phase 3 |
+| Two-way sync (Google/Outlook/CalDAV) | NEW, Phase 13 |
+| Chores (points, repetition) | Phase 5 |
+| Routines + visual timers | NEW, Phase 5 |
+| To-do list (one-off tasks) | NEW, Phase 5 |
+| Rewards + approval | Phase 6 |
+| Family progress widget | NEW, Phase 6 |
+| Meal planning | Phase 7 |
+| Grocery list from the meal plan | Phase 7 |
+| Recipe library (catalog, step-by-step, video) | NEW, Phase 7 |
+| Pantry management | NEW, Phase 7 |
+| Smart Import (URL → recipe/event) | Phase 7; photo → recipe in Phase 10 |
+| Reminders and notifications | NEW, Phase 11 |
+| Wellness reminders (hydration, mindfulness) | NEW, Phase 11 |
+| Custom widgets, pages, templates, wallpaper | NEW, Phase 8 |
+| Photo/video screensaver | NEW, Phase 10 |
+| Sleep mode (screen schedule) | NEW, Phase 10 |
+| Birthdays | NEW, Phase 8 |
+| Companion phone app | ✅ PWA; offline sync in Phase 9 |
+| Device syncing | ✅ server-centric |
+| Weather and clock | Clock ✅; weather Phase 8 |
+| AI voice agent | NEW, Phase 12 (local-first) |
+| Smart home hub | NEW, Phase 12 via local Home Assistant |
+| Notes (photos/stickers/sketch) | NEW, Phase 12 |
+| Parental lock / screen time / app locks | Partial: viewer role limits edits; screen time is OS-level, N/A |
+| App store, browser, streaming | N/A (device/OS-specific) |
+| Routie kids' device, Voice Lab | N/A (hardware-specific) |
 
 ## How to port each domain
 - **Backend:** rewrite on our models (`family_id`, `UTCDateTime`, Alembic, cookie auth). v0.29's backend is a spec, not code to copy.
@@ -94,12 +134,12 @@ Findings from the codebase review. Each item should be handled with tests first 
 - [x] `.gitignore`: add `file:*` (SQLite shared-cache files) now, before any Phase 5 dev DB.
 - [x] Bump to 0.30 and add the CHANGELOG note about the retired 0.19–0.29 line.
 
-## Phases 5–10 — Port the v0.29 feature set
+## Phases 5–13 — Port the v0.29 feature set and Cozyla parity
 
 `origin/main` carries a `v0.29` tag on a **divergent history** — no merge base with `master`. It is a
 parallel product line (chores/rewards/meals), not 11 releases ahead of us. We port its features onto
 *our* architecture, one domain at a time, and inherit our auth, `family_id` tenant scoping,
-`UTCDateTime`, deploy tooling and CI rather than its code.
+`UTCDateTime`, deploy tooling and CI rather than its code. Phases 11–13 extend past v0.29 with the Cozyla-parity items listed above.
 
 Each phase writes its tests **before** the code, in the same change. Baseline: 17 backend tests in 2
 files; `v0.29` has 65 in 13. No frontend test runner exists yet — the first phase that needs one adds it.
@@ -119,7 +159,9 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
   - Due dates use the UTC date. Use the family's timezone date.
   - Anyone can claim an *assigned* chore. Only the assignee (or an admin) can.
   - Add a unique (`template_id`, `due_date`) constraint so double generation is impossible.
-- Tests first: recurrence expansion across DST; instance generation idempotency; claim/complete role gating; admin view counts; generator does not double-generate.
+- [ ] **To-do list:** one-off family tasks with an optional assignee and due date; no recurrence and no points side effects. Shown beside chores.
+- [ ] **Routines:** ordered groups of recurring steps (morning/bedtime) with a visual countdown timer on the wall; built on chore instances. Reminders come from Phase 11.
+- Tests first: recurrence expansion across DST; instance generation idempotency; claim/complete role gating; admin view counts; generator does not double-generate; to-do CRUD is family-scoped; routine step order survives edits.
 
 ### Phase 6 — Rewards
 - [ ] Points ledger as an append-only table (no balances stored on the user).
@@ -127,7 +169,8 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 - [ ] Reward catalog with both purchase and request → approve / reject flows.
 - [ ] Streaks and badge definitions with auto-award.
 - [ ] Allowance is stored as integer cents (v0.29 uses strings), with a unique (`user_id`, `week_start`) key. A missed Monday is caught up on the next run.
-- Tests first: ledger balances match the sum of entries; allowance re-run for the same week is a no-op; approve/reject adjusts the ledger exactly once; streak rollover at week boundaries.
+- [ ] **Family progress widget:** per-member stars/points on the dashboard and wall, fed by the ledger.
+- Tests first: ledger balances match the sum of entries; allowance re-run for the same week is a no-op; approve/reject adjusts the ledger exactly once; streak rollover at week boundaries; progress widget totals match the ledger.
 
 ### Phase 7 — Meals and recipes
 - [ ] `recipes` with dietary tags, plus text and JSON-LD import.
@@ -135,7 +178,10 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 - [ ] Shopping list tracking which recipe each item came from, regenerate, weekly reset job.
 - [ ] Every meals endpoint requires auth and family scope. v0.29's GETs for dietary tags, recipes, plans and the shopping list have **no auth**, and its weekly reset job is never registered.
 - [ ] Recipe URL import guards against SSRF: http(s) only; block private, loopback and link-local addresses after DNS resolution; size and time limits.
-- Tests first: import parsing for both formats; plan overwrite semantics; regenerate is idempotent; reset does not delete completed purchases.
+- [ ] **Pantry management:** track on-hand ingredients with low-stock and expiry flags; expiry reminders come from Phase 11.
+- [ ] **Recipe library extras:** seed/featured catalog, step-by-step mode, per-recipe video links.
+- [ ] **Smart Import:** URL → event (JSON-LD) alongside URL → recipe; photo → recipe lands in Phase 10 with the OCR work.
+- Tests first: import parsing for both formats; plan overwrite semantics; regenerate is idempotent; reset does not delete completed purchases; pantry flags and expiry; URL → event parsing.
 
 ### Phase 8 — Books, announcements, weather
 - [ ] Books: personal lists, shared family library, status transitions, 50-point award on completion (writes to the Phase 6 ledger).
@@ -143,7 +189,9 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 - [ ] Weather: Open-Meteo, no API key, cached ~10 minutes server-side. WMO code → emoji mapping. Location is a family setting.
 - [ ] Shared family library: implement `POST/PATCH/DELETE /books/shared…`. v0.29's UI calls these, but its backend only has `GET /books/shared`.
 - [ ] Dashboard: one `GET /api/dashboard/summary` (today's events, chore stats, points, allowance, this week's meals). v0.29's dashboard calls four `/api/dashboard/*` routes that don't exist.
-- Tests first: cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes.
+- [ ] **Birthdays:** per-member birthday with the next age shown; dashboard/wall card and all-day calendar entries.
+- [ ] **Dashboard customization:** widget grid (drag/resize), multiple pages, page templates, wallpaper, and a personal vs family filter for dashboard and calendar.
+- Tests first: cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes; birthday age crosses the year boundary; layout persistence; filter scoping.
 
 ### Phase 9 — Offline sync
 - [ ] Add the frontend test runner and its first tests.
@@ -160,7 +208,31 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 - [ ] Read-only wall endpoints (`/api/wall/chores`, `/meals`, `/announcements`, `/weather`) behind the paired-device cookie. v0.29's panels need a family member's login.
 - [ ] The wall timezone is a family setting edited by an admin. v0.29 lets the wall itself write it via an admin-only call.
 - [ ] `DateTimeWallPanel` with a timezone picker; reuse `frontend/src/lib/dates.ts` and the wall token flow.
-- Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device.
+- [ ] **Photo/video slideshow screensaver:** family media library (upload/manage) and an idle slideshow; completes `WallPhotoPlaceholder` and the `/photos` mount.
+- [ ] **Sleep schedule:** family setting for screen off/on times, distinct from the idle timeout.
+- [ ] **Smart Import (photo → recipe):** reuse the OCR pipeline.
+- Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device; the slideshow exhausts the library before repeating; the sleep schedule respects the family timezone.
+
+### Phase 11 — Notifications and reminders (0.37)
+- [ ] Reminder engine on the existing scheduler: events, chores, to-dos, birthdays, pantry expiry, allowance payouts.
+- [ ] Channels: Web Push (PWA), ntfy, and SMTP email, with per-user preferences.
+- [ ] Quiet hours aware of the Phase 10 sleep schedule.
+- [ ] Optional wellness reminders per user (hydration, mindfulness).
+- Tests first: a reminder fires exactly once; quiet hours suppress delivery; per-user channel preference; timezone/DST correctness.
+
+### Phase 12 — Home Assistant, AI, and notes (0.38)
+- [ ] Home Assistant local integration: long-lived token, chosen entities as cards on the dashboard and wall, optional scene triggers from routines; degrades gracefully when HA is unreachable.
+- [ ] Smart-home widgets for those entities (climate, lights, sensors).
+- [ ] AI voice agent, local-first (local STT + LLM; cloud optional and opt-in): add/edit events, chores and to-dos conversationally.
+- [ ] Notes: family note board with photos, stickers and sketching; export as an image; wall panel.
+- Tests first: HA outage degrades gracefully; voice intent parsing fixtures for add/edit; notes render and export.
+
+### Phase 13 — Two-way calendar sync (0.39)
+- [ ] Google Calendar two-way sync: OAuth, incremental sync tokens, write-back of local edits, delete propagation.
+- [ ] Outlook/Microsoft Graph two-way sync.
+- [ ] CalDAV two-way sync (Apple Calendar, Nextcloud), including discovery.
+- [ ] Per-account conflict policy with an audit trail; URL feeds stay read-only; source-mapping UI (direction per calendar, member mapping).
+- Tests first: incremental sync is idempotent; a local edit propagates exactly once; a remote delete propagates; the conflict policy holds; a revoked token surfaces in the UI.
 
 ### Do not port from v0.29
 Each of these is in that tree. Porting a feature means reimplementing it correctly, not copying the file.
