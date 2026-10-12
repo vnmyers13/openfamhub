@@ -82,7 +82,7 @@ git add VERSION
 
 # Keep the README badge honest. `sed -i.bak` is portable across macOS and GNU sed.
 if [ -f README.md ]; then
-    sed -i.bak "s|version-[0-9][0-9]*-blue|version-0.${n}-blue|g" README.md
+    sed -i.bak "s|version-0\.[0-9][0-9]*-blue|version-0.${n}-blue|g" README.md
     rm -f README.md.bak
     git add README.md
 fi
@@ -100,8 +100,8 @@ Expected: `git config core.hooksPath` prints `.githooks`.
 
 - [ ] **Step 5: Prove the hook bumps on the next commit**
 
-Run: `printf '\n' >> README.md && git add README.md && git commit -m "docs: enable the version hook" && cat VERSION`
-Expected: `VERSION` prints `31` and `git show HEAD:VERSION` prints `31`; `README.md` shows `version-0.31-blue`.
+Run: `git commit --allow-empty -m "chore: exercise the version hook" && cat VERSION`
+Expected: `VERSION` prints `31` and `git show HEAD:VERSION` prints `31`; `README.md` shows `version-0.31-blue`. (The commit is not empty once the hook stages `VERSION` and the badge.)
 
 - [ ] **Step 6: Test the guard rails (Review Focus: empty commit, bad `VERSION`)**
 
@@ -284,7 +284,7 @@ if [ "${1:-}" = "--step" ]; then
     n=$((parent + 1))
     printf '%s\n' "$n" > VERSION
     if [ -f README.md ]; then
-        sed -i.bak "s|version-[0-9][0-9]*-blue|version-0.${n}-blue|g" README.md
+        sed -i.bak "s|version-0\.[0-9][0-9]*-blue|version-0.${n}-blue|g" README.md
         rm -f README.md.bak
         git add README.md
     fi
