@@ -150,13 +150,19 @@ publish() {
 
     if [ "$VERSION" = "$(app_version)" ]; then
         if ! git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
-            git tag -a "v$VERSION" -m "Release $VERSION"
-            tag_remote=origin
-            if git remote | grep -qx forgejo; then
-                tag_remote=forgejo
-            fi
-            if ! git push "$tag_remote" "v$VERSION" 2>/dev/null; then
-                warn "Could not push tag v$VERSION; push it by hand."
+            # Use an explicit identity: CI runners often have no user.email/user.name,
+            # and `set -e` would otherwise abort the publish after the images are up.
+            if git -c user.name="OpenFamHub CI" -c user.email="ci@vernonmyers.cloud" \
+                   tag -a "v$VERSION" -m "Release $VERSION"; then
+                tag_remote=origin
+                if git remote | grep -qx forgejo; then
+                    tag_remote=forgejo
+                fi
+                if ! git push "$tag_remote" "v$VERSION" 2>/dev/null; then
+                    warn "Could not push tag v$VERSION; push it by hand."
+                fi
+            else
+                warn "Could not create tag v$VERSION; tag and push it by hand."
             fi
         fi
     fi
