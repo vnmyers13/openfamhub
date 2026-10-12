@@ -31,7 +31,6 @@ services:
     build:
       context: ./frontend
       args:
-        APP_VERSION: ${OPENFAMHUB_VERSION:-dev}
         OPENFAMHUB_BUILD: ${OPENFAMHUB_VERSION:-dev}
     expose:
       - "3000"
