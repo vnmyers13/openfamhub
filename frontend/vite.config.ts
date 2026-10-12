@@ -11,14 +11,16 @@ export default defineConfig({
       manifest: {
         name: 'OpenFamHub',
         short_name: 'OpenFamHub',
+        description: 'OpenFamHub — family calendar for home',
         theme_color: '#4F46E5',
-        background_color: '#ffffff',
+        background_color: '#1E1B4B',
         display: 'standalone',
         start_url: '/',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-180.png', sizes: '180x180', type: 'image/png', purpose: 'apple-touch-icon' },
+          { src: '/icons/maskable-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icons/apple-touch-icon-180x180.png', sizes: '180x180', type: 'image/png', purpose: 'apple-touch-icon' },
         ],
       },
       workbox: {
