@@ -6,7 +6,7 @@ Read these before changing code:
 
 - [AGENTS.md](AGENTS.md): layout, commands, gotchas
 - [docs/architecture.md](docs/architecture.md): how the app works, including time handling and auth
-- [TODO.md](TODO.md): the roadmap; the authoritative task list
+- [TODO.md](TODO.md): **the source of truth** for the roadmap and the task list
 - [docs/deployment.md](docs/deployment.md): publish and deploy
 
 ## Which code is canonical
@@ -53,7 +53,7 @@ When porting a feature, re-implement it rather than copying the file. TODO.md ha
 
 ## Roadmap status
 
-The detail is in [TODO.md](TODO.md).
+**TODO.md is the source of truth** for tasks and ordering; the table below is a summary that can lag behind it.
 
 | Phase | Scope | Status |
 |---|---|---|
