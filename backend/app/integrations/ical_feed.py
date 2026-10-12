@@ -146,6 +146,8 @@ async def fetch_and_parse(url: str, *, transport=None) -> list[dict]:
             duration = component.get("DURATION")
             if duration:
                 end = start + duration.dt
+            elif is_all_day:
+                end = start + timedelta(days=1)
             else:
                 end = start + timedelta(hours=1)
 

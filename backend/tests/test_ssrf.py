@@ -22,6 +22,30 @@ VALID_ICS = (
     "END:VCALENDAR\r\n"
 ).encode()
 
+ALL_DAY_WITHOUT_END_ICS = (
+    "BEGIN:VCALENDAR\r\n"
+    "VERSION:2.0\r\n"
+    "PRODID:-//OpenFamHub test//EN\r\n"
+    "BEGIN:VEVENT\r\n"
+    "UID:all-day-no-end\r\n"
+    "DTSTART;VALUE=DATE:20261007\r\n"
+    "SUMMARY:Teacher workday\r\n"
+    "END:VEVENT\r\n"
+    "END:VCALENDAR\r\n"
+).encode()
+
+TIMED_WITHOUT_END_ICS = (
+    "BEGIN:VCALENDAR\r\n"
+    "VERSION:2.0\r\n"
+    "PRODID:-//OpenFamHub test//EN\r\n"
+    "BEGIN:VEVENT\r\n"
+    "UID:timed-no-end\r\n"
+    "DTSTART:20261007T130000Z\r\n"
+    "SUMMARY:Quick meeting\r\n"
+    "END:VEVENT\r\n"
+    "END:VCALENDAR\r\n"
+).encode()
+
 
 def _fake_getaddrinfo(*ips):
     def fake(host, port, *args, **kwargs):
@@ -143,6 +167,34 @@ class TestFetchAndParse:
             await fetch_and_parse(
                 f"http://{PUBLIC_IP}/missing.ics", transport=httpx.MockTransport(handler)
             )
+
+    async def test_all_day_event_without_end_lasts_one_day(self):
+        def handler(request):
+            return httpx.Response(200, content=ALL_DAY_WITHOUT_END_ICS)
+
+        events = await fetch_and_parse(
+            f"http://{PUBLIC_IP}/calendar.ics", transport=httpx.MockTransport(handler)
+        )
+
+        assert len(events) == 1
+        event = events[0]
+        assert event["all_day"] is True
+        assert event["start_dt"].isoformat() == "2026-10-07T00:00:00+00:00"
+        assert event["end_dt"].isoformat() == "2026-10-08T00:00:00+00:00"
+
+    async def test_timed_event_without_end_defaults_to_one_hour(self):
+        def handler(request):
+            return httpx.Response(200, content=TIMED_WITHOUT_END_ICS)
+
+        events = await fetch_and_parse(
+            f"http://{PUBLIC_IP}/calendar.ics", transport=httpx.MockTransport(handler)
+        )
+
+        assert len(events) == 1
+        event = events[0]
+        assert event["all_day"] is False
+        assert event["start_dt"].isoformat() == "2026-10-07T13:00:00+00:00"
+        assert event["end_dt"].isoformat() == "2026-10-07T14:00:00+00:00"
 
 
 class TestDnsRebinding:
