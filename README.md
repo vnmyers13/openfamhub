@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-0.39-blue)
+![Version](https://img.shields.io/badge/version-0.40-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -33,7 +33,7 @@ Open `https://openfamhub.local` (point that name at the machine in DNS or `/etc/
 The recommended setup is to build images once and publish them to the Forgejo container registry. Servers then only pull and run them:
 
 ```bash
-scripts/deploy.sh publish                                     # build + push v0.30 (amd64 + arm64)
+scripts/deploy.sh publish                                     # build + push v0.<n> (amd64 + arm64)
 PUBLIC_URL=https://openfamhub.vernonmyers.cloud \
   scripts/deploy.sh remote test                               # install/upgrade the "test" VM over SSH
 ```

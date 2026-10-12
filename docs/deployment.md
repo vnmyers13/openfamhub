@@ -93,11 +93,11 @@ If a proxy sits in front of Forgejo, make sure it doesn't cap upload size. Image
 ## 3. Publish images
 
 ```bash
-scripts/deploy.sh publish            # version = APP_VERSION in backend/app/core/config.py
+scripts/deploy.sh publish            # version = 0.<VERSION> (repo root)
 scripts/deploy.sh publish 0.30-rc1   # or an explicit tag
 ```
 
-This builds `linux/amd64` and `linux/arm64` images for the API and web app and pushes each one as `:<version>` and `:latest`. CI sets `BUILD_NUMBER`, which turns the version into a per-push build such as `0.30.17` (and also moves `:0.30`); see [ci.md](ci.md). The build is baked into the images: `/api/health` reports `build` and `commit`, and the app's sidebar shows it.
+This builds `linux/amd64` and `linux/arm64` images for the API and web app and pushes each one as `:<version>` and `:latest`. Images are tagged `0.<n>` with a matching `v0.<n>` release tag; see [ci.md](ci.md). The build is baked into the images: `/api/health` reports `build` and `commit`, and the app's sidebar shows it.
 
 - The first run creates a buildx builder named `openfamhub`.
 - If the server and the Mac share an architecture, `PLATFORMS=linux/amd64 scripts/deploy.sh publish` is faster.
@@ -160,12 +160,12 @@ docker compose down                # stop (data in ./data is kept)
 ## 5. Upgrade and roll back
 
 ```bash
-# Upgrade: bump APP_VERSION (and CHANGELOG), commit, then
+# Upgrade: the hook bumps VERSION; add a CHANGELOG entry, commit, then
 scripts/deploy.sh publish
 scripts/deploy.sh remote test
 
 # Roll back to any version or CI build that was published
-scripts/deploy.sh remote test 0.30.12
+scripts/deploy.sh remote test 0.<n>
 ```
 
 **Database changes:** from 0.30, the API applies Alembic migrations automatically at startup. Installs from before 0.30 are recognized and brought up to date. Migrations only move forward: rolling back to an older version across a schema change isn't supported, so take a backup before upgrading (see below).
@@ -201,7 +201,7 @@ Settings live in `.env`: in the repo root for build-from-source, or in `~/openfa
 | `SITE_ADDRESS` | `openfamhub.local` | Hostname Caddy serves in LAN mode. |
 | `HTTP_PORT` / `HTTPS_PORT` | `80`/`443` (source), `8080`/`8443` (server) | Host ports for Caddy. |
 | `REGISTRY` | `forgejo.vernonmyers.cloud/vernon` | Registry and owner the images are pushed to and pulled from. |
-| `OPENFAMHUB_VERSION` | `APP_VERSION` | Image tag to build, push or run. |
+| `OPENFAMHUB_VERSION` | `0.<VERSION from VERSION>` | Image tag to build, push or run. |
 
 These are also read from the environment of `deploy.sh`: `PLATFORMS` (publish), `PUBLIC_URL` and `REMOTE_DIR` (remote).
 

@@ -3,10 +3,10 @@
 Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then [docs/architecture.md](docs/architecture.md). Deployment is in [docs/deployment.md](docs/deployment.md), and dev and test commands are in [GETTING_STARTED.md](GETTING_STARTED.md).
 
 ## Version and branches
-- Current version: **0.30**. The canonical source is `APP_VERSION` in `backend/app/core/config.py`; it's also in the `backend/Dockerfile` label and the README badge.
+- Current version: the integer in `VERSION` (repo root). The canonical release string is `0.<n>`. The `pre-commit` hook bumps `VERSION` by one on every commit. `scripts/check-version.sh` enforces `+1` on `master`'s first-parent chain and "greater than base" on branches. Tags are `v0.<n>`. Do not edit `VERSION` by hand.
 - Default branch: `master`. Remotes: `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary) and `origin` (GitHub mirror).
 - Work on a branch with one commit per logical change.
-- After cloning, run `git config core.hooksPath .githooks`. The `pre-commit` hook bumps `VERSION` (repo root) by one on every commit; the release string is `0.<VERSION>`. The next commit is `0.31`. Do not edit `VERSION` by hand.
+- After cloning, run `git config core.hooksPath .githooks`. The next commit will be `0.(current+1)`.
 
 ## Registries
 - Primary: Forgejo container registry, `forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}`, pushed by `scripts/deploy.sh publish`.

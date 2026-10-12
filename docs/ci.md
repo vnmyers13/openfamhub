@@ -21,14 +21,14 @@ test VM (`192.168.10.80`).
 into `~/openfamhub`, pins `REGISTRY`/`OPENFAMHUB_VERSION`, and pulls + restarts
 the stack.
 
-**Build numbers.** Every run sets `BUILD_NUMBER` to the run number, so a push to
-`master` publishes its own immutable tag, `<APP_VERSION>.<run>` (for example
-`0.30.17`), and also moves `:0.30` and `:latest`. `deploy` pins that exact tag in
-`~/openfamhub/.env`. To see what's running, check the sidebar footer in the app
-(`OpenFamHub 0.30.17`) or `curl -s https://openfamhub.vernonmyers.cloud/api/health`
-(`build` and `commit` fields). To roll the test VM back to an earlier build, run
-`scripts/deploy.sh server "$HOME/openfamhub" 0.30.12` on the VM (or
-`scripts/deploy.sh remote test 0.30.12` from the Mac).
+**Version numbering.** `VERSION` (repo root) holds a single integer; the `pre-commit`
+hook bumps it per commit; `scripts/check-version.sh` enforces `+1` on `master`'s
+first-parent chain and "greater than base" on branches; the release string is `0.<n>`;
+tags are `v0.<n>` pushed to `forgejo`. `deploy` pins that exact tag in
+`~/openfamhub/.env`. To see what's running, check the sidebar footer in the app or
+`curl -s https://openfamhub.vernonmyers.cloud/api/health` (`build` and `commit` fields).
+To roll the test VM back to an earlier build, run `scripts/deploy.sh server "$HOME/openfamhub" 0.<n>`
+on the VM (or `scripts/deploy.sh remote test 0.<n>` from the Mac).
 
 Pull requests run the checks only; they never publish or deploy.
 
@@ -107,5 +107,5 @@ or push to `master` to publish and deploy.
 | Jobs sit "Waiting" forever | No runner matches the `runs-on` label. Check **Settings → Actions → Runners** shows `openfamhub-vm` online with all three labels. |
 | `publish`: `unauthorized` | `REGISTRY_TOKEN` is missing or lacks package write scope. |
 | arm64 build fails or is extremely slow | binfmt/QEMU not installed (step 5), or the emulated `pip install` timed out. Re-run; the buildx cache speeds up later runs. |
-| `deploy` succeeds but the site is stale | Check `docker compose ps` in `~/openfamhub`; the API should be `healthy` and `OPENFAMHUB_VERSION` should match `APP_VERSION`. |
+| `deploy` succeeds but the site is stale | Check `docker compose ps` in `~/openfamhub`; the API should be `healthy` and `OPENFAMHUB_VERSION` should match `0.$(cat VERSION)`. |
 | `builtin:checkout` fails with `needs git on PATH` | The job's container image has no `git` (e.g. a `-slim` image). Use an image that ships `git` (the `openfamhub-python` label maps to `python:3.12`). `git` on the runner host itself must also be ≥ 2.34.1. |

@@ -1,7 +1,7 @@
-## [Unreleased] - 0.30.x builds
+## [0.31] - 2026-10-12
 
-### Added
-- Every CI publish is its own build, `0.30.<run>` (and moves `:0.30`/`:latest`). `/api/health` reports `build` and `commit`, and the sidebar shows the build, so you can tell what's deployed and roll back to a specific build.
+### Changed
+- Every commit now carries its own version, `0.<n>`, incremented by one per commit by a `pre-commit` hook and enforced in CI. The CI run-number suffix (`0.30.17`) is gone; images are tagged `0.<n>` with a matching `v0.<n>` release tag.
 
 ### Fixed
 - Wall displays now update live after scheduled and automatic calendar syncs, not only after manual changes. Live-update notices are sent only after the change is saved, so a wall never re-reads stale data.
