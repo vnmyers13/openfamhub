@@ -1,5 +1,7 @@
 ## [0.31] - 2026-10-12
 
+> Sections are keyed by roadmap phase, not by commit. The per-commit release number lives in `VERSION` (repo root) and advances with every commit.
+
 ### Changed
 - Every commit now carries its own version, `0.<n>`, incremented by one per commit by a `pre-commit` hook and enforced in CI. The CI run-number suffix (`0.30.17`) is gone; images are tagged `0.<n>` with a matching `v0.<n>` release tag.
 
