@@ -22,7 +22,7 @@ git add VERSION
 
 # Keep the README badge honest. `sed -i.bak` is portable across macOS and GNU sed.
 if [ -f README.md ]; then
-    sed -i.bak "s|version-[0-9][0-9]*-blue|version-0.${n}-blue|g" README.md
+    sed -i.bak "s|version-0\.[0-9][0-9]*-blue|version-0.${n}-blue|g" README.md
     rm -f README.md.bak
     git add README.md
 fi

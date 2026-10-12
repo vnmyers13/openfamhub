@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-0.30-blue)
+![Version](https://img.shields.io/badge/version-0.34-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -85,4 +85,3 @@ PWA PNG icons (180/192/512, maskable) are generated from the source SVGs in `fro
 ## License
 
 MIT
-
