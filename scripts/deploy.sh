@@ -43,6 +43,8 @@ Registry workflow:
                         \$REGISTRY (default: $DEFAULT_REGISTRY)
   remote <host> [ver]   Install or upgrade OpenFamHub on <host> over SSH using the
                         published images (first run creates ~/openfamhub/.env)
+  server [dir]          Install the deploy bundle into [dir] (default: openfamhub)
+                        and pull + restart the stack locally (no SSH)
 
 Environment overrides:
   REGISTRY, OPENFAMHUB_VERSION, PLATFORMS (publish),
@@ -196,6 +198,58 @@ REMOTE_ENV
     log "Deployed $VERSION to $host."
 }
 
+server() {
+    local dir="${1:-${REMOTE_DIR:-openfamhub}}"
+    resolve_registry
+    resolve_version "${2:-}"
+
+    log "Installing deploy bundle into $dir ..."
+    mkdir -p "$dir/config" "$dir/data/db" "$dir/data/photos" "$dir/data/backups"
+    cp deploy/compose.yml "$dir/compose.yml"
+    cp config/Caddyfile config/Caddyfile.proxy config/routes.caddy "$dir/config/"
+
+    if [ -f "$dir/.env" ]; then
+        log "Pinning REGISTRY=$REGISTRY and OPENFAMHUB_VERSION=$VERSION in $dir/.env"
+        REGISTRY="$REGISTRY" VERSION="$VERSION" ENV_FILE="$dir/.env" sh -s <<'LOCAL_ENV'
+set -eu
+upsert_env() {
+    key="$1"
+    value="$2"
+    file="$3"
+    if grep -q "^${key}=" "$file"; then
+        sed -i.bak "s|^${key}=.*|${key}=${value}|" "$file" && rm -f "$file.bak"
+    else
+        printf '%s=%s\n' "$key" "$value" >> "$file"
+    fi
+}
+upsert_env REGISTRY "$REGISTRY" "$ENV_FILE"
+upsert_env OPENFAMHUB_VERSION "$VERSION" "$ENV_FILE"
+LOCAL_ENV
+    else
+        command -v openssl >/dev/null || error "openssl is needed to generate SECRET_KEY"
+        local key public_url
+        key=$(openssl rand -hex 32)
+        public_url="${PUBLIC_URL:-https://openfamhub.local}"
+        sed -e "s|__REGISTRY__|$REGISTRY|" \
+            -e "s|__VERSION__|$VERSION|" \
+            -e "s|__PUBLIC_URL__|$public_url|" \
+            -e "s|__SECRET_KEY__|$key|" \
+            deploy/env.template > "$dir/.env"
+        chmod 600 "$dir/.env"
+        log "Created $dir/.env with a generated SECRET_KEY (back it up)."
+    fi
+
+    log "Validating compose config in $dir..."
+    ( cd "$dir" && docker compose config >/dev/null )
+
+    log "Pulling images and starting services in $dir..."
+    ( cd "$dir" && docker compose pull && docker compose up -d --remove-orphans )
+    log "Waiting for the API to become healthy..."
+    ( cd "$dir" && bash -c "$HEALTH_WAIT" )
+    ( cd "$dir" && docker compose ps )
+    log "Deployed $VERSION to $dir."
+}
+
 case "${1:-help}" in
     setup)
         log "Starting setup for $APP_NAME..."
@@ -224,6 +278,7 @@ case "${1:-help}" in
         ;;
     publish) publish "${2:-}" ;;
     remote)  remote "${2:-}" "${3:-}" ;;
+    server)  server "${2:-}" ;;
     status)  docker compose ps ;;
     logs)
         if [ -z "${2:-}" ]; then docker compose logs -f; else docker compose logs -f "$2"; fi
