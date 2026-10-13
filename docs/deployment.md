@@ -247,7 +247,7 @@ These are also read from the environment of `deploy.sh`: `PLATFORMS` (publish), 
 ## 7. Backups and restore
 
 - The API copies the database to `data/backups/homehub_YYYY-MM-DD.db` every day at `BACKUP_TIME`, using SQLite's online-backup API, so the copy is safe while the app is running. Copies older than `BACKUP_RETENTION_DAYS` are deleted.
-- All app state is in `data/` (the `db`, `backups` and `photos` folders) plus your `.env`. Copy `data/backups` somewhere else as well, for example a NAS or cloud drive.
+- All app state is in `data/` plus your `.env`: `db` (the live database), `backups` (daily snapshots) and `photos` (the family's photos and videos, under `photos/media/`). The daily job only covers the database; photos exist only in `data/photos`, so copy both off the server (next section).
 - **Before an upgrade**, take a manual backup. Because SQLite runs in WAL mode, do not copy only `homehub.db` while the API is writing. Prefer the app's backup directory, or stop the API before copying the database files:
 
   ```bash
@@ -256,17 +256,44 @@ These are also read from the environment of `deploy.sh`: `PLATFORMS` (publish), 
 
   The scheduled backup job uses SQLite's online-backup API and is safe while the app is running.
 
-**Restore:**
+### Off-host copies (NAS)
+
+A backup on the same disk doesn't survive that disk. `backup-offhost.sh` copies `data/backups` and `data/photos` to a mounted folder or, over SSH, to another machine. It never deletes anything at the destination (a photo removed in the app stays in the backup), skips the live database (it changes while being read; the daily snapshots are the consistent copies) and skips uploads still in progress. `deploy.sh remote` puts the script in `~/openfamhub`; in a checkout it's `scripts/backup-offhost.sh`.
 
 ```bash
-ssh test
 cd ~/openfamhub
-docker compose stop api
-cp data/db/homehub.db data/db/homehub.db.before-restore
-cp data/backups/homehub_2026-10-01.db data/db/homehub.db
-rm -f data/db/homehub.db-wal data/db/homehub.db-shm   # WAL files belong to the old DB
-docker compose start api
+./backup-offhost.sh --dry-run backup@nas:/volume1/openfamhub   # see what would be copied
+./backup-offhost.sh backup@nas:/volume1/openfamhub             # over SSH (needs rsync on both ends)
+./backup-offhost.sh /mnt/nas/openfamhub                        # or to a mounted share (rsync, or plain cp without it)
+./backup-offhost.sh --with-env /mnt/nas/openfamhub             # also .env, saved as "env", mode 600
 ```
+
+- Run it daily after `BACKUP_TIME`, for example from the server's crontab (`crontab -e`): `30 4 * * * cd ~/openfamhub && ./backup-offhost.sh backup@nas:/volume1/openfamhub >> backup-offhost.log 2>&1`. For SSH targets, give the server a key the NAS accepts without a password.
+- `.env` holds `SECRET_KEY`; restoring without it signs everyone out (wall displays stay paired). Copy it with `--with-env` to a share only you can read, or keep it in your password manager.
+- The destination keeps every daily snapshot the server ever sent; prune old ones on the NAS if space matters.
+
+### Restore
+
+1. **Database:** stop the API and put a snapshot in place.
+
+   ```bash
+   ssh test
+   cd ~/openfamhub
+   docker compose stop api
+   cp data/db/homehub.db data/db/homehub.db.before-restore
+   cp data/backups/homehub_2026-10-01.db data/db/homehub.db      # or copy one back from the NAS first
+   rm -f data/db/homehub.db-wal data/db/homehub.db-shm   # WAL files belong to the old DB
+   ```
+
+2. **Photos and videos:** copy `photos/` back from the off-host copy.
+
+   ```bash
+   rsync -a backup@nas:/volume1/openfamhub/photos/ data/photos/     # or: cp -a /mnt/nas/openfamhub/photos/. data/photos/
+   ```
+
+   The database lists the photos and the files hold them, so restore both from around the same day. A photo whose files are missing doesn't show on the wall, and you can remove it on the Photos page.
+3. **Settings:** on a new server, put `.env` back (from `env` on the NAS, or recreate it with the same `SECRET_KEY`).
+4. `docker compose start api`. Migrations bring an older snapshot up to date.
 
 ---
 

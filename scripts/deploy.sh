@@ -201,6 +201,7 @@ remote() {
     ssh "$host" "mkdir -p '$dir/config' '$dir/data/db' '$dir/data/photos' '$dir/data/backups'"
     scp -q deploy/compose.yml "$host:$dir/compose.yml"
     scp -q config/Caddyfile config/Caddyfile.proxy config/routes.caddy "$host:$dir/config/"
+    scp -q scripts/backup-offhost.sh "$host:$dir/backup-offhost.sh"  # see docs/deployment.md
 
     if ssh "$host" "test -f '$dir/.env'"; then
         log "Pinning REGISTRY=$REGISTRY and OPENFAMHUB_VERSION=$VERSION in existing $dir/.env"
@@ -252,6 +253,7 @@ server() {
     mkdir -p "$dir/config" "$dir/data/db" "$dir/data/photos" "$dir/data/backups"
     cp deploy/compose.yml "$dir/compose.yml"
     cp config/Caddyfile config/Caddyfile.proxy config/routes.caddy "$dir/config/"
+    cp scripts/backup-offhost.sh "$dir/backup-offhost.sh"  # see docs/deployment.md
 
     if [ -f "$dir/.env" ]; then
         log "Pinning REGISTRY=$REGISTRY and OPENFAMHUB_VERSION=$VERSION in $dir/.env"
