@@ -4,11 +4,34 @@ import { apiClient } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import BuildInfoBadge from '../components/BuildInfoBadge'
 
+// The family timezone decides how calendar feeds' floating times (no zone
+// given) are read, so default to this device's zone rather than UTC, and offer
+// every zone the browser knows.
+function deviceZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  } catch {
+    return 'UTC'
+  }
+}
+
+function allZones(first: string): string[] {
+  let zones: string[]
+  try {
+    zones = (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.('timeZone') ?? []
+  } catch {
+    zones = []
+  }
+  const common = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles']
+  return Array.from(new Set([first, ...common, ...zones]))
+}
+
 export default function SetupWizard() {
   const navigate = useNavigate()
   const { setUser } = useAuthStore()
   const [familyName, setFamilyName] = useState('')
-  const [timezone, setTimezone] = useState('UTC')
+  const [timezone, setTimezone] = useState(deviceZone)
+  const [zones] = useState(() => allZones(deviceZone()))
   const [adminName, setAdminName] = useState('')
   const [password, setPassword] = useState('')
   const [pin, setPin] = useState('')
@@ -68,11 +91,11 @@ export default function SetupWizard() {
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
             >
-              <option value="UTC">UTC</option>
-              <option value="America/New_York">Eastern</option>
-              <option value="America/Chicago">Central</option>
-              <option value="America/Denver">Mountain</option>
-              <option value="America/Los_Angeles">Pacific</option>
+              {zones.map((z) => (
+                <option key={z} value={z}>
+                  {z === zones[0] ? `${z.replace(/_/g, ' ')} (this device)` : z.replace(/_/g, ' ')}
+                </option>
+              ))}
             </select>
           </div>
           <div>
