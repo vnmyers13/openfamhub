@@ -27,6 +27,8 @@ from app.services.calendar import get_events_in_range
 from app.services import media as media_service
 from app.schemas.media import WallMediaResponse
 from app.routers.media import serve_file
+from app.routers.family import sleep_schedule
+from app.schemas.family import SleepSchedule
 
 router = APIRouter()
 
@@ -175,6 +177,9 @@ async def session(
         "device": device.name,
         "family_name": family.name if family else None,
         "idle_timeout_seconds": settings.wall_idle_timeout_seconds,
+        # The wall evaluates its sleep schedule in the family timezone.
+        "timezone": family.timezone if family else "UTC",
+        "sleep": (sleep_schedule(family) if family else SleepSchedule()).model_dump(),
     }
 
 
