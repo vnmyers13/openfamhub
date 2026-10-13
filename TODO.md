@@ -8,6 +8,7 @@ Known bugs and planned fixes, from the code review of 2026-10-04. Phase 1 shippe
 - **Sign-in:** an avatar picker + PIN for everyone; a password is required for admin actions.
 - **Versioning:** the merged line continues at **0.30**, above every existing tag. CHANGELOG notes that 0.19–0.29 belong to the retired `main` line.
 - **Order:** keep the phase order below.
+- **Families (2026-10-12):** one family per install, enforced by setup and a database trigger; public sign-in is scoped to that family (#5). Multi-family hosting would need an explicit family on sign-in and is not planned.
 
 ## Release plan
 
@@ -16,7 +17,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Release | Contents | Shipped in |
 |---|---|---|
 | Phases 2 + 4 | Security, sign-in model, infra/CI | 0.30 |
-| Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.70 except #5 (needs a decision) and the prod host (deferred); **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
+| Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.73 except the prod host (deferred); **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
 | Phase 3 + 3b | iCal correctness; wall essentials (photo slideshow, sleep schedule, backups) | |
 | Phase 5 | Chores, to-dos, routines | |
 | Phase 6 | Rewards | |
@@ -40,7 +41,7 @@ Findings from the codebase review. Each item should be handled with tests first 
 - [x] Delete stale events when a successful iCal sync returns zero events. `sync_source()` only soft-deletes stale events when `incoming_uids` is non-empty (`backend/app/jobs/calendar_sync.py`). Add a test that syncs one event, then an empty feed, and expects the old event hidden. ([#2](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/2)) Fixed: guard removed; `test_empty_feed_hides_previous_events`.
 - [x] Treat all-day iCal events without `DTEND` or `DURATION` as one-day events. The parser currently falls back to one hour (`backend/app/integrations/ical_feed.py`). Add parser tests for `DTSTART;VALUE=DATE` with no end. ([#3](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/3)) Fixed: all-day no-end events now end at the next UTC midnight; timed no-end events still default to one hour (`backend/tests/test_ssrf.py`).
 - [x] Preserve `all_day` on recurring iCal expansions and avoid duplicating the first occurrence. This overlaps Phase 3; keep it there if fixing it with Phase 3 (`backend/app/integrations/ical_feed.py`). ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)) Fixed: the DTSTART occurrence is no longer re-emitted, every occurrence keeps the series duration and `all_day`, and an all-day series with a UTC `UNTIL` expands (`backend/tests/test_ical_recurrence.py`).
-- [ ] Decide whether public auth queries must enforce a single-family invariant or explicit family scope. `profiles()`, password login, and PIN login are global today (`backend/app/routers/auth.py`); add multi-family regression tests or document/enforce one-family-per-install at the DB/application boundary. ([#5](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/5))
+- [x] Decide whether public auth queries must enforce a single-family invariant or explicit family scope. `profiles()`, password login, and PIN login are global today (`backend/app/routers/auth.py`); add multi-family regression tests or document/enforce one-family-per-install at the DB/application boundary. ([#5](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/5)) Decided: one family per install. Migration 006 adds a `families_single_row` trigger, setup turns a lost race into 400, and all three sign-in queries filter by the install family (`backend/tests/test_single_family.py`).
 - [x] Reject `provider: "internal"` on calendar source creation. The admin source API can create extra internal sources that are then protected from deletion (`backend/app/routers/calendar.py`, `backend/app/schemas/calendar.py`). ([#6](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/6)) Fixed: the schema accepts only `ical` (`backend/tests/test_calendar_scoping.py`).
 - [x] Add `CalendarEvent.family_id == family_id` to event reads, in addition to source family joins, so malformed rows cannot cross tenants (`backend/app/services/calendar.py`, `backend/app/routers/calendar.py`). ([#7](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/7)) Fixed in the event list and single-event lookup (`backend/tests/test_calendar_scoping.py`).
 
@@ -138,7 +139,7 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
 ## Phase 3b — Wall essentials
 Pulled forward from Phase 10: these are what make the wall worth looking at every day.
 - [ ] **Photo/video slideshow screensaver.** Family media library: upload from the PWA (admins and members), list, delete; the idle wall screen cycles through it (replaces `WallPhotoPlaceholder`). Store originals and thumbnails under `data/photos` (already mounted and served at `/photos`).
-  - Uploads: size limit, image/video MIME allow-list, strip EXIF (location), generate a wall-sized rendition and a thumbnail; `family_id` on every media row (migration 006).
+  - Uploads: size limit, image/video MIME allow-list, strip EXIF (location), generate a wall-sized rendition and a thumbnail; `family_id` on every media row (migration 007).
   - The wall reads media through a paired-device endpoint (`/api/wall/media`), never a user session.
 - [ ] **Sleep schedule.** Family setting for screen off/on times (separate from the idle timeout); the wall goes dark on schedule and wakes on touch. Evaluated in the family timezone.
 - [ ] **Off-host backups.** Photos make the data worth more: document (and optionally script) copying `data/backups` and `data/photos` to the NAS, and include photos in the restore steps.
@@ -165,13 +166,13 @@ parallel product line (chores/rewards/meals), not 11 releases ahead of us. We po
 *our* architecture, one domain at a time, and inherit our auth, `family_id` tenant scoping,
 `UTCDateTime`, deploy tooling and CI rather than its code. Phases 11–13 extend past v0.29 with the Cozyla-parity items listed above.
 
-Each phase writes its tests **before** the code, in the same change. Baseline (0.70): 81 backend tests in 9
+Each phase writes its tests **before** the code, in the same change. Baseline (0.73): 89 backend tests in 10
 files (`v0.29` has 65 in 13) and 35 frontend tests in 8 files (Vitest, `npm test`).
 
 Ordering is by dependency: rewards spends the points ledger chores introduce, and books awards points.
 
 ### Phase 5 — Chores
-- [ ] `chore_templates` and `chore_instances` models + the next Alembic migration (005 is taken; 006 goes to Phase 3b media). `UTCDateTime` throughout, `family_id` on both.
+- [ ] `chore_templates` and `chore_instances` models + the next Alembic migration (006 is taken by the single-family trigger; 007 goes to Phase 3b media, so chores get 008). `UTCDateTime` throughout, `family_id` on both.
 - [ ] Recurrence expansion into instances (reuse the Phase 3 iCal recurrence work where it fits).
 - [ ] Claim / complete lifecycle, quick-add, completion audit log.
 - [ ] Admin "By User" view: group by assignee with pending and completed counts.

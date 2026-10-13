@@ -17,19 +17,19 @@ Read these before changing code:
 
 ## Rules
 
-- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 81 backend tests in 9 files and 35 frontend tests in 8 files (0.70). Run `cd backend && source .venv/bin/activate && pytest -v`, then `cd frontend && npm test && npm run lint && npm run build`.
+- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 89 backend tests in 10 files and 35 frontend tests in 8 files (0.73). Run `cd backend && source .venv/bin/activate && pytest -v`, then `cd frontend && npm test && npm run lint && npm run build`.
 - **Time:**
   - Every datetime column is `UTCDateTime` (`backend/app/core/types.py`).
   - The API returns `+00:00` values.
   - All-day events are `00:00Z` dates with an exclusive end.
   - Range queries use overlap (`start < window_end AND end > window_start`), never containment.
   - Frontend date handling goes through `frontend/src/lib/dates.ts`.
-- **Tenancy:** every family-owned row has `family_id`, and every query filters by it.
+- **Tenancy:** every family-owned row has `family_id`, and every query filters by it. An install holds exactly one family (trigger `families_single_row`, migration 006); public sign-in queries scope to it via `services/family.install_family_id`.
 - **Auth:**
   - User sessions are an HttpOnly JWT cookie (30 days) whose `jti` is a `sessions` row, checked on every request. Admin endpoints also need a password session (or `/auth/elevate` within 15 minutes).
   - Wall displays use a paired-device cookie scoped to `/api/wall`.
   - Never trust a role claim from a token without loading the user.
-- **Schema:** for a new model, add it under `backend/app/models/`, import it in `models/__init__.py` and `alembic/env.py`, and add an Alembic migration. The next migration number is **006**. Migrations run automatically at startup.
+- **Schema:** for a new model, add it under `backend/app/models/`, import it in `models/__init__.py` and `alembic/env.py`, and add an Alembic migration. The next migration number is **007** (006 = one family per install). Migrations run automatically at startup.
 - **Single API worker:** the scheduler, event bus, WebSocket hub and rate limiter are all in-process. Add jobs to the existing scheduler (`backend/app/jobs/scheduler.py`, which runs in `TIMEZONE`); never start a second scheduler.
 - **Secrets:** `SECRET_KEY` has no default on purpose. Never commit `.env`, databases or tokens.
 - **Git:** branch per change, one logical change per commit, and messages that explain why.

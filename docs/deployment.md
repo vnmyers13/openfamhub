@@ -196,7 +196,7 @@ Rolling back across a schema change isn't supported: restore the backup taken be
 
 ### Version notes
 
-- **0.31–0.71 (review fixes).** No configuration changes. Image tags changed from `0.30.<run>` to one number per commit, `0.<n>`; the current `deploy.sh remote` writes the new tag to the server's `.env`. Repeating calendar subscriptions showed their first occurrence twice; the extra copy disappears at the next sync (or press **Sync Now** in Admin › Calendars). Reload wall displays once to get the midnight rollover and the revocation fix.
+- **0.31–0.73 (review fixes).** No configuration changes. Migration 006 (one family per install) runs at startup. Image tags changed from `0.30.<run>` to one number per commit, `0.<n>`; the current `deploy.sh remote` writes the new tag to the server's `.env`. Repeating calendar subscriptions showed their first occurrence twice; the extra copy disappears at the next sync (or press **Sync Now** in Admin › Calendars). Reload wall displays once to get the midnight rollover and the revocation fix.
 - **0.30.** Migrations run automatically at startup; older databases are stamped first. Sign-in moved to avatar + PIN, with a password for admin changes.
 
 #### Upgrading an install from 0.17 or earlier: fix event times

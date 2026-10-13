@@ -1,4 +1,4 @@
-## [Unreleased] — Review fixes (builds 0.31–0.70, 2026-10-12)
+## [Unreleased] — Review fixes (builds 0.31–0.73, 2026-10-12)
 
 > Entries are keyed by roadmap phase or work batch, not by commit. The per-commit build number lives in `VERSION` (repo root) and advances with every commit; when a batch is confirmed on the `test` VM, its heading gets the build that shipped it (`[0.<n>] - <date> — …`).
 
@@ -16,6 +16,7 @@
 - Viewers no longer see "New Event", and failed saves or deletes show the server's reason.
 - Admin pages redirect members and viewers to the dashboard instead of showing empty lists.
 - Admins can no longer create extra, undeletable "internal" calendars, and event lookups check the event's own family as well as its calendar's.
+- Each install holds exactly one family. The database now rejects a second one (even if two setup attempts race), and sign-in only offers and accepts that family's members. Applied automatically at startup (migration 006).
 
 ### Added
 - Frontend unit tests (Vitest; `npm test`, run in CI) and a startup test that boots the real app to check migrations and scheduled jobs.

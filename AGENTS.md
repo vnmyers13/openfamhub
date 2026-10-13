@@ -17,8 +17,8 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 ```
 backend/app/        FastAPI app: core/ models/ schemas/ routers/ services/ integrations/ jobs/
 backend/scripts/    one-off maintenance (fix_event_timezones.py)
-backend/tests/      pytest (phase1/2, auth, ssrf, realtime, ical_recurrence, calendar_scoping, startup, version)
-backend/alembic/    migrations 001–005 (004 = wall_devices, 005 = session auth_method); run at startup
+backend/tests/      pytest (phase1/2, auth, ssrf, realtime, ical_recurrence, calendar_scoping, single_family, startup, version)
+backend/alembic/    migrations 001–006 (004 = wall_devices, 005 = session auth_method, 006 = one family per install); run at startup
 frontend/src/       React app: api/ lib/ (dates, permissions) hooks/ pages/ (lazy-loaded) wall/ components/; tests are *.test.ts[x] beside the code
 config/             Caddyfile (LAN TLS), Caddyfile.proxy (behind proxy), routes.caddy (shared)
 deploy/             compose.yml + env.template, copied to servers by deploy.sh remote
@@ -41,7 +41,7 @@ docker-compose.yml  build-from-source stack; image names match published ones
 ## Gotchas
 - **Time:** every datetime column is `UTCDateTime`. Always pass aware datetimes, or naive values meaning UTC. The API returns `+00:00`. All-day events are `00:00Z` dates with an exclusive end. Frontend code must use `src/lib/dates.ts`.
 - **Range queries** use overlap, not start-in-range.
-- **Schema:** startup runs Alembic (`app/core/migrate.py`; pre-0.30 databases are stamped first). Add a migration for every model change (next: 006), and import new models in `models/__init__.py` and `alembic/env.py`.
+- **Schema:** startup runs Alembic (`app/core/migrate.py`; pre-0.30 databases are stamped first). Add a migration for every model change (next: 007), and import new models in `models/__init__.py` and `alembic/env.py`.
 - **Auth:** every user token's `jti` is a `sessions` row (revoked on logout, password change and removal). Sessions record `auth_method` (pin|password); admin endpoints need a password session or `/auth/elevate` within 15 min, otherwise 403 `password_required`. Failed sign-ins lock out per person (`login_throttle`). Wall displays use a `wall_token` cookie scoped to `/api/wall` (SHA-256 stored). The axios 401 handler skips `/auth/*` and `/wall/*`.
 - **Live updates:** never call `event_bus.emit` from request or job code; use `queue_event(db, ...)` so the notice is published after commit (`get_db` / `publish_queued`).
 - **Server-side fetches of user URLs:** use `resolve_public_addresses` and connect to the returned IP (see `fetch_ics_bytes`), never a plain `httpx.get(url)`.

@@ -81,7 +81,7 @@ The frontend uses one convention, implemented in `frontend/src/lib/dates.ts`:
 
 Events from subscribed calendars are read-only for everyone, because the next sync would overwrite any change. The frontend mirrors these rules in `lib/permissions.ts` to hide controls (viewers don't see "New Event"), and `/admin/*` pages sit behind `RequireAdmin`, which sends non-admins to the dashboard. The API remains the enforcement point.
 
-**Tenancy.** Event reads filter on the event's own `family_id` as well as its source's, so a malformed row can't cross families. Sources are created only as `ical`; each family's single `internal` source is created by the server on demand.
+**Tenancy.** An install holds exactly one family: setup refuses a second, and the `families_single_row` trigger (migration 006) rejects a second row even if two setup requests race. The public sign-in queries (avatar list, password and PIN login) run before anyone is signed in, so they scope to that install family. Event reads filter on the event's own `family_id` as well as its source's, so a malformed row can't cross families. Sources are created only as `ical`; each family's single `internal` source is created by the server on demand.
 
 A wall display can only read `/api/wall/events` and `/api/wall/members`, and open the `/api/wall/ws` live-update socket. It can't call any user endpoint.
 
