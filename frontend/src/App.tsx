@@ -10,6 +10,7 @@ import CalendarPage from './pages/CalendarPage'
 import CalendarSettings from './pages/admin/CalendarSettings'
 import WallDisplays from './pages/admin/WallDisplays'
 import NavShell from './components/NavShell'
+import RequireAdmin from './components/RequireAdmin'
 import WallLayout from './wall/WallLayout'
 import PasswordPrompt from './components/PasswordPrompt'
 
@@ -70,9 +71,11 @@ function AppRoutes() {
       <Route element={<NavShell />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/admin/users" element={<ManageUsers />} />
-        <Route path="/admin/calendars" element={<CalendarSettings />} />
-        <Route path="/admin/wall" element={<WallDisplays />} />
+        <Route element={<RequireAdmin />}>
+          <Route path="/admin/users" element={<ManageUsers />} />
+          <Route path="/admin/calendars" element={<CalendarSettings />} />
+          <Route path="/admin/wall" element={<WallDisplays />} />
+        </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
