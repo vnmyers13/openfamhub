@@ -86,7 +86,7 @@ jobs:
       - name: Install bundle and restart the stack
         run: scripts/deploy.sh server "$HOME/openfamhub"
 
-  # Trivy scan of the images `publish` just pushed (tag 0.<VERSION>). Non-blocking:
+  # Trivy scan of the images `publish` just pushed (tag: scripts/release-name). Non-blocking:
   # findings and scan errors never turn CI red or hold up `deploy`. Reports are
   # uploaded as the `trivy-reports` artifact. With CREATE_ISSUES=1 and the
   # ISSUES_TOKEN secret set, HIGH/CRITICAL findings become backlog issues (one
@@ -129,7 +129,7 @@ jobs:
             report="trivy-reports/trivy-$component.json"
             [ -s "$report" ] || { echo "No report for $component"; continue; }
             python3 scripts/create_trivy_issues.py "$FORGEJO_URL" "$FORGEJO_REPO" \
-              "openfamhub-$component:0.$(cat VERSION)" "$report"
+              "openfamhub-$component:$(scripts/release-name)" "$report"
           done
 
   # Keep Forgejo issues in step with TODO.md once a build is deployed to `test`:

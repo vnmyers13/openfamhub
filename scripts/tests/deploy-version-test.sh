@@ -8,6 +8,7 @@ trap 'rm -rf "$TMP"' EXIT
 REPO="$TMP/repo"
 mkdir -p "$REPO/scripts" "$TMP/bin"
 cp "$ROOT/scripts/deploy.sh" "$REPO/scripts/deploy.sh"
+cp "$ROOT/scripts/release-name" "$REPO/scripts/release-name"
 cp "$ROOT/docker-compose.yml" "$REPO/docker-compose.yml"
 cp "$ROOT/VERSION" "$REPO/VERSION"
 chmod +x "$REPO/scripts/deploy.sh"
@@ -21,7 +22,7 @@ git -C "$REPO" init -q
 git -C "$REPO" add .
 git -C "$REPO" -c user.name='Test' -c user.email='test@example.invalid' commit -q -m init
 
-expected_version="0.$(tr -d '[:space:]' < "$REPO/VERSION")"
+expected_version="$("$ROOT/scripts/release-name" "$(tr -d '[:space:]' < "$REPO/VERSION")")"
 expected_commit=$(git -C "$REPO" rev-parse --short HEAD)
 capture="$TMP/docker-env"
 

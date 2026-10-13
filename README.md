@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-0.99-blue)
+![Version](https://img.shields.io/badge/version-1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -35,10 +35,10 @@ Open `https://openfamhub.local` (point that name at the machine in DNS or `/etc/
 
 The recommended setup is to build images once and publish them to the Forgejo container registry. Servers then only pull and run them.
 
-**Normally CI does this for you:** every push to `master` on the primary Forgejo (`192.168.10.2:3002`) runs the tests, publishes the images as `0.<n>` and deploys them to the `test` VM ([docs/ci.md](docs/ci.md)). The manual commands are:
+**Normally CI does this for you:** every push to `master` on the primary Forgejo (`192.168.10.2:3002`) runs the tests, publishes the images as `<release>` and deploys them to the `test` VM ([docs/ci.md](docs/ci.md)). The manual commands are:
 
 ```bash
-scripts/deploy.sh publish                                     # build + push v0.<n> (amd64 + arm64)
+scripts/deploy.sh publish                                     # build + push v<release> (amd64 + arm64)
 PUBLIC_URL=https://openfamhub.vernonmyers.cloud \
   scripts/deploy.sh remote test                               # install/upgrade the "test" VM over SSH
 ```
@@ -61,17 +61,19 @@ Back up first ([backups](docs/deployment.md#7-backups-and-restore)), then use th
 | Installed with | Upgrade with |
 |---|---|
 | CI (the `test` VM) | Push to `master` on the primary Forgejo; CI publishes and deploys. |
-| `deploy.sh remote` (registry) | `scripts/deploy.sh publish`, then `scripts/deploy.sh remote <host>`. Add a version to roll back: `scripts/deploy.sh remote <host> 0.<n>`. |
+| `deploy.sh remote` (registry) | `scripts/deploy.sh publish`, then `scripts/deploy.sh remote <host>`. Add a version to roll back: `scripts/deploy.sh remote <host> <release>`. |
 | `deploy.sh deploy` (build from source) | `scripts/deploy.sh update` (`git pull --ff-only`, then rebuild and restart). |
 
-Database migrations run automatically when the API starts, and `.env` settings are kept. Afterwards, check the build number under **Help & About** (on the login page or in the sidebar) or at `/api/health`, and reload wall displays so they pick up the new web app. Version-specific notes are in [docs/deployment.md](docs/deployment.md#5-upgrade-and-roll-back) and [CHANGELOG.md](CHANGELOG.md).
+Database migrations run automatically when the API starts, and `.env` settings are kept. Afterwards, check the build number under **Help & About** (on the login page or in the sidebar) or at `/api/health`, and reload wall displays so they pick up the new web app. Version-specific notes are in the [release notes](docs/releases/) (upgrading from 0.30: [Release 1](docs/releases/v1.md#upgrading-from-030)), [docs/deployment.md](docs/deployment.md#version-notes) and [CHANGELOG.md](CHANGELOG.md). Builds are named `0.<n>` up to 0.99, then 1, 1.01, 1.02 …
 
 ## Documentation
 
 | Topic | Where |
 |---|---|
 | Deploying, upgrading, backups | [docs/deployment.md](docs/deployment.md) |
-| CI: tests, publish and deploy on `master` | [docs/ci.md](docs/ci.md) |
+| CI: tests, publish, deploy, Trivy scan and issue sync on `master` | [docs/ci.md](docs/ci.md) |
+| Releasing: phases, issues and TODO.md, release names | [docs/releasing.md](docs/releasing.md) |
+| Release notes (latest: [Release 1](docs/releases/v1.md)) and change log | [docs/releases/](docs/releases/), [CHANGELOG.md](CHANGELOG.md) |
 | How it works (components, data, auth, time zones) | [docs/architecture.md](docs/architecture.md) |
 | Developing and testing | [GETTING_STARTED.md](GETTING_STARTED.md) |
 | Raspberry Pi wall display | [docs/wall-screen-setup.md](docs/wall-screen-setup.md) |

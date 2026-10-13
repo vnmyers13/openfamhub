@@ -101,7 +101,7 @@ scripts/deploy.sh publish            # version = 0.<VERSION> (repo root)
 scripts/deploy.sh publish 0.30-rc1   # or an explicit tag
 ```
 
-This builds `linux/amd64` and `linux/arm64` images for the API and web app and pushes each one as `:<version>` and `:latest`. Images are tagged `0.<n>` with a matching `v0.<n>` release tag; see [ci.md](ci.md). The build is baked into the images: `/api/health` reports `build` and `commit`, and the setup page, login page, and app sidebar show the same Help & About build info.
+This builds `linux/amd64` and `linux/arm64` images for the API and web app and pushes each one as `:<version>` and `:latest`. Images are tagged `<release>` with a matching `v<release>` release tag; see [ci.md](ci.md). The build is baked into the images: `/api/health` reports `build` and `commit`, and the setup page, login page, and app sidebar show the same Help & About build info.
 
 - The first run creates a buildx builder named `openfamhub`.
 - If the server and the Mac share an architecture, `PLATFORMS=linux/amd64 scripts/deploy.sh publish` is faster.
@@ -172,7 +172,7 @@ docker compose down                # stop (data in ./data is kept)
 
 | Installed with | Upgrade |
 |---|---|
-| CI (the `test` VM) | Push to `master` on the primary Forgejo. CI runs the tests, publishes `0.<n>` and deploys it. |
+| CI (the `test` VM) | Push to `master` on the primary Forgejo. CI runs the tests, publishes `<release>` and deploys it. |
 | Registry (`deploy.sh remote`) | `scripts/deploy.sh publish`, then `PUBLIC_URL=https://… scripts/deploy.sh remote <host>`. |
 | Build from source (`deploy.sh deploy`) | `scripts/deploy.sh update`: `git pull --ff-only`, rebuild, restart, wait for healthy. |
 
@@ -188,14 +188,17 @@ Every path keeps `.env` and `data/`. A registry deploy only updates `REGISTRY` a
 ### Roll back
 
 ```bash
-scripts/deploy.sh remote test 0.<n>                 # from the Mac: any published version
-scripts/deploy.sh server "$HOME/openfamhub" 0.<n>   # on the VM itself
+scripts/deploy.sh remote test <release>                 # from the Mac: any published version
+scripts/deploy.sh server "$HOME/openfamhub" <release>   # on the VM itself
 ```
 
 Rolling back across a schema change isn't supported: restore the backup taken before the upgrade instead (section 7).
 
 ### Version notes
 
+Release notes for each release are in [docs/releases/](releases/) (latest: [Release 1](releases/v1.md)). Per-build notes:
+
+- **0.95–1 (CI and release process).** No app or configuration changes. Build 100 is named **1** (then 1.01, 1.02 …), so image tags and git tags go `0.99`, `1`, `1.01`; update anything that pins `OPENFAMHUB_VERSION` or matches `v0.*`. CI scans each build with Trivy and keeps Forgejo issues in step with TODO.md (optional `ISSUES_TOKEN` secret; see [ci.md](ci.md)).
 - **0.90–0.94 (Phase 5, chores).** Migration 008 (chores, routines, to-dos, points ledger) runs at startup; no configuration changes. New: **Chores** in the menu (today's chores, to-dos, routines, points; admins set chores and routines up under Manage). A new hourly job creates chore instances. Reload wall displays once to get routine countdowns.
 - **0.84–0.88 (Phase 3b, wall essentials).** Migration 007 (media) runs at startup. The API image is about 70 MB larger (ffmpeg and Pillow, for photos and videos). New: **Photos** (members upload photos and videos; the idle wall shows them), **Admin › Settings** (family name, timezone, wall sleep schedule) and `backup-offhost.sh` (put in `~/openfamhub` by `deploy.sh remote`; set up the [off-host copy](#off-host-copies-nas)). The unauthenticated `/photos/…` route is gone: media is served only to signed-in members and paired walls. If a reverse proxy in front of OpenFamHub limits request size (nginx's default is 1 MB), raise it for video uploads (e.g. `client_max_body_size 500m`); Caddy has no limit. Reload wall displays once.
 - **0.75–0.82 (Phase 3, iCal correctness).** No configuration changes. Calendar subscriptions now honour cancelled and moved instances, keep wall-clock times across DST changes, and store only 90 days back to a year ahead (older synced events are removed at the next sync). Times without a timezone in a feed are read in the **family timezone**. Installs set up before 0.78 defaulted that to UTC: check it under **Admin › Settings** (from 0.87), then press **Sync Now** on each calendar. On 0.82–0.86, before that page existed, check and set it from the server:
@@ -310,7 +313,7 @@ scripts/deploy.sh status | logs [service] | stop
 
 By default this runs in **LAN mode**: Caddy listens on 80/443 and serves `https://$SITE_ADDRESS` with its internal CA, which each device must trust ([cert-trust.md](cert-trust.md)). To put it behind another proxy instead, set `CADDYFILE=Caddyfile.proxy` and `HTTP_PORT=8080` in `.env`.
 
-Build-from-source deploys stamp images from the checkout too: `scripts/deploy.sh deploy` sets `OPENFAMHUB_VERSION` from the root `VERSION` file (`0.<n>`) and `OPENFAMHUB_COMMIT` from the current git commit before running `docker compose up --build`. To verify what is actually running, check either the setup/login Help & About box before signing in or the health endpoint for the mode you are running:
+Build-from-source deploys stamp images from the checkout too: `scripts/deploy.sh deploy` sets `OPENFAMHUB_VERSION` from the root `VERSION` file (`<release>`) and `OPENFAMHUB_COMMIT` from the current git commit before running `docker compose up --build`. To verify what is actually running, check either the setup/login Help & About box before signing in or the health endpoint for the mode you are running:
 
 ```bash
 curl -ks https://openfamhub.local/api/health        # default LAN mode, adjust SITE_ADDRESS if changed

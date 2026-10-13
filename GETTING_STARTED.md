@@ -16,7 +16,7 @@ Node 20.19+ or 22 is needed (Vite 8).
 ```bash
 git clone http://192.168.10.2:3002/vernon/OpenFamHub.git   # primary; mirrors: 192.168.10.101:3002, 192.168.10.102:3002
 cd OpenFamHub
-git config core.hooksPath .githooks    # the pre-commit hook bumps VERSION (release string 0.<n>)
+git config core.hooksPath .githooks    # the pre-commit hook bumps VERSION (release string <release>)
 scripts/deploy.sh setup                # .env with a generated SECRET_KEY, ./data folders
 
 # Backend
@@ -69,11 +69,11 @@ npm run test:coverage   # same, with coverage and the CI thresholds; HTML report
 npm run lint
 npm run build      # tsc -b + vite build; fails on type errors
 
-# Release tooling (VERSION hook, renumber, deploy stamping)
+# Release tooling (VERSION hook, release names, renumber, deploy stamping, Trivy and issue scripts)
 for t in scripts/tests/*-test.sh; do bash "$t"; done
 ```
 
-- **Coverage:** the backend is at 96% (CI fails below 93%), the frontend at 93% of statements (thresholds in `vitest.config.ts`). New code comes with tests; raise a threshold when coverage grows, never lower one to get a change through.
+- **Coverage:** the backend is at 96% (CI fails below 93%), the frontend at 94% of statements (thresholds in `vitest.config.ts`). New code comes with tests; raise a threshold when coverage grows, never lower one to get a change through.
 - Backend tests use an in-memory SQLite database and need `SECRET_KEY` (read from the repo-root `.env`, or export it).
 - Backend: `test_phase1.py` covers time handling, range queries, calendar sources and wall pairing; `test_phase2.py` sign-in, sessions, the admin password gate and event permissions; `test_ical_recurrence.py` and `test_ical_phase3.py` the feed parser (recurrences, EXDATE/RECURRENCE-ID, floating times, DST, storage window); `test_calendar_sync.py` the sync job and adding feeds; `test_calendar_routes.py`, `test_users_api.py`, `test_wall_api.py` the remaining routes; `test_backup.py` the daily backup; `test_media.py` uploads, processing (Pillow, ffmpeg), family scoping and wall access; `test_family_settings.py` settings and the sleep schedule; `test_chore_schedule.py` recurrence and the generator; `test_chores_api.py` claiming, completing, points and admin views; `test_todos_routines.py` to-dos and routines; `test_calendar_scoping.py` source and family scoping; `test_single_family.py` one family per install and sign-in scope; `test_ssrf.py` feed fetching; `test_realtime.py` live updates; `test_startup.py` boots the real app (migrations + scheduler) in a subprocess.
 - Frontend tests live next to the code (`src/**/*.test.ts[x]`) and run in jsdom with `TZ=America/Detroit`, so date bugs west of UTC show up on every machine. They cover `lib/`, the wall, sign-in, the calendar page, the admin pages and app boot routing. Component tests fake the API with `mockApi()` from `src/test/api.ts` and render with `renderApp()` from `src/test/render.tsx`.
@@ -87,16 +87,17 @@ for t in scripts/tests/*-test.sh; do bash "$t"; done
 
 ## Releasing
 
-Every commit is a build, so there is no separate release step for the `test` VM:
+Every commit is a build, so there is no separate release step for the `test` VM. The full process, including the issue checks and release notes, is in [docs/releasing.md](docs/releasing.md); in short:
 
-1. **Version numbers are automatic.** The `pre-commit` hook bumps `VERSION` (repo root) and the `README.md` badge on every commit. Never edit `VERSION` by hand.
+1. **Version numbers are automatic.** The `pre-commit` hook bumps `VERSION` (repo root) and the `README.md` badge on every commit; `scripts/release-name` turns the number into the build's name (`0.<n>` up to 0.99, then 1, 1.01, 1.02 …). Never edit `VERSION` by hand.
 2. **Rebasing?** If `master` moved while you worked, rebase onto it and run `scripts/renumber origin/master`, so your commits continue the sequence instead of reusing numbers. `scripts/check-version.sh master origin/master HEAD` confirms the result.
-3. **CHANGELOG.** Entries are keyed by phase or work batch, not by commit. Add your user-visible changes under the `[Unreleased]` entry; when the batch is confirmed on `test`, its heading gets the build number that shipped it.
-4. Run the tests and checks above.
-5. **Push to the primary Forgejo** (`git push forgejo master`). CI runs the checks, publishes `0.<n>`, tags `v0.<n>` and deploys to `test`. Then update the off-site copies: `git push origin master` (GitHub) and the mirrors at `192.168.10.101:3002` and `192.168.10.102:3002`.
-6. Check the build on `test` (Help & About or `/api/health`). A production host is planned but not set up yet; when it is, promote a checked build with `scripts/deploy.sh remote <prod-host> 0.<n>`.
+3. **Issues.** Before starting a phase, read the pinned **Triage report** issue on Forgejo (or run `python3 scripts/issues.py triage`) and schedule what it lists in TODO.md. When you finish an item, tick its TODO line; CI closes the issue it names.
+4. **CHANGELOG.** Entries are keyed by phase or work batch, not by commit. Add user-visible changes under `[Unreleased]`; a release gives the batch its build (`[<release>] - <date>`) and gets notes in `docs/releases/v<release>.md`.
+5. Run the tests and checks above.
+6. **Push to the primary Forgejo** (`git push forgejo master`). CI runs the checks, publishes `<release>`, tags `v<release>`, deploys to `test`, scans the images and refreshes the Triage report. Then push `master` to GitHub and the mirrors, and push the tag once CI has created it.
+7. Check the build on `test` (Help & About or `/api/health`). A production host is planned but not set up yet; when it is, promote a checked build with `scripts/deploy.sh remote <prod-host> <release>`.
 
-Without CI, publish and deploy by hand: `scripts/deploy.sh publish` (creates and pushes the `v0.<n>` tag), then `scripts/deploy.sh remote test`.
+Without CI, publish and deploy by hand: `scripts/deploy.sh publish` (creates and pushes the `v<release>` tag), then `scripts/deploy.sh remote test`.
 
 `release_checklist.json` and `sprint_s*.json` are the original sprint-planning manifests. They're kept for history, and some of their steps (Docker Hub, `deploy.sh staging|production`) are out of date.
 

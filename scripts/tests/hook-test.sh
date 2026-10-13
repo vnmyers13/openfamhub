@@ -10,6 +10,7 @@ git config user.name t
 git config core.hooksPath .githooks
 mkdir -p .githooks
 cp "$repo_root/.githooks/pre-commit" .githooks/pre-commit
+mkdir -p scripts; cp "$repo_root/scripts/release-name" scripts/release-name
 chmod +x .githooks/pre-commit
 
 printf '# test\n\n![Version](https://img.shields.io/badge/version-0.30-blue)\n' > README.md
@@ -23,6 +24,14 @@ git commit -q --allow-empty -m bump
 grep -q 'version-0.31-blue' README.md \
     || { echo "hook-badge-NOT-updated"; exit 1; }
 echo "hook-ok"
+
+# Past 0.99 the badge reads 1, then 1.01.
+printf '99\n' > VERSION; git add VERSION; git commit -qm at99 --no-verify
+git commit -q --allow-empty -m to100
+grep -q 'version-1-blue' README.md || { echo "badge-1-NOT-set: $(grep -o 'version-[^)]*' README.md)"; exit 1; }
+git commit -q --allow-empty -m to101
+grep -q 'version-1.01-blue' README.md || { echo "badge-1.01-NOT-set: $(grep -o 'version-[^)]*' README.md)"; exit 1; }
+echo "badge-past-99-ok"
 
 # A non-numeric VERSION refuses the commit and leaves VERSION alone.
 git reset -q --hard HEAD

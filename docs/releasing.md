@@ -1,7 +1,7 @@
 # Releasing
 
-Every `master` commit is its own build (`0.<n>`); CI tests it, publishes it, tags
-it `v0.<n>` and deploys it to the `test` VM (see [ci.md](ci.md)). A **release** is
+Every `master` commit is its own build (`<release>`); CI tests it, publishes it, tags
+it `v<release>` and deploys it to the `test` VM (see [ci.md](ci.md)). A **release** is
 a phase from the release plan in [TODO.md](../TODO.md) that has been confirmed on
 `test`. TODO.md is the source of truth for what gets worked on and in what order;
 Forgejo issues are how problems get reported and tracked, so the two are kept in
@@ -59,11 +59,12 @@ script locally when you want an answer before the next build.
    (into the phase that will fix it, or **Open issues**) with a priority, and update
    any label that disagrees.
 2. Fix open **P0** and **P1** items before starting the phase's feature work.
-3. Write the phase's tests first, as TODO.md asks.
+3. Tick the phase's **Before starting** item in TODO.md (every phase from 6 on has one as its first item).
+4. Write the phase's tests first, as TODO.md asks.
 
 ## On every push to master
 
-CI runs: tests → `publish` (images + `v0.<n>` tag) → `deploy` to `test` → `trivy`
+CI runs: tests → `publish` (images + `v<release>` tag) → `deploy` to `test` → `trivy`
 (scan, open and close Trivy issues) and `issues` (close issues TODO.md marks done,
 refresh the Triage report issue). The last two never fail the pipeline; read their logs.
 
@@ -79,9 +80,10 @@ refresh the Triage report issue). The last two never fail the pipeline; read the
    the phase's features.
 4. **Record it.**
    - TODO.md: put the build in the release plan's **Shipped in** column.
-   - CHANGELOG.md: turn the phase's `[Unreleased]` entry into `[0.<n>] - <date> — Phase N`,
+   - CHANGELOG.md: turn the phase's `[Unreleased]` entry into `[<release>] - <date> — Phase N`,
      and list the issues it closed (`#N`).
-   - `docs/releases/v0.<n>.md`: what's in it, upgrade notes, issues closed, checks.
+   - `docs/releases/v<release>.md`: what's in it, upgrade notes, issues closed, checks. Use [v1.md](releases/v1.md) as the template.
+   - `docs/deployment.md` **Version notes**: one line for the builds in the release, if upgrading needs anything.
 5. **Push** to the primary first, then the mirrors and GitHub (zsh: no `#` comments when pasting):
    ```bash
    git push forgejo master
@@ -93,11 +95,11 @@ refresh the Triage report issue). The last two never fail the pipeline; read the
    `master` aborts the whole push):
    ```bash
    git fetch forgejo --tags
-   for r in forgejo-mirror1 forgejo-mirror2 origin; do git push $r v0.<n>; done
+   for r in forgejo-mirror1 forgejo-mirror2 origin; do git push $r v<release>; done
    ```
 6. **Forgejo release** from the notes:
    ```bash
-   jq -n --rawfile body docs/releases/v0.<n>.md '{tag_name:"v0.<n>",name:"v0.<n> — Phase N",body:$body}' |
+   jq -n --rawfile body docs/releases/v<release>.md '{tag_name:"v<release>",name:"v<release> — Phase N",body:$body}' |
      curl -sS -X POST -H "Authorization: token $ISSUES_TOKEN" -H 'Content-Type: application/json' \
      -d @- https://forgejo.vernonmyers.cloud/api/v1/repos/vernon/OpenFamHub/releases
    ```

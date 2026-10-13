@@ -35,19 +35,19 @@ the stack.
 
 **Version numbering.** `VERSION` (repo root) holds a single integer; the `pre-commit`
 hook bumps it per commit; `scripts/check-version.sh` enforces `+1` on `master`'s
-first-parent chain and "greater than base" on branches; the release string is `0.<n>`;
-tags are `v0.<n>` pushed to `forgejo`. `deploy` pins that exact tag in
+first-parent chain and "greater than base" on branches; the release name comes from `scripts/release-name` (`0.<n>` below 100; then 1, 1.01 … 1.99, 2, 2.01);
+tags are `v<release>` pushed to `forgejo`. `deploy` pins that exact tag in
 `~/openfamhub/.env`. To see what's running, check **Help & About** (login page or sidebar) or
 `curl -s https://openfamhub.vernonmyers.cloud/api/health` (`build` and `commit` fields).
-To roll the test VM back to an earlier build, run `scripts/deploy.sh server "$HOME/openfamhub" 0.<n>`
-on the VM (or `scripts/deploy.sh remote test 0.<n>` from the Mac).
+To roll the test VM back to an earlier build, run `scripts/deploy.sh server "$HOME/openfamhub" <release>`
+on the VM (or `scripts/deploy.sh remote test <release>` from the Mac).
 
 Pull requests run the checks only; they never publish or deploy.
 
 ## Trivy scan
 
 After `publish`, the `trivy` job runs `scripts/trivy-scan.sh`, which scans the
-images it just pushed (`openfamhub-api:0.<n>` and `openfamhub-web:0.<n>`, the exact
+images it just pushed (`openfamhub-api:<release>` and `openfamhub-web:<release>`, the exact
 build, not `latest`) with the pinned `aquasec/trivy` image on the runner host. It
 prints a HIGH/CRITICAL table for each image in the job log and uploads the full JSON
 reports as the `trivy-reports` artifact (kept 30 days). The scan, upload and issue steps are
@@ -76,7 +76,7 @@ Secrets** as `ISSUES_TOKEN`. To turn issue creation off, set `CREATE_ISSUES: "0"
 To try it locally (needs Docker and registry access):
 
 ```bash
-scripts/trivy-scan.sh 0.96            # writes trivy-reports/trivy-{api,web}.json
+scripts/trivy-scan.sh 1               # writes trivy-reports/trivy-{api,web}.json
 TRIVY_DRY_RUN=1 python3 scripts/create_trivy_issues.py \
   https://forgejo.vernonmyers.cloud vernon/OpenFamHub openfamhub-api trivy-reports/trivy-api.json
 ```
@@ -171,9 +171,9 @@ or push to `master` to publish and deploy.
 | Jobs sit "Waiting" forever | No runner matches the `runs-on` label. Check **Settings → Actions → Runners** shows `openfamhub-vm` online with all three labels. |
 | `publish`: `unauthorized` | `REGISTRY_TOKEN` is missing or lacks package write scope. |
 | arm64 build fails or is extremely slow | binfmt/QEMU not installed (step 5), or the emulated `pip install` timed out. Re-run; the buildx cache speeds up later runs. |
-| `deploy` succeeds but the site is stale | Check `docker compose ps` in `~/openfamhub`; the API should be `healthy` and `OPENFAMHUB_VERSION` should match `0.$(cat VERSION)`. |
+| `deploy` succeeds but the site is stale | Check `docker compose ps` in `~/openfamhub`; the API should be `healthy` and `OPENFAMHUB_VERSION` should match `$(scripts/release-name)`. |
 | `Required test coverage of 93% not reached` / `ERROR: Coverage for … does not meet threshold` | New code without tests. Add tests; don't lower the floor. `pytest --cov` (backend) and `npm run test:coverage` (frontend) show the uncovered lines. |
-| `trivy`: `unauthorized` or `manifest unknown` | `REGISTRY_TOKEN` can't read packages, or `publish` didn't push `0.<n>`. The job is non-blocking; re-run it after fixing. |
+| `trivy`: `unauthorized` or `manifest unknown` | `REGISTRY_TOKEN` can't read packages, or `publish` didn't push `<release>`. The job is non-blocking; re-run it after fixing. |
 | `trivy`: upload step fails | The Forgejo instance doesn't support `actions/upload-artifact@v4`. The table in the scan step's log still shows the findings. |
 | `trivy` or `issues`: `HTTP 401/403` | `ISSUES_TOKEN` is missing **issue: read,write** scope or has expired. A `404` on a private repo can mean the token also needs **repository: read**. |
 | `builtin:checkout` fails with `needs git on PATH` | The job's container image has no `git` (e.g. a `-slim` image). Use an image that ships `git` (the `openfamhub-python` label maps to `python:3.12`). `git` on the runner host itself must also be ≥ 2.34.1. |

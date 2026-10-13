@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-OpenFamHub: a self-hosted family calendar and organizer (a home version of a Skylight-style wall calendar). FastAPI + SQLite backend, React frontend, Docker/Caddy deployment, Raspberry Pi wall display. Current version: the integer in `VERSION` (repo root); the release string is `0.<n>`.
+OpenFamHub: a self-hosted family calendar and organizer (a home version of a Skylight-style wall calendar). FastAPI + SQLite backend, React frontend, Docker/Caddy deployment, Raspberry Pi wall display. Current version: the integer in `VERSION` (repo root); its release name comes from `scripts/release-name`: `0.<n>` below 100, then 1, 1.01 … 1.99, 2, 2.01 (two digits after the dot, none on a round hundred).
 
 Read these before changing code:
 
@@ -12,15 +12,15 @@ Read these before changing code:
 
 ## Which code is canonical
 
-- **`master` is the product.** Feature work branches from it. CI publishes every `master` push as its own per-commit build (`0.<n>`, the integer in `VERSION`) and deploys it to the `test` VM (see docs/ci.md).
+- **`master` is the product.** Feature work branches from it. CI publishes every `master` push as its own per-commit build (`<release>`, named from the integer in `VERSION`) and deploys it to the `test` VM (see docs/ci.md).
 - **`origin/main` (tagged v0.29) is a different codebase with no shared history.** Use it only as a reference for features to port (Phases 5–10). Never merge, rebase onto or cherry-pick from it. Re-implement each feature on our architecture: our auth, `family_id` scoping, `UTCDateTime`, Alembic migrations, deploy tooling and CI.
 - **Remotes:** `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary; CI runs here) and `origin` (GitHub). Mirrors at `192.168.10.101:3002` and `192.168.10.102:3002` (same path). Push to the primary first, then GitHub and the mirrors. After rebasing onto a moved `master`, run `scripts/renumber origin/master`.
 
 ## Rules
 
-- **Issues:** every open Forgejo issue appears in TODO.md with a priority (**P0**–**P3**); TODO.md decides the order of work. Before starting a phase, run `python3 scripts/issues.py triage` and schedule what it lists (open P0/P1 items come first). When you finish an item, tick its TODO line, which names the issue as `#N` or its link; CI closes the issue once the build deploys. Claude sessions can't reach Forgejo, so ask Vern to paste the pinned **Triage report** issue (CI refreshes it on every build).
+- **Issues:** every open Forgejo issue appears in TODO.md with a priority (**P0**–**P3**); TODO.md decides the order of work. Each phase's first TODO item is the issues check: before any other work in a phase, get the Triage report, schedule what it lists (open P0/P1 items come first) and tick that item. When you finish an item, tick its TODO line, which names the issue as `#N` or its link; CI closes the issue once the build deploys. Claude sessions can't reach Forgejo, so ask Vern to paste the pinned **Triage report** issue (CI refreshes it on every build).
 
-- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 278 backend tests in 22 files and 174 frontend tests in 31 files (0.94); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
+- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 290 backend tests in 22 files and 174 frontend tests in 31 files (build 1); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
 - **Time:**
   - Every datetime column is `UTCDateTime` (`backend/app/core/types.py`).
   - The API returns `+00:00` values.
@@ -82,7 +82,7 @@ When porting a feature, re-implement it rather than copying the file. TODO.md ha
 - **Port, don't merge:** v0.29 features are rebuilt on this codebase. Its backend is a spec. Its frontend pages are reused through an API adapter, and its tests serve as acceptance criteria.
 - **Fresh start:** there's no importer for v0.29 data.
 - **Sign-in:** an avatar picker + PIN for everyone (per-user, with failed-attempt lockout), and a password session for admin actions.
-- **Versioning:** the merged line continued at **0.30**. Since 2026-10-12 every commit is its own build (`0.<n>`), so releases are named by phase, not number; TODO.md records the build each phase shipped in.
+- **Versioning:** the merged line continued at **0.30**. Since 2026-10-12 every commit is its own build (`<release>`), so releases are named by phase, not number; TODO.md records the build each phase shipped in.
 
 ### Prerequisites
 

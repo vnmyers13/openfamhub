@@ -48,7 +48,8 @@ Registry workflow:
 
 Environment overrides:
   REGISTRY, OPENFAMHUB_VERSION, PLATFORMS (publish). The version defaults to
-  0.<VERSION> (VERSION in the repo root), bumped by the pre-commit hook.
+  the release name of VERSION in the repo root (scripts/release-name: 0.99, 1,
+  1.01), bumped by the pre-commit hook.
   PUBLIC_URL, REMOTE_DIR (remote; defaults https://openfamhub.local, openfamhub)
 EOF
 }
@@ -66,7 +67,7 @@ app_version() {
     case "$n" in
         ''|*[!0-9]*) error "VERSION must be a single integer, got '$n'";;
     esac
-    printf '0.%s' "$n"
+    scripts/release-name "$n" | tr -d '\n'
 }
 
 git_commit() {

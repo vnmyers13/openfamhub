@@ -56,3 +56,7 @@ This document tracks the testing activities, bug reports, and verification steps
 - Frontend: `npm run test:coverage`: 174 passed in 31 files, 94% statements / 86% branches. New: repeat descriptions, routine timeline in the family zone, chore action rules, the Chores page tabs and forms, wall routine countdown.
 - Not yet verified on the `test` VM.
 
+## 1 — CI, release process, release names — 2026-10-13
+- Backend: `pytest --cov`: 290 passed in 22 files, coverage 96%. New: `release_name` cases (99 → 0.99, 100 → 1, 101 → 1.01, 200 → 2) and a `VERSION` file past 99.
+- Frontend: unchanged since 0.94 (174 tests in 31 files, 94% statements).
+- Script harnesses (`scripts/tests/*-test.sh`, 8): pass. New: `trivy-test.sh` (scan tags, issue open/dedupe/limit/close against a fake Forgejo), `issues-test.sh` (triage, close-done, the pinned report issue), `release-name-test.sh`, and the pre-commit badge past 99 in `hook-test.sh`.

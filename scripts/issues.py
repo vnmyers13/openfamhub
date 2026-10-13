@@ -86,11 +86,19 @@ def fmt_p(p):
     return f"P{p}" if p is not None else "P?"
 
 
+def release_name(n):
+    """Mirrors scripts/release-name: 99 -> 0.99, 100 -> 1, 101 -> 1.01."""
+    if n < 100:
+        return f"0.{n}"
+    major, minor = divmod(n, 100)
+    return str(major) if minor == 0 else f"{major}.{minor:02d}"
+
+
 def build_label():
     try:
         with open("VERSION", encoding="utf-8") as fh:
-            build = f"0.{fh.read().strip()}"
-    except OSError:
+            build = release_name(int(fh.read().strip()))
+    except (OSError, ValueError):
         return "this build"
     try:
         sha = subprocess.run(

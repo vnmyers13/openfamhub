@@ -16,6 +16,7 @@ setup_repo() {
     mkdir -p .githooks scripts
     cp "$repo_root/.githooks/pre-commit" .githooks/pre-commit
     cp "$repo_root/scripts/renumber" scripts/renumber
+    cp "$repo_root/scripts/release-name" scripts/release-name
     cp "$repo_root/scripts/check-version.sh" scripts/check-version.sh
     chmod +x .githooks/pre-commit scripts/renumber scripts/check-version.sh
 }

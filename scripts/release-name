@@ -1,0 +1,19 @@
+#!/bin/bash
+# Print the release name for a build number (default: the integer in ./VERSION).
+#   0-99  -> 0.<n>            (0.5, 0.99; unchanged from the original scheme)
+#   100+  -> <n/100> when n is a multiple of 100, else <n/100>.<n%100, two digits>
+#            (100 -> 1, 101 -> 1.01, 110 -> 1.10, 199 -> 1.99, 200 -> 2)
+# backend/app/core/config.py (release_name) and scripts/issues.py mirror this rule.
+set -euo pipefail
+n="${1:-$(tr -d '[:space:]' < VERSION 2>/dev/null || true)}"
+case "$n" in
+    ''|*[!0-9]*) echo "release-name: build number must be a non-negative integer, got '$n'" >&2; exit 1;;
+esac
+n=$((10#$n))
+if [ "$n" -lt 100 ]; then
+    printf '0.%d\n' "$n"
+elif [ $((n % 100)) -eq 0 ]; then
+    printf '%d\n' $((n / 100))
+else
+    printf '%d.%02d\n' $((n / 100)) $((n % 100))
+fi

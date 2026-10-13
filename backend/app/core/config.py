@@ -8,6 +8,18 @@ from pydantic_settings import BaseSettings
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
+def release_name(n: int) -> str:
+    """Release name for build number n; mirrors scripts/release-name.
+
+    0-99 -> 0.<n>; 100+ -> <n//100> on a multiple of 100, else <n//100>.<n%100:02d>
+    (99 -> 0.99, 100 -> 1, 101 -> 1.01, 200 -> 2).
+    """
+    if n < 100:
+        return f"0.{n}"
+    major, minor = divmod(n, 100)
+    return str(major) if minor == 0 else f"{major}.{minor:02d}"
+
+
 def _resolve_version(build_env: str | None = None, version_path: Path | None = None) -> str:
     build = (build_env if build_env is not None else os.environ.get("OPENFAMHUB_BUILD", "")).strip()
     if build and build != "dev":
@@ -17,7 +29,7 @@ def _resolve_version(build_env: str | None = None, version_path: Path | None = N
         raw = path.read_text(encoding="utf-8").strip()
     except OSError:
         return "0.0-dev"
-    return f"0.{raw}" if raw.isdigit() else "0.0-dev"
+    return release_name(int(raw)) if raw.isdigit() else "0.0-dev"
 
 
 APP_VERSION = _resolve_version()

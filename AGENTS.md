@@ -3,7 +3,7 @@
 Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then [docs/architecture.md](docs/architecture.md). Deployment is in [docs/deployment.md](docs/deployment.md), and dev and test commands are in [GETTING_STARTED.md](GETTING_STARTED.md).
 
 ## Version and branches
-- Current version: the integer in `VERSION` (repo root). The canonical release string is `0.<n>`. The `pre-commit` hook bumps `VERSION` by one on every commit. `scripts/check-version.sh` enforces `+1` on `master`'s first-parent chain and "greater than base" on branches. Tags are `v0.<n>`. Do not edit `VERSION` by hand.
+- Current version: the integer in `VERSION` (repo root). The release name comes from `scripts/release-name`: `0.<n>` below 100, then 1, then 1.01 … 1.99, 2, 2.01 (two digits after the dot, none on a round hundred). `backend/app/core/config.py` and `scripts/issues.py` mirror it; change all three together. The `pre-commit` hook bumps `VERSION` by one on every commit. `scripts/check-version.sh` enforces `+1` on `master`'s first-parent chain and "greater than base" on branches. Tags are `v<release>`. Do not edit `VERSION` by hand.
 - Default branch: `master`. Remotes: `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary; CI runs here) and `origin` (GitHub). Mirrors: `192.168.10.101:3002` and `192.168.10.102:3002` (same `vernon/OpenFamHub.git` path). Push to the primary first, then the others.
 - After rebasing onto a moved `master`, run `scripts/renumber origin/master` so commits continue the `VERSION` sequence.
 - Work on a branch with one commit per logical change.
@@ -23,7 +23,7 @@ backend/alembic/    migrations 001–008 (004 = wall_devices, 005 = session auth
 frontend/src/       React app: api/ lib/ (dates, permissions) hooks/ pages/ (lazy-loaded) wall/ components/; tests are *.test.ts[x] beside the code
 config/             Caddyfile (LAN TLS), Caddyfile.proxy (behind proxy), routes.caddy (shared)
 deploy/             compose.yml + env.template, copied to servers by deploy.sh remote
-scripts/            deploy.sh (setup/deploy/update/publish/remote/…), backup-offhost.sh, setup-wall-pi.sh; tests/ holds the shell harnesses
+scripts/            deploy.sh (setup/deploy/update/publish/remote/…), release-name, renumber, check-version.sh, backup-offhost.sh, setup-wall-pi.sh, trivy-scan.sh, create_trivy_issues.py, issues.py (+ forgejo_api.py); tests/ holds the shell harnesses and a fake Forgejo
 docker-compose.yml  build-from-source stack; image names match published ones
 ```
 
@@ -38,6 +38,8 @@ docker-compose.yml  build-from-source stack; image names match published ones
 | Publish images | `scripts/deploy.sh publish [version]` |
 | Deploy to the test VM | `PUBLIC_URL=https://openfamhub.vernonmyers.cloud scripts/deploy.sh remote test` |
 | Health | `curl http://localhost:8000/api/health` |
+| Script harnesses (versioning, deploy, Trivy, issues) | `for t in scripts/tests/*-test.sh; do bash "$t"; done` |
+| Issue triage against TODO.md | `ISSUES_TOKEN=… python3 scripts/issues.py triage` (CI also keeps the pinned Triage report issue current) |
 
 ## Gotchas
 - **Time:** every datetime column is `UTCDateTime`. Always pass aware datetimes, or naive values meaning UTC. The API returns `+00:00`. All-day events are `00:00Z` dates with an exclusive end. Frontend code must use `src/lib/dates.ts`.

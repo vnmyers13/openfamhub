@@ -12,7 +12,7 @@ Known bugs and planned fixes, from the code review of 2026-10-04. Phase 1 shippe
 
 ## Release plan
 
-Releases are **phases**, not version numbers. Every commit gets its own build number (`0.<n>`, the integer in `VERSION`), so a number can't be reserved for a planned release. When a phase's tests pass in CI and its build is checked on the `test` VM, record that build in **Shipped in** and give the phase its CHANGELOG entry.
+Releases are **phases**, not version numbers. Every commit gets its own build number (`<release>`, named from the integer in `VERSION`), so a number can't be reserved for a planned release. When a phase's tests pass in CI and its build is checked on the `test` VM, record that build in **Shipped in** and give the phase its CHANGELOG entry.
 
 | Release | Contents | Shipped in |
 |---|---|---|
@@ -20,6 +20,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.73 except the prod host (deferred); **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
 | Phase 3 + 3b | iCal correctness (code complete at 0.82); wall essentials: photo/video slideshow, sleep schedule, family settings, off-host backups (code complete at 0.88) | |
 | Phase 5 | Chores, to-dos, routines (code complete at 0.94) | |
+| CI + release process | Trivy scan, issues closed from TODO.md, Triage report, release names past 0.99 | code complete at 1 |
 | Phase 6 | Rewards | |
 | Phase 7 | Meals | |
 | Phase 8 | Books, announcements, weather, birthdays, dashboard summary | |
@@ -29,7 +30,15 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Phase 12 | Home Assistant, AI, notes | |
 | Phase 13 | Two-way calendar sync | |
 
+**Release 1 (2026-10-13)** collects Review fixes, Phases 3 + 3b and Phase 5 with the CI and release-process work; notes in [docs/releases/v1.md](docs/releases/v1.md). Put **1** in each row's **Shipped in** once it's checked on `test`.
+
 The `pre-commit` hook bumps `VERSION` on every commit (see `docs/ci.md`); CI publishes each `master` build and deploys it to `test`. The release steps, including the issue checks, are in [docs/releasing.md](docs/releasing.md).
+
+**Before starting any phase:**
+1. Read the pinned **Triage report** issue on Forgejo (CI refreshes it on every build), or run `python3 scripts/issues.py triage`.
+2. Add every issue it lists as missing to TODO.md, in the phase that will fix it or under **Open issues**, with a priority.
+3. Fix open **P0** and **P1** items before the phase's feature work. **P2**/**P3** items can wait for the phase they're scheduled in.
+4. Tick the phase's "Before starting" item below, then write the phase's tests first.
 
 ## Open issues
 
@@ -176,7 +185,7 @@ parallel product line (chores/rewards/meals), not 11 releases ahead of us. We po
 *our* architecture, one domain at a time, and inherit our auth, `family_id` tenant scoping,
 `UTCDateTime`, deploy tooling and CI rather than its code. Phases 11–13 extend past v0.29 with the Cozyla-parity items listed above.
 
-Each phase writes its tests **before** the code, in the same change. Baseline (0.94): 278 backend tests in 22
+Each phase starts with the issues check from the release plan (its first item), then writes its tests **before** the code, in the same change. Baseline (1): 290 backend tests in 22
 files (`v0.29` has 65 in 13) and 174 frontend tests in 31 files (Vitest). Coverage: backend 96% (CI floor 93%), frontend 94% of statements (CI thresholds in `vitest.config.ts`).
 
 Ordering is by dependency: rewards spends the points ledger chores introduced (Phase 5, `points_ledger`), and books awards points.
@@ -202,6 +211,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 
 
 ### Phase 6 — Rewards
+- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
 - [ ] Points ledger as an append-only table (no balances stored on the user).
 - [ ] Weekly allowance distributor, Mondays 07:00, **idempotent per week**.
 - [ ] Reward catalog with both purchase and request → approve / reject flows.
@@ -211,6 +221,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first: ledger balances match the sum of entries; allowance re-run for the same week is a no-op; approve/reject adjusts the ledger exactly once; streak rollover at week boundaries; progress widget totals match the ledger.
 
 ### Phase 7 — Meals and recipes
+- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
 - [ ] `recipes` with dietary tags, plus text and JSON-LD import.
 - [ ] 7-day meal-plan grid with bulk update.
 - [ ] Shopping list tracking which recipe each item came from, regenerate, weekly reset job.
@@ -222,6 +233,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first: import parsing for both formats; plan overwrite semantics; regenerate is idempotent; reset does not delete completed purchases; pantry flags and expiry; URL → event parsing.
 
 ### Phase 8 — Books, announcements, weather
+- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
 - [ ] Books: personal lists, shared family library, status transitions, 50-point award on completion (writes to the Phase 6 ledger).
 - [ ] Announcements: free text with pin/unpin.
 - [ ] Weather: Open-Meteo, no API key, cached ~10 minutes server-side. WMO code → emoji mapping. Location is a family setting.
@@ -232,6 +244,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first: cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes; birthday age crosses the year boundary; layout persistence; filter scoping.
 
 ### Phase 9 — Offline sync
+- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
 - [x] Add the frontend test runner and its first tests. Done early, in the review backlog (#15).
 - [ ] IndexedDB write queue in `frontend/src/lib/idb.ts`.
 - [ ] Sync orchestrator replaying the queue on reconnect and on tab visibility.
@@ -241,6 +254,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Note: the v0.29 version of this is broken — its `useOfflineMutations` hook is never called and its replay `fetch` sends no credentials, so every replay 401s. Design against the tests above, not against that code.
 
 ### Phase 10 — OCR and wall panels
+- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
 - [ ] `ScanListModal` with `tesseract.js`: capture, OCR, preview, edit, then add to the shopping list.
 - [ ] Wall cycling panel mode with a live countdown.
 - [ ] Read-only wall endpoints (`/api/wall/chores`, `/meals`, `/announcements`, `/weather`) behind the paired-device cookie. v0.29's panels need a family member's login.
@@ -251,6 +265,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device.
 
 ### Phase 11 — Notifications and reminders
+- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
 - [ ] Reminder engine on the existing scheduler: events, chores, to-dos, birthdays, pantry expiry, allowance payouts.
 - [ ] Channels: Web Push (PWA), ntfy, and SMTP email, with per-user preferences.
 - [ ] Quiet hours aware of the Phase 3b sleep schedule.
@@ -258,6 +273,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first: a reminder fires exactly once; quiet hours suppress delivery; per-user channel preference; timezone/DST correctness.
 
 ### Phase 12 — Home Assistant, AI, and notes
+- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
 - [ ] Home Assistant local integration: long-lived token, chosen entities as cards on the dashboard and wall, optional scene triggers from routines; degrades gracefully when HA is unreachable.
 - [ ] Smart-home widgets for those entities (climate, lights, sensors).
 - [ ] AI voice agent, local-first (local STT + LLM; cloud optional and opt-in): add/edit events, chores and to-dos conversationally.
@@ -265,6 +281,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first: HA outage degrades gracefully; voice intent parsing fixtures for add/edit; notes render and export.
 
 ### Phase 13 — Two-way calendar sync
+- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
 - [ ] Google Calendar two-way sync: OAuth, incremental sync tokens, write-back of local edits, delete propagation.
 - [ ] Outlook/Microsoft Graph two-way sync.
 - [ ] CalDAV two-way sync (Apple Calendar, Nextcloud), including discovery.
@@ -287,7 +304,7 @@ Each of these is in that tree. Porting a feature means reimplementing it correct
 
 ### Version numbering
 - The merged line continued at **0.30** (see Decisions). Our 0.18 keeps its CHANGELOG entry; the 0.30 entry notes that 0.19–0.29 (and v0.29's own "0.18") belong to the retired `main` line.
-- Since 2026-10-12 every commit is its own build: the `pre-commit` hook bumps `VERSION` by one and the release string is `0.<n>`. Build numbers say *which code is deployed*; phases say *what is planned*. Don't label a phase with a future number. When a phase ships, record its build in the release plan and title its CHANGELOG entry `[0.<n>] - <date> — Phase N`.
+- Since 2026-10-12 every commit is its own build: the `pre-commit` hook bumps `VERSION` by one and the release name comes from `scripts/release-name`: `0.<n>` up to 0.99, then 1, 1.01 … 1.99, 2 (decided 2026-10-13; build 100 is 1, not 0.100). Build numbers say *which code is deployed*; phases say *what is planned*. Don't label a phase with a future number. When a phase ships, record its build in the release plan and title its CHANGELOG entry `[<release>] - <date> — Phase N`.
 
 ## Completed
 - [x] v0.30: Phases 2 and 4 (sign-in picker + PIN with admin password gate, server-side sessions, lockout, event permissions, migrations at startup, CI, cleanup). See CHANGELOG.

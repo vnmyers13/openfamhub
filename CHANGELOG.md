@@ -1,73 +1,83 @@
-## [Unreleased] — Release process: issues and TODO.md (2026-10-13)
+## [Unreleased]
 
-### Added
+Nothing yet.
+
+---
+
+## [1] - 2026-10-13
+
+The first 1.x build, and the first release since 0.30: everything from builds 0.31 to 1, grouped by phase. Release notes and upgrade steps: [docs/releases/v1.md](docs/releases/v1.md).
+
+> Entries are keyed by roadmap phase or work batch, not by commit. Every commit is its own build (`VERSION` in the repo root; named by `scripts/release-name`: 0.99, then 1, 1.01 …). New work goes under `[Unreleased]`; a release gives the batch the build that shipped it (`[<release>] - <date>`). The phases below are code complete and pass CI; TODO.md records each one's build once it's checked on the `test` VM.
+
+### Release names past 0.99 (build 1)
+
+#### Changed
+- **Release names after 0.99**: build 100 is **1**, not 0.100, followed by 1.01, 1.02 … 1.99, then 2, 2.01. Builds below 100 keep their names (0.5, 0.99), so no published tag or image changes. Tags follow the name (`v1`, `v1.01`). The rule lives in `scripts/release-name`, which the pre-commit hook (README badge), `renumber`, `deploy.sh`, the Trivy scan and CI use; the backend (`/api/health`, Help & About) and `scripts/issues.py` mirror it.
+- TODO.md: every phase from 6 on starts with a "Before starting" item to check the Triage report issue.
+
+### Release process: issues and TODO.md (builds 0.98–0.99)
+
+#### Added
 - **Issues close when their work is done**: when every TODO.md line naming an issue is ticked, the new `issues` CI job closes it after the build deploys to `test`, with a comment naming the build. `Fixes #N` in a commit message works too.
 - **Trivy issues close themselves** once a scan of a newer build no longer finds the vulnerability.
 - **Triage against TODO.md**: `scripts/issues.py triage` ranks open issues by priority (P0–P3, from TODO.md, else a `priority/…` label or the Trivy severity) and lists issues TODO.md doesn't mention, done-but-open issues, closed issues still unticked, and priority mismatches. `--strict` makes it a release gate. The CI job prints the report on every build.
 - **Pinned Triage report issue**: the `issues` job writes the triage report to a pinned "Triage report" issue on every build and comments on it when new items need attention, so Forgejo notifies you without anyone reading CI logs.
 - `docs/releasing.md`: the release steps, and the rules for keeping issues and TODO.md in step. TODO.md has a new **Open issues** section for issues not yet scheduled into a phase.
 
-### Changed
+#### Changed
 - The issue token secret is now `ISSUES_TOKEN`; `TRIVY_ISSUE_TOKEN` still works.
 
----
+### CI: Trivy image scan (builds 0.96–0.97)
 
-## [Unreleased] — CI: Trivy image scan (builds 0.96–0.97, 2026-10-13)
-
-### Added
+#### Added
 - **Trivy scan in CI**: after each publish to `master`, the new `trivy` job scans the exact `openfamhub-api` and `openfamhub-web` images just pushed, prints a HIGH/CRITICAL table in the log and keeps the JSON reports as a CI artifact for 30 days. It never fails the pipeline or delays the deploy.
 - **Backlog issues from findings** (optional): with the `TRIVY_ISSUE_TOKEN` secret set, each HIGH/CRITICAL finding gets one Forgejo issue. Findings already tracked, including closed issues, aren't opened again, and at most 20 are opened per run.
 - `scripts/trivy-scan.sh` to scan any published build by hand, and `scripts/tests/trivy-test.sh` covering both scripts.
 
-### Fixed (in 0.96's first version of the job)
+#### Fixed (in 0.96's first version of the job)
 - The issue step would have crashed (`${secrets…}` isn't shell syntax), and it put the token on the command line; the token now comes from the environment.
 - The step condition read `secrets` in `if:`, which isn't allowed there.
 - The scan always checked `latest` instead of the build that was just published.
 - Every push would have reopened an issue for every finding; issues are now deduplicated against existing ones.
 - API calls had no timeout, and a report with `"Vulnerabilities": null` crashed the script.
 
-### Security
+#### Security
 - The scanner runs from a pinned `aquasec/trivy:0.69.3` image instead of `aquasecurity/trivy-action`, whose tags (and Trivy 0.69.4) were hijacked in March 2026 (CVE-2026-33634).
 
----
+### Phase 5: chores, routines and to-dos (builds 0.90–0.94)
 
-## [Unreleased] — Phase 5: chores, routines and to-dos (builds 0.90–0.94, 2026-10-12)
-
-### Added
+#### Added
 - **Chores**: admins set up chores that repeat every few days, on chosen weekdays or monthly, either assigned to someone or up for grabs. Family members see today's chores, claim open ones, mark them done (or undo) and earn points.
 - **Points**: every completed chore adds to a points balance kept in an append-only ledger, ready for rewards. Each person sees their points, streak and week; everyone sees the family table.
 - **Routines**: ordered steps such as a morning or bedtime routine, each with a few minutes; the wall shows the current step with a countdown.
 - **To-dos**: a shared list of one-off tasks with an optional person and due date.
 - Admins see today's chores counted by person, and a history of who did what.
 
-### Fixed (compared with the retired 0.29 line)
+#### Fixed (compared with the retired 0.29 line)
 - Chores earn points: they're credited exactly once when completed.
 - "Every 3 days" chores stay every 3 days instead of appearing daily.
 - Due dates follow the family's timezone, not UTC.
 - Only the person a chore is assigned to (or an admin) can claim it.
 - The same chore can't be created twice for one day.
 
----
+### Phase 3b: wall essentials (builds 0.84–0.88)
 
-## [Unreleased] — Phase 3b: wall essentials (builds 0.84–0.88, 2026-10-12)
-
-### Added
+#### Added
 - **Photos & videos**: family members add photos and videos on the new Photos page, and the wall shows them full screen when it's idle, each one before any repeats. Photos lose their location data and are resized for the wall; videos are converted so a Raspberry Pi plays them smoothly, with all their metadata removed. The original upload isn't kept.
 - **Sleep schedule**: wall screens can go dark overnight, at times set in the family's timezone; a touch lights them for a few minutes.
 - **Family settings** (Admin › Settings): change the family name, timezone and sleep schedule after setup.
 - **Off-host backups**: `backup-offhost.sh` copies the daily database snapshots and the photos to a NAS or another disk, and the restore steps now include photos.
 
-### Security
+#### Security
 - The family's photo folder was readable without signing in at `/photos/…`. That route is gone: photos and videos are served only to signed-in family members and paired wall displays.
 
-### Changed
+#### Changed
 - The API image is about 70 MB larger (ffmpeg and Pillow).
 
----
+### Phase 3: iCal correctness (builds 0.75–0.82)
 
-## [Unreleased] — Phase 3: iCal correctness (builds 0.75–0.82, 2026-10-12)
-
-### Fixed
+#### Fixed
 - Subscribed calendars honour cancelled and moved instances of repeating events (EXDATE, RECURRENCE-ID, and cancelled events), and extra dates (RDATE). A moved instance no longer appears twice.
 - Repeating events keep their local time across daylight-saving changes (a 9:00 meeting stays at 9:00 in November).
 - Times without a timezone in a feed are read in the family's timezone instead of UTC. New installs default the family timezone to the device's zone (it used to default to UTC) and can pick any zone.
@@ -75,23 +85,19 @@
 - Editing a calendar source through the API no longer fails with a server error.
 - If the password prompt is closed unexpectedly, later admin actions no longer hang.
 
-### Changed
+#### Changed
 - Only events from 90 days ago to a year ahead are stored for subscribed calendars; long-running series no longer generate every instance since they began, and each sync looks up existing events in one query.
 
-### Added
+#### Added
 - Test coverage: backend 96% and frontend 93% of statements, measured in CI, which now fails below set thresholds. New tests cover backups, sign-in, the calendar and admin pages, wall pairing and app boot.
 
----
+### Review fixes (builds 0.31–0.73)
 
-## [Unreleased] — Review fixes (builds 0.31–0.73, 2026-10-12)
-
-> Entries are keyed by roadmap phase or work batch, not by commit. The per-commit build number lives in `VERSION` (repo root) and advances with every commit; when a batch is confirmed on the `test` VM, its heading gets the build that shipped it (`[0.<n>] - <date> — …`).
-
-### Changed
+#### Changed
 - Every commit now carries its own version, `0.<n>`, incremented by one per commit by a `pre-commit` hook and enforced in CI. The CI run-number suffix (`0.30.17`) is gone; images are tagged `0.<n>` with a matching `v0.<n>` release tag.
 - Pages load on demand, so the first download is about 45% smaller (351 KB, down from 626 KB).
 
-### Fixed
+#### Fixed
 - Wall displays now update live after scheduled and automatic calendar syncs, not only after manual changes. Live-update notices are sent only after the change is saved, so a wall never re-reads stale data.
 - Calendar-feed fetches connect to the address the safety check approved (closing a DNS-rebinding gap) and refuse feeds over 10 MB.
 - Recurring calendar-feed events no longer show their first occurrence twice, all-day repeating events stay all-day, and all-day series that end with a UTC timestamp keep their repeats.
@@ -103,7 +109,7 @@
 - Admins can no longer create extra, undeletable "internal" calendars, and event lookups check the event's own family as well as its calendar's.
 - Each install holds exactly one family. The database now rejects a second one (even if two setup attempts race), and sign-in only offers and accepts that family's members. Applied automatically at startup (migration 006).
 
-### Added
+#### Added
 - Frontend unit tests (Vitest; `npm test`, run in CI) and a startup test that boots the real app to check migrations and scheduled jobs.
 
 ---
