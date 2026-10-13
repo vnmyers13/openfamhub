@@ -250,6 +250,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [ ] Dashboard: one `GET /api/dashboard/summary` (today's events, chore stats, points, allowance, this week's meals). v0.29's dashboard calls four `/api/dashboard/*` routes that don't exist.
 - [ ] **Birthdays:** per-member birthday with the next age shown; dashboard/wall card and all-day calendar entries.
 - [ ] **Dashboard customization:** widget grid (drag/resize), multiple pages, page templates, wallpaper, and a personal vs family filter for dashboard and calendar.
+- [ ] **Navigation layout:** let each person choose the menu across the top or down the side (requested 2026-10-13). Save it per user, keep the phone layout as it is, and test that the choice survives a reload.
 - Tests first: cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes; birthday age crosses the year boundary; layout persistence; filter scoping.
 
 ### Phase 9 — Offline sync
