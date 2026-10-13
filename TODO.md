@@ -21,7 +21,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Phase 3 + 3b | iCal correctness (code complete at 0.82); wall essentials: photo/video slideshow, sleep schedule, family settings, off-host backups (code complete at 0.88) | |
 | Phase 5 | Chores, to-dos, routines (code complete at 0.94) | |
 | CI + release process | Trivy scan, issues closed from TODO.md, Triage report, release names past 0.99 | code complete at 1.01 |
-| Phase 6 | Rewards | |
+| Phase 6 | Rewards: catalog with approval, badges and streaks, weekly allowance in cents, family progress widget (code complete at 1.12) | |
 | Phase 7 | Meals | |
 | Phase 8 | Books, announcements, weather, birthdays, dashboard summary | |
 | Phase 9 | Offline sync | |
@@ -218,15 +218,16 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [ ] Check off routine steps from the wall. The wall shows routines and the current step's countdown, but steps are ticked in the app: completing from a paired display (no user session) would credit a child's points without anyone signing in, so it needs a decision (e.g. allow it only for routine steps assigned to a child).
 
 
-### Phase 6 — Rewards
-- [ ] **Before starting:** (triaged 2026-10-13: 68 Trivy issues added under Open issues; the P1 python-jose swap is still open) check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
-- [ ] Points ledger as an append-only table (no balances stored on the user).
-- [ ] Weekly allowance distributor, Mondays 07:00, **idempotent per week**.
-- [ ] Reward catalog with both purchase and request → approve / reject flows.
-- [ ] Streaks and badge definitions with auto-award.
-- [ ] Allowance is stored as integer cents (v0.29 uses strings), with a unique (`user_id`, `week_start`) key. A missed Monday is caught up on the next run.
-- [ ] **Family progress widget:** per-member stars/points on the dashboard and wall, fed by the ledger.
-- Tests first: ledger balances match the sum of entries; allowance re-run for the same week is a no-op; approve/reject adjusts the ledger exactly once; streak rollover at week boundaries; progress widget totals match the ledger.
+### Phase 6 — Rewards ✅ (code complete at 1.12)
+- [x] **Before starting:** triaged 2026-10-13: 68 Trivy issues added under Open issues. The P1 python-jose swap and the P2 dependency and base-image fixes shipped in 1.08; tick those lines once the Trivy scan confirms them. check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
+- [x] Points ledger as an append-only table (no balances stored on the user). Built in Phase 5 (`points_ledger`); rewards, refunds, badge bonuses and admin adjustments are all rows in it.
+- [x] Weekly allowance distributor, Mondays 07:00, **idempotent per week**. `jobs/allowance.py` runs hourly and at startup; 07:00 is family-local time (DST-safe).
+- [x] Reward catalog with both purchase and request → approve / reject flows. A request holds its points when it's made (so a pending request can't be spent twice); rejecting or cancelling refunds them once.
+- [x] Streaks and badge definitions with auto-award. Badges count chores completed, a day streak, or lifetime chore points; they're checked when a chore is completed and when a badge is created or edited. Earned once; retiring a badge keeps earned copies.
+- [x] Allowance is stored as integer cents (v0.29 uses strings), with a unique (`user_id`, `week_start`) key. A missed Monday is caught up on the next run (up to 8 weeks). Admins record cash payouts as negative adjustments.
+- [x] **Family progress widget:** per-member stars/points on the dashboard and wall, fed by the ledger. It replaces the wall's plain member list.
+- Tests first: ledger balances match the sum of entries; allowance re-run for the same week is a no-op; approve/reject adjusts the ledger exactly once; streak rollover at week boundaries; progress widget totals match the ledger. Done: `test_rewards.py` (42), `RewardsPage.test.tsx`, `FamilyProgress.test.tsx`, `lib/money.test.ts`, `lib/badges.test.ts`.
+- [ ] Notify an admin when a reward request is waiting (needs Phase 11's notifications).
 
 ### Phase 7 — Meals and recipes
 - [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.

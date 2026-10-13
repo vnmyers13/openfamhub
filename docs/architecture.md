@@ -117,14 +117,25 @@ On the idle screen `WallSlideshow` shows the family's ready media full screen, i
 - **Templates** (`chore_templates`, admins) hold a chore's title, points, who does it (`assigned` to one member, or `claimable` by anyone) and a repeat rule: once, every N days, weeks on chosen weekdays, or months on a day (1–28, or −1 for the last day), anchored to a start date and expanded with dateutil's rrule.
 - **Instances** (`chore_instances`) are one chore on one **family-local date** (`family_today` uses the family timezone, not UTC). `(template_id, due_date)` is unique. `jobs/chore_generator.py` runs hourly and at startup: it creates instances a week ahead and marks earlier open ones `missed`. Creating or editing a template rebuilds its open instances from today.
 - **Lifecycle**: `pending` → `claimed` (claimable chores, by anyone but viewers; assigned chores only by the assignee or an admin) → `completed`; `undo` reopens. Completing is a conditional update (only one request can move it out of an open state), writes a `chore_completions` audit row and, if it's worth points, a `points_ledger` entry for the assignee (else whoever claimed it). Undo marks the completion undone and writes a reversal entry.
-- **Points ledger** (`points_ledger`): append-only; a balance is the sum of a member's deltas; `(source_type, source_id)` is unique, so one completion can't credit twice. Phase 6 rewards will spend from it.
+- **Points ledger** (`points_ledger`): append-only; a balance is the sum of a member's deltas; `(source_type, source_id)` is unique, so one completion can't credit twice. Rewards spend from it (see below).
 - **Routines** (`routines`): a name, start time (family timezone), repeat and assignee, with ordered steps that are chore templates (`routine_id`, `position`, `minutes`). Steps follow the routine's schedule, get daily instances and are completed like chores. Saving a routine's steps keeps their list order; removed steps retire with their history. `GET /api/routines/today` and the paired-display `GET /api/wall/routines` return today's runs.
 - **To-dos** (`todos`): one-off tasks with an optional assignee and due date; no repeat, no points.
+
+## Rewards, badges and allowance
+
+All under `/api/rewards` (`routers/rewards.py`, rules in `services/rewards.py`). Viewers can look but not spend; admin endpoints need the password gate.
+
+- **Catalog** (`rewards`): name, icon, point cost, and whether it needs an admin's yes. Rewards are retired, never deleted.
+- **Redemptions** (`reward_redemptions`): redeeming checks the balance and writes a `-cost` ledger row (`source_type="reward"`) straight away, so a pending request can't be spent twice. An instant reward is `approved` at once; otherwise it's `pending` until an admin approves or rejects it, or its owner cancels it. Leaving `pending` is a conditional update, and rejecting or cancelling writes one `reward_refund` row. The reward's name and cost are copied onto the redemption.
+- **Badges** (`badge_definitions`, `user_badges`): earned by `chores_completed`, `streak_days` or `points_earned` (net chore points). `award_badges` runs inside the chore-completion transaction and when a badge is created or edited. `(user_id, badge_id)` is unique, and a bonus is a ledger row keyed by the award.
+- **Streaks**: consecutive family-local days with a completion that isn't undone, ending today or yesterday.
+- **Allowance** (`allowance_plans`, `allowance_ledger`): whole cents. `jobs/allowance.py` runs hourly: for each plan it pays every week from `start_week` up to the latest Monday 07:00 (family time) not yet paid, capped at 8 weeks back. `(user_id, week_start)` is unique. Admins record payouts as negative adjustments; a new or restarted plan starts at the next Monday.
+- **Progress**: `GET /api/rewards/progress` and the paired-display `GET /api/wall/progress` return each non-viewer's balance, points earned since Monday (chores and badges, not spending), streak and badges.
 - **Wall**: `WallRoutines` shows a routine from half an hour before its start until its steps are done or its time is up: the current step (steps run back to back from the start time, `lib/routine.ts`), a live countdown and progress. Read-only: steps are ticked in the app.
 
 ## Realtime
 
-Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_updated" | "chores_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Each wall opens one socket (`wall/useWallWebSocket.ts`, which reconnects after a drop and stops cleanly on unmount) and refetches the matching data; walls also poll every 15 minutes.
+Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_updated" | "chores_updated" | "rewards_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Each wall opens one socket (`wall/useWallWebSocket.ts`, which reconnects after a drop and stops cleanly on unmount) and refetches the matching data; walls also poll every 15 minutes.
 
 ## Frontend layout (`frontend/src`)
 
@@ -133,7 +144,7 @@ App.tsx            boot: setup status → /auth/me; routes (wall is outside the 
 api/               axios client (401 → /login, except /auth/* and /wall/*; 403 password_required → one shared password prompt + retry), React Query hooks; wall.ts onWallUnauthorized
 lib/               dates.ts (time convention above), permissions.ts and choreActions.ts (client mirrors of the API's rules), sleep.ts, shuffle.ts, timezones.ts, repeat.ts, routine.ts
 hooks/             useToday (local midnight, rolls over)
-pages/             Dashboard, CalendarPage, chores/ (Today, To-dos, Routines, Manage, History), PhotosPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays, admin/FamilySettings
+pages/             Dashboard, CalendarPage, chores/ (Today, To-dos, Routines, Manage, History), rewards/ (Rewards, Requests, Badges, Allowance, Manage), PhotosPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays, admin/FamilySettings
 wall/              WallLayout (pairing gate, revocation → pairing screen, live session, sleep schedule, idle screen), WallSlideshow, WallRoutines, clock, 7-day strip, useWallWebSocket, member list
 components/        NavShell (sidebar / mobile bottom nav, "Unlock admin", Help & About), RequireAdmin, PasswordPrompt, Avatar, BuildInfoBadge
 test/setup.ts      Vitest setup; tests are *.test.ts[x] next to the code

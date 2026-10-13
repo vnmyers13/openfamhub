@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+### Phase 6: Rewards (builds 1.10–1.12)
+
+#### Added
+- **Rewards page** (`/rewards`). Members spend points on rewards. A reward can be instant, or need a yes from an admin; a request takes the points straight away, and rejecting or cancelling it gives them back. Admins edit and retire rewards and badges, and give or take points with a reason.
+- **Badges** for chores completed, day streaks or lifetime chore points, with optional bonus points. They're awarded automatically, once per person, including to anyone who already qualifies when a badge is created.
+- **Weekly allowance** in whole cents. It's paid Monday 07:00 family time, once per week, and catches up after downtime (up to 8 weeks). Admins set each amount and record cash they hand over.
+- **Family progress** on the dashboard and the wall: each member's points, points earned this week, streak and badges. On the wall it replaces the plain member list and updates live.
+- Migration 009: `rewards`, `reward_redemptions`, `badge_definitions`, `user_badges`, `allowance_plans`, `allowance_ledger`.
+
+### Security (build 1.08)
+- Replaced `python-jose` with PyJWT (CVE-2026-85394, and drops its `ecdsa` dependency). Existing sign-ins stay valid.
+- Bumped FastAPI (Starlette 1.8), python-multipart and Pillow, and both images now install OS security updates at build time; `deploy.sh publish` pulls fresh base images. This targets the 67 other Trivy findings.
+
 ### Added
 - Production promotion path: `scripts/deploy.sh promote <prod-host> <checked-build>` deploys a deliberately selected, already-checked build to the production SSH host, and docs now keep CI's automatic deploy scoped to `test`.
 - HEIC/HEIF photo uploads: iPhone default photos now upload and are converted to metadata-free JPEG wall/thumb renditions.
