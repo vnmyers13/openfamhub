@@ -157,6 +157,7 @@ publish() {
         docker buildx build \
             --builder "$APP_NAME" \
             --platform "$platforms" \
+            --pull \
             --label "org.opencontainers.image.revision=$sha" \
             --label "org.opencontainers.image.version=$VERSION" \
             --build-arg "OPENFAMHUB_BUILD=$VERSION" \
