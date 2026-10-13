@@ -3,6 +3,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -18,6 +19,7 @@ from app.core.security import (
 )
 from app.models.auth import Session
 from app.models.family import Family
+from app.services.family import install_family_id
 from app.models.user import User
 from app.schemas.auth import (
     ElevateRequest,
@@ -43,21 +45,28 @@ def _device(request: Request) -> str:
     return request.headers.get("user-agent", "")
 
 
+async def _family_count(db: AsyncSession) -> int:
+    return (await db.execute(select(func.count(Family.id)))).scalar()
+
+
 @router.get("/setup/status", response_model=SetupStatusResponse)
 async def setup_status(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(func.count(Family.id)))
-    return SetupStatusResponse(setup_complete=result.scalar() > 0)
+    return SetupStatusResponse(setup_complete=await _family_count(db) > 0)
 
 
 @router.post("/setup", response_model=UserResponse)
 async def setup(data: SetupRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(func.count(Family.id)))
-    if result.scalar() > 0:
+    if await _family_count(db) > 0:
         raise HTTPException(status_code=400, detail="Setup already completed")
 
     family = Family(name=data.family_name, timezone=data.timezone)
     db.add(family)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        # Another setup request created the family first (families_single_row).
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Setup already completed")
 
     user = User(
         family_id=family.id,
@@ -78,8 +87,11 @@ async def setup(data: SetupRequest, request: Request, response: Response, db: As
 async def profiles(db: AsyncSession = Depends(get_db)):
     """Avatars for the sign-in picker. Public by design (the picker is shown before
     sign-in), so it returns nothing beyond what the picker displays."""
+    family_id = await install_family_id(db)
     result = await db.execute(
-        select(User).where(User.is_deleted == False).order_by(User.display_name)  # noqa: E712
+        select(User)
+        .where(User.family_id == family_id, User.is_deleted == False)  # noqa: E712
+        .order_by(User.display_name)
     )
     return [
         ProfileResponse(
@@ -101,6 +113,7 @@ async def login(data: LoginRequest, request: Request, response: Response, db: As
 
     result = await db.execute(
         select(User).where(
+            User.family_id == await install_family_id(db),
             func.lower(User.display_name) == data.display_name.strip().lower(),
             User.is_deleted == False,  # noqa: E712
         )
@@ -123,6 +136,8 @@ async def pin_login(data: PinLoginRequest, request: Request, response: Response,
     login_throttle.check(key)
 
     user = await db.get(User, data.user_id)
+    if user and user.family_id != await install_family_id(db):
+        user = None
     if not user or user.is_deleted or not user.pin_hash or not verify_password(data.pin, user.pin_hash):
         login_throttle.fail(key)
         raise HTTPException(status_code=401, detail="Invalid PIN")

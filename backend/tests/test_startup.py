@@ -41,6 +41,7 @@ for table in Base.metadata.sorted_tables:
     if not cols or gone:
         missing[table.name] = gone or ["<table>"]
 out["missing"] = missing
+out["triggers"] = sorted(r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='trigger'"))
 print("PROBE" + json.dumps(out))
 '''
 
@@ -72,3 +73,5 @@ def test_app_boots_migrates_and_registers_jobs(tmp_path):
         # Every model column exists after migrations alone, so a model change
         # without its Alembic migration fails here.
         assert out["missing"] == {}, boot
+        # Migration 006: one family per install.
+        assert "families_single_row" in out["triggers"], boot
