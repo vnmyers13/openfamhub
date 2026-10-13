@@ -2,7 +2,7 @@
 
 Design notes for the server-side feed fetcher and live wall updates. Originally
 written from the graphify analysis of the 0.30 codebase; both gaps it found are
-now fixed (0.30.x).
+now fixed (review fixes, shipped after 0.30; see CHANGELOG).
 
 ## SSRF guard: every hop, pinned connection
 

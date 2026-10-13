@@ -10,21 +10,25 @@ Known bugs and planned fixes, from the code review of 2026-10-04. Phase 1 shippe
 - **Order:** keep the phase order below.
 
 ## Release plan
-| Release | Contents |
-|---|---|
-| 0.30 | Phases 2 + 4 (security, sign-in model, infra/CI). 0.30.x builds add the review fixes below. **Not yet confirmed on the test VM** (check `/api/health` or the sidebar build number). |
-| 0.31 | Phase 3 (iCal correctness) + **Phase 3b (wall essentials: photo slideshow, sleep schedule)** |
-| 0.32 | Phase 5 (chores, to-dos, routines) |
-| 0.33 | Phase 6 (rewards) |
-| 0.34 | Phase 7 (meals) |
-| 0.35 | Phase 8 (books, announcements, weather, birthdays) + dashboard summary |
-| 0.36 | Phase 9 (offline sync) |
-| 0.37 | Phase 10 (OCR, wall panels) |
-| 0.38 | Phase 11 (notifications and reminders) |
-| 0.39 | Phase 12 (Home Assistant, AI, notes) |
-| 0.40 | Phase 13 (two-way calendar sync) |
 
-Every push to `master` is published by CI as its own per-commit build (`0.<n>`, the integer in `VERSION`) and deployed to the `test` VM. A release is done when its phase's tests pass in CI and the build has been checked on the `test` VM; the number then advances by itself with the next commit (the `pre-commit` hook bumps `VERSION`).
+Releases are **phases**, not version numbers. Every commit gets its own build number (`0.<n>`, the integer in `VERSION`), so a number can't be reserved for a planned release. When a phase's tests pass in CI and its build is checked on the `test` VM, record that build in **Shipped in** and give the phase its CHANGELOG entry.
+
+| Release | Contents | Shipped in |
+|---|---|---|
+| Phases 2 + 4 | Security, sign-in model, infra/CI | 0.30 |
+| Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, …) | in progress (0.52 locally); **not yet confirmed on the test VM** (check `/api/health` or the sidebar build number) |
+| Phase 3 + 3b | iCal correctness; wall essentials (photo slideshow, sleep schedule, backups) | |
+| Phase 5 | Chores, to-dos, routines | |
+| Phase 6 | Rewards | |
+| Phase 7 | Meals | |
+| Phase 8 | Books, announcements, weather, birthdays, dashboard summary | |
+| Phase 9 | Offline sync | |
+| Phase 10 | OCR, wall panels | |
+| Phase 11 | Notifications and reminders | |
+| Phase 12 | Home Assistant, AI, notes | |
+| Phase 13 | Two-way calendar sync | |
+
+The `pre-commit` hook bumps `VERSION` on every commit (see `docs/ci.md`); CI publishes each `master` build and deploys it to `test`.
 
 ## Review backlog (2026-10-11)
 
@@ -35,7 +39,7 @@ Findings from the codebase review. Each item should be handled with tests first 
 - [x] Harden iCal feed fetching against SSRF. Calendar URLs are fetched server-side with redirects and no host/IP restrictions (`backend/app/integrations/ical_feed.py`, `backend/app/routers/integrations.py`). Restrict schemes, reject private/loopback/link-local/multicast targets after DNS resolution, validate redirect targets, and cover blocked hosts in tests. ([#1](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/1)) Fixed: `backend/app/core/url_safety.py` validates every hop; `fetch_ics_bytes` follows redirects manually (`backend/tests/test_ssrf.py`).
 - [x] Delete stale events when a successful iCal sync returns zero events. `sync_source()` only soft-deletes stale events when `incoming_uids` is non-empty (`backend/app/jobs/calendar_sync.py`). Add a test that syncs one event, then an empty feed, and expects the old event hidden. ([#2](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/2)) Fixed: guard removed; `test_empty_feed_hides_previous_events`.
 - [x] Treat all-day iCal events without `DTEND` or `DURATION` as one-day events. The parser currently falls back to one hour (`backend/app/integrations/ical_feed.py`). Add parser tests for `DTSTART;VALUE=DATE` with no end. ([#3](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/3)) Fixed: all-day no-end events now end at the next UTC midnight; timed no-end events still default to one hour (`backend/tests/test_ssrf.py`).
-- [ ] Preserve `all_day` on recurring iCal expansions and avoid duplicating the first occurrence. This overlaps Phase 3; keep it there if fixing as part of 0.31 (`backend/app/integrations/ical_feed.py`). ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4))
+- [ ] Preserve `all_day` on recurring iCal expansions and avoid duplicating the first occurrence. This overlaps Phase 3; keep it there if fixing it with Phase 3 (`backend/app/integrations/ical_feed.py`). ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4))
 - [ ] Decide whether public auth queries must enforce a single-family invariant or explicit family scope. `profiles()`, password login, and PIN login are global today (`backend/app/routers/auth.py`); add multi-family regression tests or document/enforce one-family-per-install at the DB/application boundary. ([#5](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/5))
 - [ ] Reject `provider: "internal"` on calendar source creation. The admin source API can create extra internal sources that are then protected from deletion (`backend/app/routers/calendar.py`, `backend/app/schemas/calendar.py`). ([#6](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/6))
 - [ ] Add `CalendarEvent.family_id == family_id` to event reads, in addition to source family joins, so malformed rows cannot cross tenants (`backend/app/services/calendar.py`, `backend/app/routers/calendar.py`). ([#7](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/7))
@@ -87,8 +91,8 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
 | Reminders and notifications | NEW, Phase 11 |
 | Wellness reminders (hydration, mindfulness) | NEW, Phase 11 |
 | Custom widgets, pages, templates, wallpaper | NEW, Phase 8 |
-| Photo/video screensaver | NEW, Phase 3b (0.31) |
-| Sleep mode (screen schedule) | NEW, Phase 3b (0.31) |
+| Photo/video screensaver | NEW, Phase 3b |
+| Sleep mode (screen schedule) | NEW, Phase 3b |
 | Birthdays | NEW, Phase 8 |
 | Companion phone app | ✅ PWA; offline sync in Phase 9 |
 | Device syncing | ✅ server-centric |
@@ -105,7 +109,7 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
 - **Frontend:** v0.29's pages (Chores, Meals, Rewards, Books, Announcements, wall panels; about 3k lines) are reusable UI. Port them with an API adapter: axios `withCredentials`, our routes, 401 → login and 403 → message (v0.29 logs users out on 403), and `lib/dates.ts` for dates.
 - **Tests:** v0.29's 65 backend tests are acceptance criteria. Re-express each one against our fixtures before writing the code it covers.
 
-## Phase 2 — Security ✅ (0.30)
+## Phase 2 — Security ✅ (shipped in 0.30)
 - [x] Enforce roles on events. Viewers are read-only. Members change their own events. Admins change any family event. Synced iCal events are read-only. `PATCH /calendar/events` is scoped by family.
 - [x] Rate-limit password login. Block deleted users at login. Make display names unique (case-insensitive) with a clear error.
 - [x] Remove `POST /users/switch`. It mints a token for any user ID and nothing uses it.
@@ -126,11 +130,12 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
 - [ ] Store a window only (about 90 days back to 365 days ahead) instead of full history.
 - [ ] Look up existing UIDs in one batch query per sync.
 - [ ] Floating times (no `TZID`, no `Z`) are local wall-clock times: interpret them in the family timezone, not UTC.
-- [ ] All-day events without `DTEND`/`DURATION` last one day ([#3](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/3)); keep `all_day` on recurrences and drop the duplicate first occurrence ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
+- [x] All-day events without `DTEND`/`DURATION` last one day ([#3](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/3)); fixed in the review backlog.
+- [ ] Keep `all_day` on recurrences and drop the duplicate first occurrence ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
 - [ ] `add_ical_source` downloads the feed twice (a reachability check, then the sync). Run the sync once and turn a failed first sync into the 400 response.
 - Tests first: a recurring event yields each occurrence once; EXDATE removes an instance and RECURRENCE-ID moves one; all-day recurrences stay all-day; floating times land at the family's local time; events outside the window are not stored.
 
-## Phase 3b — Wall essentials (0.31)
+## Phase 3b — Wall essentials
 Pulled forward from Phase 10: these are what make the wall worth looking at every day.
 - [ ] **Photo/video slideshow screensaver.** Family media library: upload from the PWA (admins and members), list, delete; the idle wall screen cycles through it (replaces `WallPhotoPlaceholder`). Store originals and thumbnails under `data/photos` (already mounted and served at `/photos`).
   - Uploads: size limit, image/video MIME allow-list, strip EXIF (location), generate a wall-sized rendition and a thumbnail; `family_id` on every media row (migration 006).
@@ -139,7 +144,7 @@ Pulled forward from Phase 10: these are what make the wall worth looking at ever
 - [ ] **Off-host backups.** Photos make the data worth more: document (and optionally script) copying `data/backups` and `data/photos` to the NAS, and include photos in the restore steps.
 - Tests first: an upload with a disallowed type or size is rejected; EXIF GPS is stripped; another family's media is never listed; the slideshow uses every item before repeating; the sleep schedule respects the family timezone across DST; an unpaired wall can't read media.
 
-## Phase 4 — Infra and cleanup ✅ (0.30)
+## Phase 4 — Infra and cleanup ✅ (shipped in 0.30)
 - [x] Run Alembic migrations on container start instead of `create_all`.
 - [x] CI: set `SECRET_KEY` for tests; add a frontend lint + build job.
 - [x] Move CI to Forgejo Actions once a runner exists. Done: `.gitea/workflows/ci.yml` runs on a Gitea Actions runner on the test VM and publishes + deploys on `master` (see [docs/ci.md](docs/ci.md)).
@@ -160,7 +165,7 @@ parallel product line (chores/rewards/meals), not 11 releases ahead of us. We po
 *our* architecture, one domain at a time, and inherit our auth, `family_id` tenant scoping,
 `UTCDateTime`, deploy tooling and CI rather than its code. Phases 11–13 extend past v0.29 with the Cozyla-parity items listed above.
 
-Each phase writes its tests **before** the code, in the same change. Baseline (0.30.x): 63 backend tests in 5
+Each phase writes its tests **before** the code, in the same change. Baseline (0.52): 70 backend tests in 6
 files; `v0.29` has 65 in 13. No frontend test runner exists yet ([#15](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/15)); add it no later than Phase 3b, whose slideshow and sleep logic need it.
 
 Ordering is by dependency: rewards spends the points ledger chores introduce, and books awards points.
@@ -227,25 +232,25 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 - [ ] Read-only wall endpoints (`/api/wall/chores`, `/meals`, `/announcements`, `/weather`) behind the paired-device cookie. v0.29's panels need a family member's login.
 - [ ] The wall timezone is a family setting edited by an admin. v0.29 lets the wall itself write it via an admin-only call.
 - [ ] `DateTimeWallPanel` with a timezone picker; reuse `frontend/src/lib/dates.ts` and the wall token flow.
-- Photo slideshow and sleep schedule moved to Phase 3b (0.31).
+- Photo slideshow and sleep schedule moved to Phase 3b.
 - [ ] **Smart Import (photo → recipe):** reuse the OCR pipeline.
 - Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device.
 
-### Phase 11 — Notifications and reminders (0.38)
+### Phase 11 — Notifications and reminders
 - [ ] Reminder engine on the existing scheduler: events, chores, to-dos, birthdays, pantry expiry, allowance payouts.
 - [ ] Channels: Web Push (PWA), ntfy, and SMTP email, with per-user preferences.
 - [ ] Quiet hours aware of the Phase 3b sleep schedule.
 - [ ] Optional wellness reminders per user (hydration, mindfulness).
 - Tests first: a reminder fires exactly once; quiet hours suppress delivery; per-user channel preference; timezone/DST correctness.
 
-### Phase 12 — Home Assistant, AI, and notes (0.39)
+### Phase 12 — Home Assistant, AI, and notes
 - [ ] Home Assistant local integration: long-lived token, chosen entities as cards on the dashboard and wall, optional scene triggers from routines; degrades gracefully when HA is unreachable.
 - [ ] Smart-home widgets for those entities (climate, lights, sensors).
 - [ ] AI voice agent, local-first (local STT + LLM; cloud optional and opt-in): add/edit events, chores and to-dos conversationally.
 - [ ] Notes: family note board with photos, stickers and sketching; export as an image; wall panel.
 - Tests first: HA outage degrades gracefully; voice intent parsing fixtures for add/edit; notes render and export.
 
-### Phase 13 — Two-way calendar sync (0.40)
+### Phase 13 — Two-way calendar sync
 - [ ] Google Calendar two-way sync: OAuth, incremental sync tokens, write-back of local edits, delete propagation.
 - [ ] Outlook/Microsoft Graph two-way sync.
 - [ ] CalDAV two-way sync (Apple Calendar, Nextcloud), including discovery.
@@ -267,8 +272,8 @@ Each of these is in that tree. Porting a feature means reimplementing it correct
 - [x] Its committed SQLite WAL (`backend/file:memdb1-wal`, 4.1 MB) contains a bcrypt hash. `.gitignore` already covers `*.db`, `*.db-wal` and `*.db-shm`, but SQLite shared-cache names (`file:memdb1-wal`) slip past them — add a pattern before Phase 5 opens a dev DB.
 
 ### Version numbering
-Decided: the merged line continues at **0.30** (see Decisions). Our 0.18 keeps its CHANGELOG entry. The 0.30 entry
-notes that 0.19–0.29 (and v0.29's own "0.18") belong to the retired `main` line.
+- The merged line continued at **0.30** (see Decisions). Our 0.18 keeps its CHANGELOG entry; the 0.30 entry notes that 0.19–0.29 (and v0.29's own "0.18") belong to the retired `main` line.
+- Since 2026-10-12 every commit is its own build: the `pre-commit` hook bumps `VERSION` by one and the release string is `0.<n>`. Build numbers say *which code is deployed*; phases say *what is planned*. Don't label a phase with a future number. When a phase ships, record its build in the release plan and title its CHANGELOG entry `[0.<n>] - <date> — Phase N`.
 
 ## Completed
 - [x] v0.30: Phases 2 and 4 (sign-in picker + PIN with admin password gate, server-side sessions, lockout, event permissions, migrations at startup, CI, cleanup). See CHANGELOG.

@@ -17,7 +17,7 @@ Read these before changing code:
 
 ## Rules
 
-- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 63 backend tests in 5 files (0.30.x); no frontend test runner yet (add it by Phase 3b). Run `cd backend && source .venv/bin/activate && pytest -v`, then `cd frontend && npm run lint && npm run build`.
+- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 70 backend tests in 6 files (0.52); no frontend test runner yet (add it by Phase 3b). Run `cd backend && source .venv/bin/activate && pytest -v`, then `cd frontend && npm run lint && npm run build`.
 - **Time:**
   - Every datetime column is `UTCDateTime` (`backend/app/core/types.py`).
   - The API returns `+00:00` values.
@@ -57,27 +57,27 @@ When porting a feature, re-implement it rather than copying the file. TODO.md ha
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Routing, login errors, time zones, ranges, Sync Now/Delete, source filter, wall pairing, `deploy.sh` | Done, v0.18 |
-| 2 | Security: event roles, avatar + PIN sign-in with password for admins, remove `/users/switch`, session revocation | Done, 0.30 |
-| 3 | iCal correctness: duplicate first occurrence, EXDATE/RECURRENCE-ID, all-day recurrences, floating times, storage window, batch UID lookup | Open (0.31) |
-| 3b | Wall essentials: photo/video slideshow (media library, EXIF stripping, wall-token reads), sleep schedule, off-host backups | Open (0.31) |
-| 4 | Infra/cleanup: Alembic on start, CI, Workbox patterns, Pi script, dead code, settings, `.gitignore` | Done, 0.30 |
-| 5 | Port chores (+ to-dos, routines); fix v0.29's missing points credit, interval drift, UTC due dates | Open (0.32) |
-| 6 | Port rewards (append-only points ledger, idempotent weekly allowance in cents, catalog, badges/streaks) + progress widget | Open (0.33); needs 5 |
-| 7 | Port meals and recipes (auth on every endpoint, SSRF-safe URL import, plan, pantry, shopping list, recipe catalog) | Open (0.34) |
-| 8 | Port books (+ shared-library writes), announcements, birthdays, weather, dashboard summary + customization | Open (0.35); needs 6 |
-| 9 | Offline sync (frontend test runner, IndexedDB queue, conflict modal) | Open (0.36) |
-| 10 | OCR shopping-list scan, wall cycling panels via read-only wall endpoints | Open (0.37); needs 7 |
-| 11 | Notifications and reminders (events, chores, to-dos, birthdays, pantry; Web Push/ntfy/SMTP; quiet hours, wellness) | Open (0.38); needs 5, 7–8 |
-| 12 | Home Assistant local integration, local-first AI voice agent, notes board | Open (0.39) |
-| 13 | Two-way calendar sync (Google OAuth, Outlook Graph, CalDAV; conflict policy, mapping UI) | Open (0.40); needs 3 |
+| 1 | Routing, login errors, time zones, ranges, Sync Now/Delete, source filter, wall pairing, `deploy.sh` | Done, shipped in 0.18 |
+| 2 | Security: event roles, avatar + PIN sign-in with password for admins, remove `/users/switch`, session revocation | Done, shipped in 0.30 |
+| 3 | iCal correctness: duplicate first occurrence, EXDATE/RECURRENCE-ID, all-day recurrences, floating times, storage window, batch UID lookup | Open |
+| 3b | Wall essentials: photo/video slideshow (media library, EXIF stripping, wall-token reads), sleep schedule, off-host backups | Open |
+| 4 | Infra/cleanup: Alembic on start, CI, Workbox patterns, Pi script, dead code, settings, `.gitignore` | Done, shipped in 0.30 |
+| 5 | Port chores (+ to-dos, routines); fix v0.29's missing points credit, interval drift, UTC due dates | Open |
+| 6 | Port rewards (append-only points ledger, idempotent weekly allowance in cents, catalog, badges/streaks) + progress widget | Open; needs 5 |
+| 7 | Port meals and recipes (auth on every endpoint, SSRF-safe URL import, plan, pantry, shopping list, recipe catalog) | Open |
+| 8 | Port books (+ shared-library writes), announcements, birthdays, weather, dashboard summary + customization | Open; needs 6 |
+| 9 | Offline sync (frontend test runner, IndexedDB queue, conflict modal) | Open |
+| 10 | OCR shopping-list scan, wall cycling panels via read-only wall endpoints | Open; needs 7 |
+| 11 | Notifications and reminders (events, chores, to-dos, birthdays, pantry; Web Push/ntfy/SMTP; quiet hours, wellness) | Open; needs 5, 7–8 |
+| 12 | Home Assistant local integration, local-first AI voice agent, notes board | Open |
+| 13 | Two-way calendar sync (Google OAuth, Outlook Graph, CalDAV; conflict policy, mapping UI) | Open; needs 3 |
 
 ### Decisions (2026-10-04)
 
 - **Port, don't merge:** v0.29 features are rebuilt on this codebase. Its backend is a spec. Its frontend pages are reused through an API adapter, and its tests serve as acceptance criteria.
 - **Fresh start:** there's no importer for v0.29 data.
 - **Sign-in:** an avatar picker + PIN for everyone (per-user, with failed-attempt lockout), and a password session for admin actions.
-- **Versioning:** the merged line continues at **0.30**. TODO.md maps releases 0.30–0.40 to phases.
+- **Versioning:** the merged line continued at **0.30**. Since 2026-10-12 every commit is its own build (`0.<n>`), so releases are named by phase, not number; TODO.md records the build each phase shipped in.
 
 ### Prerequisites
 
