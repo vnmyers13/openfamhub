@@ -21,7 +21,7 @@ For the `test` VM you normally don't run these by hand: every push to `master` o
 
 ```
  phone / laptop / wall Pi
-          │  https://openfamhub.vernonmyers.cloud
+          │  https://openfamhub.vernonmyers.cloud (DNS → upstream Caddy at 192.168.10.2)
           ▼
  ┌──────────────────────┐   your existing Caddy: real certificate, TLS ends here
  │  upstream Caddy      │
@@ -36,7 +36,7 @@ For the `test` VM you normally don't run these by hand: every push to `master` o
  └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The `test` VM is `192.168.10.80`. Images come from the Forgejo container registry (`forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}`).
+The upstream Caddy host is `192.168.10.2`, and it forwards `openfamhub.vernonmyers.cloud` to the `test` VM at `192.168.10.80:8080`. Clients must resolve `openfamhub.vernonmyers.cloud` to the upstream Caddy host, not directly to the test VM or any retired app host. Images come from the Forgejo container registry (`forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}`).
 
 ---
 
@@ -135,7 +135,7 @@ PUBLIC_URL=https://openfamhub.vernonmyers.cloud scripts/deploy.sh remote test
    ```
 
 2. **Back up `SECRET_KEY`** from that file in your password manager.
-3. Add the route to your upstream Caddy and reload it:
+3. Add the route to your upstream Caddy on `192.168.10.2` and reload it:
 
    ```caddy
    openfamhub.vernonmyers.cloud {
@@ -143,7 +143,7 @@ PUBLIC_URL=https://openfamhub.vernonmyers.cloud scripts/deploy.sh remote test
    }
    ```
 
-   No extra configuration is needed: Caddy passes WebSockets (`/api/wall/ws`) through, and it forwards the `X-Forwarded-*` headers.
+   No extra configuration is needed: Caddy passes WebSockets (`/api/wall/ws`) through, and it forwards the `X-Forwarded-*` headers. Local DNS or Twingate resource aliases should point `openfamhub.vernonmyers.cloud` at `192.168.10.2`; stale DNS pointing at any other LAN host can serve an older build or fail TLS before traffic reaches the test VM.
 4. Open `https://openfamhub.vernonmyers.cloud`, complete the setup wizard, and add your calendars.
 5. Pair any wall displays under **Admin › Wall displays** (see [wall-screen-setup.md](wall-screen-setup.md)).
 

@@ -75,9 +75,8 @@ refresh the Triage report issue). The last two never fail the pipeline; read the
    nothing done-but-open, nothing unmentioned. Fix TODO.md or the issues until it does.
    The `issues` job will have closed what the phase completed; `close-done --apply`
    does the same by hand.
-3. **Confirmed on test.** Check the build on the `test` VM
-   (`curl -s https://openfamhub.vernonmyers.cloud/api/health`, `build` field) and try
-   the phase's features.
+3. **Confirmed on test.** Check DNS first, then the build on the `test` VM. On the LAN/Twingate path, `openfamhub.vernonmyers.cloud` should resolve to the upstream Caddy host (`192.168.10.2`), which forwards to `192.168.10.80:8080`; if it resolves elsewhere, fix DNS before judging the release.
+   Then check `curl -s https://openfamhub.vernonmyers.cloud/api/health` (`build` field) and try the phase's features. If public TLS/DNS is being repaired, verify the deployed app directly with `curl -s http://192.168.10.80:8080/api/health`.
 4. **Record it.**
    - TODO.md: put the build in the release plan's **Shipped in** column.
    - CHANGELOG.md: turn the phase's `[Unreleased]` entry into `[<release>] - <date> — Phase N`,

@@ -41,7 +41,7 @@ hook bumps it per commit; `scripts/check-version.sh` enforces `+1` on `master`'s
 first-parent chain and "greater than base" on branches; the release name comes from `scripts/release-name` (`0.<n>` below 100; then 1, 1.01 … 1.99, 2, 2.01);
 tags are `v<release>` pushed to `forgejo`. `deploy` pins that exact tag in
 `~/openfamhub/.env`. To see what's running, check **Help & About** (login page or sidebar) or
-`curl -s https://openfamhub.vernonmyers.cloud/api/health` (`build` and `commit` fields).
+`curl -s https://openfamhub.vernonmyers.cloud/api/health` (`build` and `commit` fields). On the LAN/Twingate path, that hostname should resolve to the upstream Caddy host at `192.168.10.2`; if DNS points somewhere else, the browser may be looking at a stale host even when `192.168.10.80:8080` is already updated.
 To roll the test VM back to an earlier build, run `scripts/deploy.sh server "$HOME/openfamhub" <release>`
 on the VM (or `scripts/deploy.sh remote test <release>` from the Mac).
 
