@@ -1,4 +1,3 @@
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
@@ -6,8 +5,8 @@ from app.schemas import validators
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.events import discard_queued
 from app.core.security import require_role
-from app.integrations.ical_feed import fetch_ics_bytes
 from app.jobs.calendar_sync import sync_source
 from app.models.calendar_source import CalendarSource
 from app.models.user import User
@@ -34,16 +33,8 @@ async def add_ical_source(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
-    try:
-        # Validates reachability and rejects non-public hosts (SSRF guard).
-        await fetch_ics_bytes(data.ics_url)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=400, detail="ICS URL timed out")
-    except httpx.RequestError as exc:
-        raise HTTPException(status_code=400, detail=f"Could not reach ICS URL: {exc}")
-
+    # The source and its first sync succeed or fail together.
+    savepoint = await db.begin_nested()
     source = CalendarSource(
         family_id=current_user.family_id,
         provider="ical",
@@ -55,11 +46,17 @@ async def add_ical_source(
     db.add(source)
     await db.flush()
 
-    try:
-        await sync_source(source, db)
-    except Exception:
-        pass
+    # One download: the first sync is the reachability check. sync_source runs
+    # the SSRF guard on every hop and returns its error instead of raising; on
+    # failure nothing is kept: not the source, its sync log, or the queued
+    # live-update notice.
+    error = await sync_source(source, db)
+    if error:
+        await savepoint.rollback()
+        discard_queued(db)
+        raise HTTPException(status_code=400, detail=error)
 
+    await savepoint.commit()
     await db.commit()
     await db.refresh(source)
     return source

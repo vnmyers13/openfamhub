@@ -137,3 +137,79 @@ async def test_duplicate_uids_in_a_feed_are_stored_once(client, admin, setup_db,
     await _sync(client, admin, source_id)
     rows = await _rows(setup_db, source_id)
     assert list(rows) == ["dup"]
+
+
+ICS = (
+    "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//t//EN\r\nBEGIN:VEVENT\r\nUID:first\r\n"
+    f"DTSTART:{(NOW + timedelta(days=1)).strftime('%Y%m%dT%H%M%SZ')}\r\n"
+    f"DTEND:{(NOW + timedelta(days=1, hours=1)).strftime('%Y%m%dT%H%M%SZ')}\r\n"
+    "SUMMARY:First event\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+).encode()
+
+
+class TestAddIcalSource:
+    async def test_downloads_the_feed_once(self, client, admin, monkeypatch):
+        calls = []
+
+        async def fake_bytes(url, **kwargs):
+            calls.append(url)
+            return ICS
+
+        monkeypatch.setattr("app.integrations.ical_feed.fetch_ics_bytes", fake_bytes)
+        res = await client.post(
+            "/api/integrations/ical",
+            json={"display_name": "School", "ics_url": "https://example.test/s.ics"},
+            headers=_h(admin),
+        )
+        assert res.status_code == 201, res.text
+        assert calls == ["https://example.test/s.ics"]
+        source = res.json()
+        assert source["sync_error"] is None and source["last_synced_at"]
+        events = (await client.get(
+            "/api/calendar/events",
+            params={"start": NOW.isoformat(), "end": (NOW + timedelta(days=3)).isoformat()},
+            headers=_h(admin),
+        )).json()
+        assert [e["title"] for e in events] == ["First event"]
+
+    async def test_a_failed_first_sync_is_a_400_and_saves_nothing(self, client, admin, setup_db, monkeypatch):
+        async def broken(url, **kwargs):
+            raise ValueError("ICS fetch returned HTTP 404")
+
+        monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", broken)
+        res = await client.post(
+            "/api/integrations/ical",
+            json={"display_name": "Broken", "ics_url": "https://example.test/missing.ics"},
+            headers=_h(admin),
+        )
+        assert res.status_code == 400
+        assert "HTTP 404" in res.json()["detail"]
+        sources = (await client.get("/api/calendar/sources", headers=_h(admin))).json()
+        assert all(s["display_name"] != "Broken" for s in sources)
+
+    async def test_an_unparseable_feed_is_rejected(self, client, admin, monkeypatch):
+        async def not_ics(url, **kwargs):
+            return b"<html>Sign in to continue</html>"
+
+        monkeypatch.setattr("app.integrations.ical_feed.fetch_ics_bytes", not_ics)
+        res = await client.post(
+            "/api/integrations/ical",
+            json={"display_name": "Login page", "ics_url": "https://example.test/login"},
+            headers=_h(admin),
+        )
+        assert res.status_code == 400
+
+    async def test_timeouts_are_described(self, client, admin, monkeypatch):
+        import httpx
+
+        async def slow(url, **kwargs):
+            raise httpx.ReadTimeout("")
+
+        monkeypatch.setattr("app.integrations.ical_feed.fetch_ics_bytes", slow)
+        res = await client.post(
+            "/api/integrations/ical",
+            json={"display_name": "Slow", "ics_url": "https://example.test/slow.ics"},
+            headers=_h(admin),
+        )
+        assert res.status_code == 400
+        assert res.json()["detail"] == "The calendar URL timed out"
