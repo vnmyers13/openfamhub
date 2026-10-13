@@ -31,6 +31,8 @@ from app.routers.family import sleep_schedule
 from app.routers.routines import todays_runs
 from app.schemas.chores import RoutineRun
 from app.schemas.family import SleepSchedule
+from app.schemas.rewards import ProgressRow
+from app.services import rewards as rewards_svc
 
 router = APIRouter()
 
@@ -247,6 +249,12 @@ async def wall_media_file(
 async def wall_routines(db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device)):
     """Today's routines for the wall's countdown (read-only)."""
     return await todays_runs(db, device.family_id)
+
+
+@router.get("/progress", response_model=List[ProgressRow])
+async def wall_progress(db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device)):
+    """Family points, streaks and badges for the wall's progress panel (read-only)."""
+    return [ProgressRow(**vars(r)) for r in await rewards_svc.progress(db, device.family_id)]
 
 
 @router.websocket("/ws")

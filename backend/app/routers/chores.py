@@ -10,7 +10,6 @@ Rules ported from v0.29, with its bugs fixed:
 """
 from datetime import date, datetime, time, timedelta, timezone
 from typing import List, Optional
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, or_, select, update
@@ -27,6 +26,7 @@ from app.schemas.chores import (
     CompletionLogEntry, PointsRow,
 )
 from app.services.chores import OPEN, family_today, reschedule_template, retire_template, generate_instances
+from app.services import rewards as rewards_svc
 
 router = APIRouter()
 
@@ -242,6 +242,9 @@ async def complete(instance_id: str, db: AsyncSession = Depends(get_db), user: U
         db.add(PointsEntry(family_id=user.family_id, user_id=credited, delta=template.points,
                            reason=f"Chore: {template.title}", source_type="chore", source_id=completion.id))
         await db.flush()
+    # Badges are checked in the same transaction, so a badge and its bonus land with the chore.
+    if await rewards_svc.award_badges(db, user.family_id, credited):
+        queue_event(db, "rewards_updated", {})
     queue_event(db, "chores_updated", {})
     return to_instance(inst, template)
 
@@ -316,10 +319,7 @@ async def stats(user_id: Optional[str] = None, db: AsyncSession = Depends(get_db
     if target != user.id and user.role != "admin":
         raise HTTPException(status_code=403, detail="You can only see your own stats")
     tz_name = await family_zone(db, user.family_id)
-    try:
-        zone = ZoneInfo(tz_name)
-    except (ZoneInfoNotFoundError, ValueError):
-        zone = ZoneInfo("UTC")
+    zone = rewards_svc.zone_for(tz_name)
     done = (await db.execute(
         select(ChoreCompletion.completed_at)
         .where(ChoreCompletion.family_id == user.family_id, ChoreCompletion.credited_to == target,
@@ -327,10 +327,8 @@ async def stats(user_id: Optional[str] = None, db: AsyncSession = Depends(get_db
     )).scalars().all()
     days = {c.astimezone(zone).date() for c in done}
     today = family_today(tz_name)
-    week_start = today - timedelta(days=today.weekday())
-    streak, day = 0, today if today in days else today - timedelta(days=1)
-    while day in days:
-        streak, day = streak + 1, day - timedelta(days=1)
+    week_start = rewards_svc.week_start(today)
+    streak = rewards_svc.streak_from(days, today)
     return ChoreStats(
         user_id=target, completed_total=len(done),
         completed_this_week=sum(1 for c in done if c.astimezone(zone).date() >= week_start),
