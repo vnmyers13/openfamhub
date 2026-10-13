@@ -6,6 +6,8 @@ import { useGesture } from '@use-gesture/react'
 import { useCalendarEvents, useCalendarSources, useCreateEvent, useDeleteEvent } from '../api/calendar'
 import { useAuthStore } from '../stores/auth'
 import { allDayEndIso, allDayStartIso, eventEnd, eventStart, localDateTimeIso } from '../lib/dates'
+import { canCreateEvents, canEditEvent } from '../lib/permissions'
+import { errorDetail } from '../api/client'
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda'
 interface RBCEvent {
@@ -141,14 +143,22 @@ export default function CalendarPage() {
     [],
   )
 
+  const [actionError, setActionError] = useState('')
+
   const handleSelectEvent = useCallback((event: RBCEvent) => {
+    setActionError('')
     setSelectedEvent(event)
   }, [])
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent?.id) return
-    await deleteEvent(selectedEvent.id)
-    setSelectedEvent(null)
+    setActionError('')
+    try {
+      await deleteEvent(selectedEvent.id)
+      setSelectedEvent(null)
+    } catch (err) {
+      setActionError(errorDetail(err, 'Could not delete the event'))
+    }
   }
 
   return (
@@ -157,12 +167,14 @@ export default function CalendarPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-white">Calendar</h1>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-medium"
-          >
-            + New Event
-          </button>
+          {canCreateEvents(currentUser) && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-medium"
+            >
+              + New Event
+            </button>
+          )}
         </div>
 
         {/* Source filter chips */}
@@ -246,8 +258,11 @@ export default function CalendarPage() {
                 <span className="text-gray-400 text-sm">{selectedEvent.resource.sourceName}</span>
               </div>
             )}
+            {actionError && (
+              <div className="mt-3 rounded bg-red-900/50 px-3 py-2 text-sm text-red-300">{actionError}</div>
+            )}
             <div className="flex gap-2 mt-4">
-              {canEdit(currentUser, selectedEvent) && (
+              {canEditEvent(currentUser, selectedEvent.resource) && (
                 <button onClick={handleDeleteEvent} className="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded text-sm">
                   Delete
                 </button>
@@ -318,8 +333,8 @@ function CreateEventModal({
     setSaving(true)
     try {
       await onCreate({ title, start_dt: startDt, end_dt: endDt, all_day: allDay, location: location || undefined, description: description || undefined })
-    } catch {
-      setError('Could not save the event')
+    } catch (err) {
+      setError(errorDetail(err, 'Could not save the event'))
       setSaving(false)
     }
   }
@@ -384,13 +399,6 @@ function CreateEventModal({
       </form>
     </div>
   )
-}
-
-// Mirrors the API's rules: subscribed-calendar events are read-only, viewers
-// can't change anything, members change their own events, admins any.
-function canEdit(user: { id: string; role: string } | null, event: RBCEvent): boolean {
-  if (!user || event.resource.synced || user.role === 'viewer') return false
-  return user.role === 'admin' || event.resource.createdBy === user.id
 }
 
 function getViewRange(view: ViewType, date: Date): { start: Date; end: Date } {
