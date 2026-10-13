@@ -23,9 +23,17 @@ def _to_utc(dt: datetime | date) -> datetime:
 def _expand_recurrence(
     vevent: Any,
     uid: str,
-    dtstart: datetime,
-    dtend: datetime | None,
+    dtstart_raw: datetime | date,
+    start: datetime,
+    end: datetime,
+    is_all_day: bool,
 ) -> list[dict]:
+    """Expand an RRULE into the occurrences *after* the first one.
+
+    The caller already emits the first occurrence (DTSTART) under the series
+    UID, so it is skipped here. Every occurrence keeps the series duration and
+    its ``all_day`` flag.
+    """
     rrule_val = vevent.get("RRULE")
     if not rrule_val:
         return []
@@ -35,33 +43,50 @@ def _expand_recurrence(
     except Exception:
         return []
 
-    until_limit = datetime.now(timezone.utc) + timedelta(days=365)
-    try:
-        rule = rrulestr(rule_str, dtstart=dtstart)
-    except Exception:
+    # dateutil needs a datetime. An all-day DTSTART is expanded as a naive
+    # midnight so each occurrence lands on its calendar date; a timed DTSTART
+    # keeps its own zone so local-time recurrences survive DST changes.
+    if is_all_day:
+        candidates = [
+            datetime(dtstart_raw.year, dtstart_raw.month, dtstart_raw.day),
+            # A UTC UNTIL needs an aware DTSTART; all-day dates are UTC midnights.
+            start,
+        ]
+    else:
+        candidates = [dtstart_raw]
+
+    rule = None
+    for rule_start in candidates:
+        try:
+            rule = rrulestr(rule_str, dtstart=rule_start)
+            break
+        except Exception:
+            continue
+    if rule is None:
         return []
+
+    until_limit = datetime.now(timezone.utc) + timedelta(days=365)
+    duration = end - start
+    title = str(vevent.get("SUMMARY", "(no title)"))
+    location = str(vevent.get("LOCATION", "")) or None
+    description = str(vevent.get("DESCRIPTION", "")) or None
 
     occurrences = []
     for occ_dt in rule:
-        if occ_dt.tzinfo is None:
-            occ_dt = occ_dt.replace(tzinfo=timezone.utc)
-
-        if occ_dt > until_limit:
-            break
-
         occ_start = _to_utc(occ_dt)
-        duration = (dtend - dtstart) if dtend else timedelta(hours=1)
-        occ_end = occ_start + duration
-        occ_uid = f"{uid}_{occ_start.isoformat()}"
+        if occ_start > until_limit:
+            break
+        if occ_start == start:
+            continue  # the base event already covers DTSTART
 
         occurrences.append({
-            "external_uid": occ_uid,
-            "title": str(vevent.get("SUMMARY", "(no title)")),
+            "external_uid": f"{uid}_{occ_start.isoformat()}",
+            "title": title,
             "start_dt": occ_start,
-            "end_dt": occ_end,
-            "all_day": False,
-            "location": str(vevent.get("LOCATION", "")) or None,
-            "description": str(vevent.get("DESCRIPTION", "")) or None,
+            "end_dt": occ_start + duration,
+            "all_day": is_all_day,
+            "location": location,
+            "description": description,
         })
     return occurrences
 
@@ -163,7 +188,7 @@ async def fetch_and_parse(url: str, *, transport=None) -> list[dict]:
         }
         events.append(base)
 
-        recurrences = _expand_recurrence(component, event_uid, start_dt, dtend_raw.dt if dtend_raw else None)
+        recurrences = _expand_recurrence(component, event_uid, start_dt, start, end, is_all_day)
         events.extend(recurrences)
 
     return events
