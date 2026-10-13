@@ -302,6 +302,7 @@ async def _load_event_with_source(
         .where(
             CalendarEvent.id == event_id,
             CalendarEvent.is_deleted == False,
+            CalendarEvent.family_id == family_id,
             CalendarSource.family_id == family_id,
         )
     )

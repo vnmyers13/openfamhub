@@ -64,6 +64,9 @@ async def get_events_in_range(
         .join(CalendarSource, CalendarEvent.source_id == CalendarSource.id)
         .where(
             CalendarSource.family_id == family_id,
+            # Check the event's own tenant too, so a row whose source and
+            # family disagree can never leak across families.
+            CalendarEvent.family_id == family_id,
             CalendarSource.is_deleted == False,
             CalendarSource.enabled == True,
             CalendarEvent.is_deleted == False,

@@ -43,3 +43,47 @@ class TestInternalSourceCreation:
         )
         assert res.status_code == 201, res.text
         assert res.json()["provider"] == "ical"
+
+
+class TestEventFamilyScoping:
+    async def _plant_foreign_event(self, client, admin, setup_db):
+        """An event row whose source belongs to this family but whose own
+        family_id is another tenant's: a malformed row that must stay hidden."""
+        from app.models.calendar_event import CalendarEvent
+        from app.services.calendar import get_or_create_internal_source
+        from datetime import datetime, timezone
+
+        me = (await client.get("/api/auth/me", headers=_h(admin))).json()
+        source = await get_or_create_internal_source(setup_db, me["family_id"])
+        event = CalendarEvent(
+            source_id=source.id,
+            family_id="some-other-family",
+            title="Not yours",
+            start_dt=datetime(2026, 10, 10, 15, tzinfo=timezone.utc),
+            end_dt=datetime(2026, 10, 10, 16, tzinfo=timezone.utc),
+        )
+        setup_db.add(event)
+        await setup_db.flush()
+        return event.id
+
+    async def test_list_hides_events_from_another_family(self, client, admin, setup_db):
+        await self._plant_foreign_event(client, admin, setup_db)
+        events = (await client.get("/api/calendar/events", params=WINDOW, headers=_h(admin))).json()
+        assert [e["title"] for e in events] == []
+
+    async def test_single_event_routes_hide_events_from_another_family(self, client, admin, setup_db):
+        event_id = await self._plant_foreign_event(client, admin, setup_db)
+        assert (await client.get(f"/api/calendar/events/{event_id}", headers=_h(admin))).status_code == 404
+        res = await client.patch(f"/api/calendar/events/{event_id}", json={"title": "x"}, headers=_h(admin))
+        assert res.status_code == 404
+        assert (await client.delete(f"/api/calendar/events/{event_id}", headers=_h(admin))).status_code == 404
+
+    async def test_own_events_are_still_listed(self, client, admin):
+        res = await client.post(
+            "/api/calendar/events",
+            json={"title": "Dinner", "start_dt": "2026-10-10T22:00:00Z", "end_dt": "2026-10-10T23:00:00Z"},
+            headers=_h(admin),
+        )
+        assert res.status_code == 201, res.text
+        events = (await client.get("/api/calendar/events", params=WINDOW, headers=_h(admin))).json()
+        assert [e["title"] for e in events] == ["Dinner"]
