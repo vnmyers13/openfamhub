@@ -1,10 +1,10 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { addDays, format } from 'date-fns'
-import { useQueryClient } from '@tanstack/react-query'
 import { useWallEvents } from '../api/wall'
 import { cn } from '../lib/utils'
 import { eventDayKeys, eventStart } from '../lib/dates'
 import { useToday } from '../hooks/useToday'
+import { useWallWebSocket } from './useWallWebSocket'
 
 interface CalendarEvent {
   id: string
@@ -17,44 +17,6 @@ interface CalendarEvent {
   description: string | null
   created_by: string | null
   source_color_hex: string
-}
-
-function useWallWebSocket() {
-  const queryClient = useQueryClient()
-
-  useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${protocol}//${window.location.host}/api/wall/ws`
-    let ws: WebSocket | null = null
-    let reconnectTimer: ReturnType<typeof setTimeout>
-
-    function connect() {
-      ws = new WebSocket(url)
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data)
-          if (msg.type === 'calendar_updated') {
-            queryClient.invalidateQueries({ queryKey: ['wall-events'] })
-          }
-        } catch {
-          // ignore parse errors
-        }
-      }
-      ws.onclose = () => {
-        reconnectTimer = setTimeout(connect, 10000)
-      }
-      ws.onerror = () => {
-        ws?.close()
-      }
-    }
-
-    connect()
-
-    return () => {
-      clearTimeout(reconnectTimer)
-      ws?.close()
-    }
-  }, [queryClient])
 }
 
 export default function WallSevenDayStrip() {
