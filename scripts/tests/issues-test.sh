@@ -81,6 +81,49 @@ export FORGEJO_URL="$url"
 python3 "$script" triage --todo "$tmp/clean.md" --strict | grep -q "Issues and TODO.md agree" || fail "clean strict"
 echo "strict-clean-ok"
 
+# --report-issue: creates and pins the report, then updates it in place and comments
+# only when new items need attention.
+start_fake_forgejo "$tmp/issues.json"
+export FORGEJO_URL="$url"
+out=$(python3 "$script" triage --todo "$tmp/TODO.md" --report-issue)
+echo "$out" | grep -q "Created report issue #12" || fail "report not created: $out"
+grep -q "^CREATE #12 Triage report$" "$reqlog" || fail "create"
+grep -q "^PIN #12$" "$reqlog" || fail "pin"
+grep -q "^COMMENT #12 7 new item(s) need attention" "$reqlog" || fail "first comment: $(grep COMMENT "$reqlog")"
+body="$tmp/issues.json.last"
+grep -q "<!-- issues.py:triage-report -->" "$body" || fail "marker"
+grep -q "Needs attention: 7 item(s)" "$body" || fail "attention count"
+grep -q -- "- \[ \] \*\*P0\*\* Data loss on restore" "$body" || fail "paste line in report"
+grep -q "| P0 | #10 Data loss on restore | \*\*no\*\* |" "$body" || fail "table row"
+grep -q "Triage report" "$body" && fail "report lists itself"
+: > "$reqlog"
+out=$(python3 "$script" triage --todo "$tmp/TODO.md" --report-issue)
+echo "$out" | grep -q "Updated report issue #12" || fail "second run: $out"
+echo "$out" | grep -q "#12 Triage report" && fail "report issue listed in triage"
+grep -q "CREATE\|COMMENT\|PIN" "$reqlog" && fail "second run created or commented: $(cat "$reqlog")"
+echo "report-idempotent"
+# A new issue appears: the report is updated and one comment names the change.
+python3 - "$tmp" <<'PYX'
+import json, sys
+p = sys.argv[1] + "/issues.json"; i = json.load(open(p))
+i.append({"number": 12, "title": "Triage report", "state": "open", "labels": [], "body": open(p + ".last").read()})
+i.append({"number": 13, "title": "New bug", "state": "open", "labels": []})
+json.dump(i, open(sys.argv[1] + "/issues2.json", "w"))
+PYX
+start_fake_forgejo "$tmp/issues2.json"
+export FORGEJO_URL="$url"
+python3 "$script" triage --todo "$tmp/TODO.md" --report-issue >/dev/null
+grep -q "^PATCH #12 body$" "$reqlog" || fail "report not updated"
+grep -q "^COMMENT #12 1 new item(s) need attention" "$reqlog" || fail "new-item comment: $(grep COMMENT "$reqlog")"
+grep -q "New bug" "$tmp/issues2.json.last" || fail "new issue not in report"
+echo "report-comments-on-new"
+# Pinning unsupported: still created; all clear reads as such.
+start_fake_forgejo "$tmp/clean.json"
+FORGEJO_URL="$url/NOPIN" python3 "$script" triage --todo "$tmp/clean.md" --report-issue | grep -q "couldn't pin" || fail "pin failure not reported"
+grep -q "Issues and TODO.md agree" "$tmp/clean.json.last" || fail "clean report"
+grep -q "COMMENT" "$reqlog" && fail "commented with nothing to say"
+echo "report-edge-ok"
+
 # Errors: unreachable API and missing TODO.md exit 2; close failures exit 2.
 FORGEJO_URL=http://127.0.0.1:9 python3 "$script" triage --todo "$tmp/clean.md" >/dev/null 2>&1 && fail "unreachable"
 python3 "$script" triage --todo "$tmp/none.md" >/dev/null 2>&1 && fail "missing TODO"

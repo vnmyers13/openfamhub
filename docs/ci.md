@@ -85,8 +85,10 @@ TRIVY_DRY_RUN=1 python3 scripts/create_trivy_issues.py \
 
 After `deploy`, the `issues` job runs `scripts/issues.py close-done --apply`, which
 closes open issues that TODO.md marks done (every line naming the issue is ticked),
-then `scripts/issues.py triage`, which prints open issues by priority and where they
-differ from TODO.md. It uses the same `ISSUES_TOKEN` secret and never fails the
+then `scripts/issues.py triage --report-issue`, which prints open issues by priority
+and where they differ from TODO.md, and writes the same report to a pinned
+**Triage report** issue (created on the first run). When new items need attention it
+comments on that issue, so Forgejo notifies you; edits alone don't. It uses the same `ISSUES_TOKEN` secret and never fails the
 pipeline. The process around it is in [releasing.md](releasing.md).
 
 `scripts/tests/issues-test.sh` and `scripts/tests/trivy-test.sh` run against a fake

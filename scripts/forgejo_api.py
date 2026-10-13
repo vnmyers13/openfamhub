@@ -55,3 +55,9 @@ class Forgejo:
 
     def close(self, number):
         return self.call("PATCH", f"/issues/{number}", {"state": "closed"})
+
+    def update(self, number, **fields):
+        return self.call("PATCH", f"/issues/{number}", fields)
+
+    def pin(self, number):
+        return self.call("POST", f"/issues/{number}/pin")

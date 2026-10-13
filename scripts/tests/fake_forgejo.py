@@ -1,8 +1,8 @@
 """Fake Forgejo issues API for the script test harnesses.
 
 python3 fake_forgejo.py <issues.json> <request_log> <port_file>
-Serves GET/POST /api/v1/repos/<o>/<r>/issues (state, page, limit), POST .../comments
-and PATCH .../issues/<n>. Paths containing FAILME answer 500 to writes.
+Serves GET/POST /api/v1/repos/<o>/<r>/issues (state, page, limit), POST .../comments,
+POST .../pin and PATCH .../issues/<n>; the last body written goes to <issues.json>.last. Paths containing FAILME answer 500 to writes.
 """
 import json
 import re
@@ -42,12 +42,17 @@ class Handler(BaseHTTPRequestHandler):
         if "FAILME" in self.path:
             log.write(f"POST-FAIL {self.path}\n")
             return self.reply(500, {"message": "boom"})
+        m = re.search(r"/issues/(\d+)/pin$", self.path)
+        if m:
+            log.write(f"PIN #{m.group(1)}\n")
+            return self.reply(204 if "NOPIN" not in self.path else 404, {})
         m = re.search(r"/issues/(\d+)/comments$", self.path)
         if m:
             log.write(f"COMMENT #{m.group(1)} {body['body']}\n")
             return self.reply(201, {})
         number = max([i["number"] for i in issues] or [0]) + 1
         issues.append({"number": number, "title": body["title"], "body": body["body"], "state": "open", "labels": []})
+        open(sys.argv[1] + ".last", "w").write(body["body"])
         log.write(f"CREATE #{number} {body['title']}\n")
         self.reply(201, {"number": number, "html_url": f"http://x/issues/{number}"})
 
@@ -60,7 +65,9 @@ class Handler(BaseHTTPRequestHandler):
         for i in issues:
             if i["number"] == number:
                 i.update(body)
-        log.write(f"PATCH #{number} {json.dumps(body)}\n")
+        if "body" in body:
+            open(sys.argv[1] + ".last", "w").write(body["body"])
+        log.write(f"PATCH #{number} {json.dumps(body) if 'body' not in body else 'body'}\n")
         self.reply(201, {})
 
 

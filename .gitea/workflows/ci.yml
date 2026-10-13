@@ -133,8 +133,9 @@ jobs:
           done
 
   # Keep Forgejo issues in step with TODO.md once a build is deployed to `test`:
-  # close issues TODO.md marks done, then print the triage report (open issues by
-  # priority, and drift from TODO.md). Non-blocking. See docs/releasing.md.
+  # close issues TODO.md marks done, then refresh the pinned "Triage report" issue
+  # (open issues by priority, and drift from TODO.md). Non-blocking. See
+  # docs/releasing.md.
   issues:
     needs: [deploy]
     if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master'
@@ -151,4 +152,4 @@ jobs:
             exit 0
           fi
           python3 scripts/issues.py close-done --apply
-          python3 scripts/issues.py triage
+          python3 scripts/issues.py triage --report-issue

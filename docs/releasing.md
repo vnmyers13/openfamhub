@@ -44,9 +44,18 @@ python3 scripts/issues.py triage --strict   # exit 1 unless issues and TODO.md a
 issues TODO.md marks done that are still open, closed issues whose TODO line isn't
 ticked, and priority mismatches.
 
+**You don't have to run it.** On every build the `issues` CI job runs it and keeps
+the pinned **Triage report** issue on Forgejo up to date, so the current state is
+always one click away. It comments on that issue whenever something new needs
+attention (an unscheduled issue, a P0, drift), which sends you a Forgejo
+notification. Don't close the report issue; if you do, the next build opens a new
+one. CI never edits TODO.md: scheduling an issue (its phase and priority) is a
+decision, so paste the suggested line yourself or hand the report to Claude. Run the
+script locally when you want an answer before the next build.
+
 ## Starting a phase
 
-1. Run `python3 scripts/issues.py triage`. Add every unmentioned issue to TODO.md
+1. Read the **Triage report** issue (or run `python3 scripts/issues.py triage`). Add every unmentioned issue to TODO.md
    (into the phase that will fix it, or **Open issues**) with a priority, and update
    any label that disagrees.
 2. Fix open **P0** and **P1** items before starting the phase's feature work.
@@ -56,7 +65,7 @@ ticked, and priority mismatches.
 
 CI runs: tests → `publish` (images + `v0.<n>` tag) → `deploy` to `test` → `trivy`
 (scan, open and close Trivy issues) and `issues` (close issues TODO.md marks done,
-print the triage report). The last two never fail the pipeline; read their logs.
+refresh the Triage report issue). The last two never fail the pipeline; read their logs.
 
 ## Releasing a phase
 
@@ -76,11 +85,15 @@ print the triage report). The last two never fail the pipeline; read their logs.
 5. **Push** to the primary first, then the mirrors and GitHub (zsh: no `#` comments when pasting):
    ```bash
    git push forgejo master
+   for r in forgejo-mirror1 forgejo-mirror2 origin; do git push $r master; done
    ```
-   After CI has tagged the build:
+   CI tags the build in `publish`, which can take 15 minutes or more per build, and
+   builds queue on the one runner. Wait until **Actions** shows that build's `publish`
+   green, then push the tag on its own (a missing tag in the same `git push` as
+   `master` aborts the whole push):
    ```bash
    git fetch forgejo --tags
-   for r in forgejo-mirror1 forgejo-mirror2 origin; do git push $r master v0.<n>; done
+   for r in forgejo-mirror1 forgejo-mirror2 origin; do git push $r v0.<n>; done
    ```
 6. **Forgejo release** from the notes:
    ```bash

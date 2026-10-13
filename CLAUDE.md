@@ -18,7 +18,7 @@ Read these before changing code:
 
 ## Rules
 
-- **Issues:** every open Forgejo issue appears in TODO.md with a priority (**P0**–**P3**); TODO.md decides the order of work. Before starting a phase, run `python3 scripts/issues.py triage` and schedule what it lists (open P0/P1 items come first). When you finish an item, tick its TODO line, which names the issue as `#N` or its link; CI closes the issue once the build deploys. Claude sessions can't reach Forgejo, so ask Vern to run triage and paste the output.
+- **Issues:** every open Forgejo issue appears in TODO.md with a priority (**P0**–**P3**); TODO.md decides the order of work. Before starting a phase, run `python3 scripts/issues.py triage` and schedule what it lists (open P0/P1 items come first). When you finish an item, tick its TODO line, which names the issue as `#N` or its link; CI closes the issue once the build deploys. Claude sessions can't reach Forgejo, so ask Vern to paste the pinned **Triage report** issue (CI refreshes it on every build).
 
 - **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 278 backend tests in 22 files and 174 frontend tests in 31 files (0.94); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
 - **Time:**
