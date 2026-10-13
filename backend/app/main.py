@@ -74,7 +74,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Family photos and videos are served only by /api/media and /api/wall/media,
 # which check who is asking. (Before 0.84 all of data/photos was public here.)
-from app.routers import auth, users, calendar, family, integrations, media, wall
+from app.routers import auth, users, calendar, chores, family, integrations, media, wall
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
@@ -83,6 +83,7 @@ app.include_router(integrations.router, prefix="/api/integrations", tags=["integ
 app.include_router(wall.router, prefix="/api/wall", tags=["wall"])
 app.include_router(media.router, prefix="/api/media", tags=["media"])
 app.include_router(family.router, prefix="/api/family", tags=["family"])
+app.include_router(chores.router, prefix="/api/chores", tags=["chores"])
 
 
 @app.get("/api/health")
