@@ -31,12 +31,23 @@ export function onPasswordPrompt(listener: (req: PromptRequest) => void): () => 
   }
 }
 
+// One prompt at a time: requests that need the password while it is already
+// on screen wait for the same answer instead of replacing (and orphaning) it.
+let pendingPrompt: Promise<void> | null = null
+
 /** Ask the user for their password (e.g. an "Unlock admin" button). */
 export function requestPasswordPrompt(): Promise<void> {
-  return new Promise((resolve, reject) => {
+  if (pendingPrompt) return pendingPrompt
+  const prompt = new Promise<void>((resolve, reject) => {
     if (!promptListener) return reject(new Error('No password prompt mounted'))
-    promptListener({ resolve, reject })
+    promptListener({ resolve, reject: () => reject(new Error('Password prompt cancelled')) })
   })
+  pendingPrompt = prompt
+  const clear = () => {
+    if (pendingPrompt === prompt) pendingPrompt = null
+  }
+  prompt.then(clear, clear)
+  return prompt
 }
 
 type RetryConfig = InternalAxiosRequestConfig & { _elevated?: boolean }
