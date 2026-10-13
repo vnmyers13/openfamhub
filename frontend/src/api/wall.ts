@@ -4,12 +4,7 @@ import { apiClient } from './client'
 import type { CalendarEvent } from './calendar'
 import type { SleepSchedule } from '../lib/sleep'
 import type { RoutineRun } from './chores'
-
-export interface WallMember {
-  id: string
-  display_name: string
-  color_hex: string
-}
+import type { ProgressRow } from './rewards'
 
 export interface WallDevice {
   id: string
@@ -88,10 +83,12 @@ export function useWallEvents(start: Date, end: Date) {
   })
 }
 
-export function useWallMembers() {
+/** Family points, streaks and badges, refreshed on chores_updated / rewards_updated pushes. */
+export function useWallProgress() {
   return useQuery({
-    queryKey: ['wall-members'],
-    queryFn: async () => (await apiClient.get('/wall/members')).data as WallMember[],
+    queryKey: ['wall-progress'],
+    queryFn: async () => (await apiClient.get('/wall/progress')).data as ProgressRow[],
+    refetchInterval: 15 * 60 * 1000,
   })
 }
 

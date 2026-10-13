@@ -28,7 +28,7 @@ vi.mock('../api/wall', () => ({
   }),
 }))
 vi.mock('./WallSevenDayStrip', () => ({ default: () => <div>seven-day strip</div> }))
-vi.mock('./WallMemberList', () => ({ default: () => <div>members</div> }))
+vi.mock('./WallProgress', () => ({ default: () => <div>progress</div> }))
 vi.mock('./WallClock', () => ({ default: () => <div>clock</div> }))
 vi.mock('./WallSlideshow', () => ({ default: () => <div>slideshow</div> }))
 vi.mock('./WallRoutines', () => ({ default: () => null }))
@@ -42,7 +42,7 @@ describe('WallLayout revocation (#10)', () => {
   it('drops back to the pairing screen and clears wall data on a 401', async () => {
     const client = new QueryClient()
     client.setQueryData(['wall-events', 'a', 'b'], [{ id: 'e1' }])
-    client.setQueryData(['wall-members'], [{ id: 'u1' }])
+    client.setQueryData(['wall-progress'], [{ user_id: 'u1' }])
     client.setQueryData(['unrelated'], 1)
 
     render(
@@ -57,7 +57,7 @@ describe('WallLayout revocation (#10)', () => {
 
     expect(await screen.findByText(/isn't paired yet/)).toBeTruthy()
     expect(client.getQueryData(['wall-events', 'a', 'b'])).toBeUndefined()
-    expect(client.getQueryData(['wall-members'])).toBeUndefined()
+    expect(client.getQueryData(['wall-progress'])).toBeUndefined()
     expect(client.getQueryData(['unrelated'])).toBe(1)
   })
 

@@ -3,6 +3,9 @@ import { useAuthStore } from '../stores/auth'
 import { useCalendarEvents, useCalendarSources } from '../api/calendar'
 import { startOfDay, endOfDay, format } from 'date-fns'
 import { eventDayKeys, eventStart } from '../lib/dates'
+import { Link } from 'react-router-dom'
+import { useFamilyProgress } from '../api/rewards'
+import FamilyProgress from '../components/FamilyProgress'
 
 function Greeting() {
   const user = useAuthStore((s) => s.user)
@@ -69,6 +72,19 @@ function TodaysEventsWidget() {
   )
 }
 
+function FamilyProgressWidget() {
+  const { data: rows, isLoading } = useFamilyProgress()
+  return (
+    <div className="rounded-xl bg-slate-800 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-white">Family Stars</h2>
+        <Link to="/rewards" className="text-sm text-primary hover:underline">Rewards</Link>
+      </div>
+      {isLoading ? <div className="h-3 w-40 animate-pulse rounded bg-slate-700" /> : <FamilyProgress rows={rows ?? []} />}
+    </div>
+  )
+}
+
 function SyncStatusWidget() {
   const { data: sources = [], isLoading } = useCalendarSources()
 
@@ -118,6 +134,7 @@ export default function Dashboard() {
         >
           <TodaysEventsWidget />
         </Suspense>
+        <FamilyProgressWidget />
         {isAdmin && (
           <Suspense
             fallback={

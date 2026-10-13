@@ -19,10 +19,10 @@ export function apiError(status: number, detail: string) {
 export function mockApi(routes: Record<string, Reply>): ApiCall[] {
   const all: Record<string, Reply> = { 'GET /health': { build: '0.99' }, ...routes }
   const calls: ApiCall[] = []
-  for (const method of ['get', 'post', 'patch', 'delete'] as const) {
+  for (const method of ['get', 'post', 'put', 'patch', 'delete'] as const) {
     vi.spyOn(apiClient, method).mockImplementation((async (url: string, bodyOrConfig?: unknown) => {
-      // POST/PATCH: the request body. GET/DELETE: the query params, so replies can vary by them.
-      const body = method === 'post' || method === 'patch' ? bodyOrConfig : (bodyOrConfig as { params?: unknown } | undefined)?.params
+      // POST/PUT/PATCH: the request body. GET/DELETE: the query params, so replies can vary by them.
+      const body = method === 'post' || method === 'put' || method === 'patch' ? bodyOrConfig : (bodyOrConfig as { params?: unknown } | undefined)?.params
       const key = `${method.toUpperCase()} ${url}`
       calls.push({ method: method.toUpperCase(), url, body })
       if (!(key in all)) throw apiError(404, `unmocked ${key}`)

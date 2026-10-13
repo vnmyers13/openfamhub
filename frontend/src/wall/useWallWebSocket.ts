@@ -3,17 +3,18 @@ import { useQueryClient } from '@tanstack/react-query'
 
 const RECONNECT_MS = 10_000
 
-// Server push -> the wall query it makes stale.
-const REFRESH: Record<string, string> = {
-  calendar_updated: 'wall-events',
-  media_updated: 'wall-media',
-  settings_updated: 'wall-session',
-  chores_updated: 'wall-routines',
+// Server push -> the wall queries it makes stale.
+const REFRESH: Record<string, string[]> = {
+  calendar_updated: ['wall-events'],
+  media_updated: ['wall-media'],
+  settings_updated: ['wall-session'],
+  chores_updated: ['wall-routines', 'wall-progress'],
+  rewards_updated: ['wall-progress'],
 }
 
 /**
- * Live wall updates: the server pushes calendar_updated, media_updated and
- * settings_updated after a change is committed, and the wall refetches the
+ * Live wall updates: the server pushes calendar_updated, media_updated,
+ * settings_updated, chores_updated and rewards_updated after a change is committed, and the wall refetches the
  * matching data. Reconnects after a drop. One socket per board (WallLayout).
  *
  * The close event arrives asynchronously, after cleanup has run, so cleanup
@@ -38,8 +39,9 @@ export function useWallWebSocket() {
       socket.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data)
-          const key = REFRESH[msg.type as string]
-          if (key) queryClient.invalidateQueries({ queryKey: [key] })
+          for (const key of REFRESH[msg.type as string] ?? []) {
+            queryClient.invalidateQueries({ queryKey: [key] })
+          }
         } catch {
           // ignore parse errors
         }

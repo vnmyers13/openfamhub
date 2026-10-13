@@ -39,4 +39,15 @@ describe('Dashboard', () => {
     renderApp(<Dashboard />)
     expect(await screen.findByText('No events scheduled for today.')).toBeTruthy()
   })
+
+  it("shows the family's stars", async () => {
+    mockApi({
+      'GET /calendar/events': [], 'GET /calendar/sources': [],
+      'GET /rewards/progress': [{ user_id: 'kid', display_name: 'Kid', color_hex: '#059669', avatar_value: null,
+        points_balance: 42, points_this_week: 7, streak_days: 2, badges: [] }],
+    })
+    renderApp(<Dashboard />)
+    expect(await screen.findByLabelText('42 points')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Rewards' })).toBeTruthy()
+  })
 })
