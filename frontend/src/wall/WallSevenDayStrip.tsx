@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from 'react'
-import { addDays, format, startOfDay } from 'date-fns'
+import { addDays, format } from 'date-fns'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallEvents } from '../api/wall'
 import { cn } from '../lib/utils'
 import { eventDayKeys, eventStart } from '../lib/dates'
+import { useToday } from '../hooks/useToday'
 
 interface CalendarEvent {
   id: string
@@ -59,7 +60,8 @@ function useWallWebSocket() {
 export default function WallSevenDayStrip() {
   useWallWebSocket()
 
-  const today = useMemo(() => startOfDay(new Date()), [])
+  // Rolls over at midnight, so the range, the query and the highlight move on.
+  const today = useToday()
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(today, i)),
     [today],
