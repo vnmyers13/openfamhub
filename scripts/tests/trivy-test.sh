@@ -5,8 +5,9 @@ set -euo pipefail
 repo_root=$(cd "$(dirname "$0")/../.." && pwd)
 issues="$repo_root/scripts/create_trivy_issues.py"
 scan="$repo_root/scripts/trivy-scan.sh"
-tmp=$(mktemp -d); server_pid=""
-trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null; rm -rf "$tmp"' EXIT
+tmp=$(mktemp -d)
+. "$repo_root/scripts/tests/fake_forgejo_lib.sh"
+trap 'stop_fake_forgejo; rm -rf "$tmp"' EXIT
 fail() { echo "FAIL: $*"; exit 1; }
 
 # A report with duplicates, a null Vulnerabilities list and low findings.
@@ -24,69 +25,74 @@ cat > "$tmp/report.json" <<'JSON'
 JSON
 echo '{"Results": null}' > "$tmp/clean.json"
 
-# Fake Forgejo: CVE-2 is already tracked (closed); records every request.
-cat > "$tmp/server.py" <<'PY'
-import json, sys
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse, parse_qs
-log = open(sys.argv[1], "a", buffering=1)
-existing = [{"title": "[trivy] CVE-2: zlib in openfamhub-api", "state": "closed"},
-            {"title": "[trivy] CVE-3: curl in openfamhub-web", "state": "open"}]
-class H(BaseHTTPRequestHandler):
-    def log_message(self, *a): pass
-    def reply(self, code, body):
-        data = json.dumps(body).encode()
-        self.send_response(code); self.send_header("Content-Length", str(len(data))); self.end_headers()
-        self.wfile.write(data)
-    def do_GET(self):
-        u = urlparse(self.path); q = parse_qs(u.query)
-        log.write(f"GET {u.path} q={q.get('q',[''])[0]} state={q.get('state',[''])[0]} auth={self.headers.get('Authorization')}\n")
-        self.reply(200, [i for i in existing if q.get('q',[''])[0] in i["title"]])
-    def do_POST(self):
-        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        log.write(f"POST {self.path} {body['title']}\n")
-        if "CVE-1" in body["title"] and "FAILME" in self.path: return self.reply(500, {})
-        self.reply(201, {"html_url": "http://x/issues/1"})
-srv = HTTPServer(("127.0.0.1", 0), H)
-open(sys.argv[2], "w").write(str(srv.server_port))
-srv.serve_forever()
-PY
-python3 "$tmp/server.py" "$tmp/requests.log" "$tmp/port" & server_pid=$!
-for _ in $(seq 50); do [ -s "$tmp/port" ] && break; sleep 0.1; done
-url="http://127.0.0.1:$(cat "$tmp/port")"
+# Fake Forgejo: CVE-2/api closed (risk accepted), CVE-3/web open, CVE-9/api open but
+# fixed (not in the report), CVE-8/web open and not in the report (other image), a PR.
+cat > "$tmp/issues.json" <<'JSON'
+[{"number": 1, "title": "[trivy] CVE-2: zlib in openfamhub-api", "state": "closed"},
+ {"number": 2, "title": "[trivy] CVE-3: curl in openfamhub-web", "state": "open"},
+ {"number": 3, "title": "[trivy] CVE-9: libxml2 in openfamhub-api", "state": "open"},
+ {"number": 4, "title": "[trivy] CVE-8: musl in openfamhub-web", "state": "open"},
+ {"number": 5, "title": "Unrelated bug", "state": "open"},
+ {"number": 6, "title": "[trivy] CVE-1: openssl in openfamhub-api", "state": "open", "pull_request": {}}]
+JSON
+start_fake_forgejo "$tmp/issues.json"
 
-# Opens only the new HIGH/CRITICAL findings, once each; token never in argv.
+# Opens only new HIGH/CRITICAL findings, once each; closes fixed ones for this image.
 out=$(TRIVY_ISSUE_TOKEN=s3cret python3 "$issues" "$url" o/r openfamhub-api:0.97 "$tmp/report.json")
 echo "$out" | grep -q "3 HIGH/CRITICAL" || fail "count: $out"
-echo "$out" | grep -q "2 opened, 1 already tracked, 0 failed" || fail "summary: $out"
-grep -q "POST /api/v1/repos/o/r/issues \[trivy\] CVE-1: openssl in openfamhub-api$" "$tmp/requests.log" || fail "CVE-1 not opened"
-grep -q "POST .*CVE-3: curl in openfamhub-api" "$tmp/requests.log" || fail "CVE-3 (other image) not opened"
-grep -q "POST .*CVE-2" "$tmp/requests.log" && fail "closed CVE-2 reopened"
-grep -q "POST .*CVE-4" "$tmp/requests.log" && fail "LOW finding opened"
-grep -q "GET .* q=CVE-1 state=all auth=token s3cret" "$tmp/requests.log" || fail "search request"
-echo "opens-new-skips-tracked"
+echo "$out" | grep -q "openfamhub-api: 2 opened, 1 already tracked, 1 closed, 0 failed" || fail "summary: $out"
+grep -q "^CREATE #7 \[trivy\] CVE-1: openssl in openfamhub-api$" "$reqlog" || fail "CVE-1 not opened (PR must not count)"
+grep -q "^CREATE .*CVE-3: curl in openfamhub-api" "$reqlog" || fail "CVE-3 (other image) not opened"
+grep -q "CREATE .*CVE-2" "$reqlog" && fail "closed CVE-2 reopened"
+grep -q "CREATE .*CVE-4" "$reqlog" && fail "LOW finding opened"
+grep -q "^COMMENT #3 No longer found in .openfamhub-api:0.97." "$reqlog" || fail "fixed CVE-9 not commented"
+grep -q '^PATCH #3 {"state": "closed"}' "$reqlog" || fail "fixed CVE-9 not closed"
+grep -q "PATCH #4\|PATCH #5\|PATCH #2" "$reqlog" && fail "closed an issue for another image or not from trivy"
+grep -q "GET .* state=all page=1 auth=token s3cret" "$reqlog" || fail "list request"
+echo "opens-new-closes-fixed"
+
+# A second run with the same report changes nothing.
+: > "$reqlog"
+out=$(TRIVY_ISSUE_TOKEN=s3cret python3 "$issues" "$url" o/r openfamhub-api:0.98 "$tmp/report.json")
+echo "$out" | grep -q "0 opened, 3 already tracked, 0 closed, 0 failed" || fail "rerun: $out"
+grep -q "CREATE\|PATCH" "$reqlog" && fail "rerun wrote"
+echo "idempotent"
 
 # Critical first, and the per-run limit holds the rest back.
-: > "$tmp/requests.log"
+start_fake_forgejo "$tmp/issues.json"
 out=$(TRIVY_ISSUE_TOKEN=t TRIVY_MAX_ISSUES=1 python3 "$issues" "$url" o/r openfamhub-web:0.97 "$tmp/report.json")
-[ "$(grep -c POST "$tmp/requests.log")" = 1 ] || fail "limit"
-grep -q "POST .*CVE-1" "$tmp/requests.log" || fail "critical not first"
+[ "$(grep -c CREATE "$reqlog")" = 1 ] || fail "limit"
+grep -q "CREATE .*CVE-1" "$reqlog" || fail "critical not first"
 echo "$out" | grep -q "limit of 1" || fail "limit message"
+grep -q "PATCH #4" "$reqlog" || fail "web: fixed CVE-8 not closed"
 echo "limit-ok"
 
+# Pagination: 120 existing issues, the tracked one on page 3.
+python3 -c "
+import json; i=[{'number':n,'title':f'Bug {n}','state':'open'} for n in range(1,120)]
+i.append({'number':120,'title':'[trivy] CVE-1: openssl in openfamhub-api','state':'open'})
+json.dump(i,open('$tmp/many.json','w'))"
+start_fake_forgejo "$tmp/many.json"
+out=$(TRIVY_ISSUE_TOKEN=t python3 "$issues" "$url" o/r openfamhub-api:0.97 "$tmp/report.json")
+grep -q "CREATE .*CVE-1" "$reqlog" && fail "missed issue on page 3"
+grep -q "page=3" "$reqlog" || fail "no page 3 request"
+echo "paginates"
+
 # API errors are reported but don't fail the run.
-out=$(TRIVY_ISSUE_TOKEN=t python3 "$issues" "$url/FAILME" o/r img "$tmp/report.json") || fail "nonzero on API error"
+start_fake_forgejo "$tmp/issues.json"
+out=$(TRIVY_ISSUE_TOKEN=t python3 "$issues" "$url/FAILME" o/r openfamhub-api "$tmp/report.json") || fail "nonzero on API error"
 echo "$out" | grep -q "failed CVE-1" || fail "error not reported: $out"
 out=$(TRIVY_ISSUE_TOKEN=t python3 "$issues" "http://127.0.0.1:9" o/r img "$tmp/report.json") || fail "nonzero when unreachable"
-echo "$out" | grep -q "0 opened, 0 already tracked, 3 failed" || fail "unreachable: $out"
+echo "$out" | grep -q "can't list issues" || fail "unreachable: $out"
 echo "errors-non-fatal"
 
-# Clean report, dry run, and usage errors.
+# Clean report closes everything open for the image; dry run; usage errors.
+start_fake_forgejo "$tmp/issues.json"
+TRIVY_ISSUE_TOKEN=t python3 "$issues" "$url" o/r openfamhub-web:0.99 "$tmp/clean.json" | grep -q "0 opened, 0 already tracked, 2 closed" || fail "clean report"
 python3 "$issues" "$url" o/r img "$tmp/clean.json" 2>/dev/null && fail "ran without token"
-TRIVY_ISSUE_TOKEN=t python3 "$issues" "$url" o/r img "$tmp/clean.json" | grep -q "no HIGH/CRITICAL" || fail "clean"
-: > "$tmp/requests.log"
-TRIVY_DRY_RUN=1 python3 "$issues" "$url" o/r img "$tmp/report.json" | grep -q "would open: \[trivy\] CVE-1" || fail "dry run"
-[ -s "$tmp/requests.log" ] && fail "dry run made requests"
+: > "$reqlog"
+TRIVY_DRY_RUN=1 python3 "$issues" "$url" o/r img "$tmp/report.json" | grep -q "would open (unless tracked): \[trivy\] CVE-1" || fail "dry run"
+[ -s "$reqlog" ] && fail "dry run made requests"
 TRIVY_ISSUE_TOKEN=t python3 "$issues" "$url" o/r img "$tmp/missing.json" 2>/dev/null && fail "missing report accepted"
 python3 "$issues" a b 2>/dev/null && fail "bad usage accepted"
 echo "edge-cases-ok"

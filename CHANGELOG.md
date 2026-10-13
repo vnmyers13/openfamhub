@@ -1,3 +1,16 @@
+## [Unreleased] — Release process: issues and TODO.md (2026-10-13)
+
+### Added
+- **Issues close when their work is done**: when every TODO.md line naming an issue is ticked, the new `issues` CI job closes it after the build deploys to `test`, with a comment naming the build. `Fixes #N` in a commit message works too.
+- **Trivy issues close themselves** once a scan of a newer build no longer finds the vulnerability.
+- **Triage against TODO.md**: `scripts/issues.py triage` ranks open issues by priority (P0–P3, from TODO.md, else a `priority/…` label or the Trivy severity) and lists issues TODO.md doesn't mention, done-but-open issues, closed issues still unticked, and priority mismatches. `--strict` makes it a release gate. The CI job prints the report on every build.
+- `docs/releasing.md`: the release steps, and the rules for keeping issues and TODO.md in step. TODO.md has a new **Open issues** section for issues not yet scheduled into a phase.
+
+### Changed
+- The issue token secret is now `ISSUES_TOKEN`; `TRIVY_ISSUE_TOKEN` still works.
+
+---
+
 ## [Unreleased] — CI: Trivy image scan (builds 0.96–0.97, 2026-10-13)
 
 ### Added

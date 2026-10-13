@@ -8,6 +8,7 @@ Read these before changing code:
 - [docs/architecture.md](docs/architecture.md): how the app works, including time handling and auth
 - [TODO.md](TODO.md): **the source of truth** for the roadmap and the task list
 - [docs/deployment.md](docs/deployment.md): publish and deploy
+- [docs/releasing.md](docs/releasing.md): releasing a phase, and keeping Forgejo issues in step with TODO.md
 
 ## Which code is canonical
 
@@ -16,6 +17,8 @@ Read these before changing code:
 - **Remotes:** `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary; CI runs here) and `origin` (GitHub). Mirrors at `192.168.10.101:3002` and `192.168.10.102:3002` (same path). Push to the primary first, then GitHub and the mirrors. After rebasing onto a moved `master`, run `scripts/renumber origin/master`.
 
 ## Rules
+
+- **Issues:** every open Forgejo issue appears in TODO.md with a priority (**P0**–**P3**); TODO.md decides the order of work. Before starting a phase, run `python3 scripts/issues.py triage` and schedule what it lists (open P0/P1 items come first). When you finish an item, tick its TODO line, which names the issue as `#N` or its link; CI closes the issue once the build deploys. Claude sessions can't reach Forgejo, so ask Vern to run triage and paste the output.
 
 - **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 278 backend tests in 22 files and 174 frontend tests in 31 files (0.94); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
 - **Time:**

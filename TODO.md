@@ -29,7 +29,13 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Phase 12 | Home Assistant, AI, notes | |
 | Phase 13 | Two-way calendar sync | |
 
-The `pre-commit` hook bumps `VERSION` on every commit (see `docs/ci.md`); CI publishes each `master` build and deploys it to `test`.
+The `pre-commit` hook bumps `VERSION` on every commit (see `docs/ci.md`); CI publishes each `master` build and deploys it to `test`. The release steps, including the issue checks, are in [docs/releasing.md](docs/releasing.md).
+
+## Open issues
+
+Forgejo issues not yet scheduled into a phase, highest priority first. Every open issue must appear in this file, here or in the phase that will fix it, with a priority: **P0** fix before the next release is confirmed, **P1** before the next phase starts, **P2** schedule into a phase, **P3** someday. Run `python3 scripts/issues.py triage` at the start of each phase and before each release; it lists issues missing from this file with a line ready to paste. An issue closes automatically once every line naming it is ticked (see [docs/releasing.md](docs/releasing.md)).
+
+_None triaged yet; run `scripts/issues.py triage` to check._
 
 ## Review backlog (2026-10-11)
 

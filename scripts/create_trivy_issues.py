@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-"""Open Forgejo issues for HIGH/CRITICAL findings in a Trivy JSON report.
+"""Keep Forgejo issues in step with a Trivy JSON report.
 
 Usage:
     TRIVY_ISSUE_TOKEN=... create_trivy_issues.py <forgejo_url> <owner/repo> <image> <report.json>
 
-The token is read from the environment, never from argv, so it doesn't show up
-in process listings or CI logs. One issue is opened per (vulnerability, package,
-image name); the tag is left out of the title so a finding that survives several
-releases keeps a single issue. An issue whose title already exists, open or closed, is not opened again,
-so closing an issue marks the finding as handled. At most TRIVY_MAX_ISSUES (default
-20) issues are opened per run. Set TRIVY_DRY_RUN=1 to print what would be opened.
+<image> is the scanned image, e.g. openfamhub-api:0.97. The token is read from the
+environment, never from argv, so it doesn't show up in process listings or CI logs.
+
+- Opens one issue per HIGH/CRITICAL (vulnerability, package, image name). The tag is
+  left out of the title so a finding that survives several releases keeps one issue.
+  An issue whose title already exists, open or closed, is not opened again, so
+  closing an issue by hand (risk accepted) keeps it closed.
+- Closes open [trivy] issues for this image whose finding is no longer in the report,
+  with a comment naming the build that no longer has it.
+- Opens at most TRIVY_MAX_ISSUES (default 20) issues per run.
+- TRIVY_DRY_RUN=1 prints what would change without calling the API.
 
 Network and API errors are reported but never fail the run (exit code 0); a missing
 token, bad arguments or an unreadable report exit with 2.
@@ -17,17 +22,17 @@ token, bad arguments or an unreadable report exit with 2.
 
 import json
 import os
+import re
 import sys
-import urllib.error
-import urllib.parse
-import urllib.request
+
+from forgejo_api import ApiError, Forgejo, describe
 
 SEVERITIES = ("CRITICAL", "HIGH")
-TIMEOUT = 20
+TITLE_RE = re.compile(r"^\[trivy\] (?P<vid>\S+): (?P<pkg>.+) in (?P<image>\S+)$")
 
 
 def load_findings(report_path):
-    """Return sorted (severity, id, pkg, installed, fixed, title) tuples."""
+    """Return sorted (severity, id, pkg, installed, fixed, summary) tuples."""
     with open(report_path, encoding="utf-8") as fh:
         data = json.load(fh)
     findings = {}
@@ -52,9 +57,12 @@ def load_findings(report_path):
     return sorted(findings.values(), key=lambda f: (SEVERITIES.index(f[0]), f[1], f[2]))
 
 
+def image_name(image):
+    return image.split(":")[0]
+
+
 def issue_title(vid, pkg, image):
-    # Leave the tag out so a finding keeps one issue across releases.
-    return f"[trivy] {vid}: {pkg} in {image.split(':')[0]}"
+    return f"[trivy] {vid}: {pkg} in {image_name(image)}"
 
 
 def issue_body(finding, image):
@@ -67,42 +75,14 @@ def issue_body(finding, image):
         f"ID: `{vid}`\n\n"
         f"{summary}\n\n"
         "---\n"
-        "Opened by the CI Trivy job. Close this issue once the image is rebuilt "
-        "without the finding, or to accept the risk; it won't be reopened."
+        "Opened by the CI Trivy job, which closes it once a scan no longer finds it. "
+        "Close it by hand to accept the risk; it won't be reopened."
     )
-
-
-class Api:
-    def __init__(self, base_url, repo, token):
-        self.base = f"{base_url.rstrip('/')}/api/v1/repos/{repo}"
-        self.headers = {
-            "Authorization": f"token {token}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
-
-    def _call(self, method, path, payload=None):
-        data = json.dumps(payload).encode() if payload is not None else None
-        req = urllib.request.Request(
-            self.base + path, data=data, headers=self.headers, method=method
-        )
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            return json.loads(resp.read() or b"null")
-
-    def issue_exists(self, title, vid):
-        query = urllib.parse.urlencode(
-            {"state": "all", "type": "issues", "q": vid, "limit": 50}
-        )
-        issues = self._call("GET", f"/issues?{query}") or []
-        return any(issue.get("title") == title for issue in issues)
-
-    def create_issue(self, title, body):
-        return self._call("POST", "/issues", {"title": title, "body": body})
 
 
 def main(argv):
     if len(argv) != 5:
-        print(__doc__.strip().splitlines()[2], file=sys.stderr)
+        print(__doc__.strip().splitlines()[3].strip(), file=sys.stderr)
         return 2
     base_url, repo, image, report_path = argv[1:]
     dry_run = os.environ.get("TRIVY_DRY_RUN") == "1"
@@ -114,44 +94,65 @@ def main(argv):
         max_issues = int(os.environ.get("TRIVY_MAX_ISSUES", "20"))
     except ValueError:
         max_issues = 20
-
     try:
         findings = load_findings(report_path)
     except (OSError, ValueError) as exc:
         print(f"Can't read {report_path}: {exc}", file=sys.stderr)
         return 2
 
-    if not findings:
-        print(f"{image}: no HIGH/CRITICAL findings")
-        return 0
+    name = image_name(image)
     print(f"{image}: {len(findings)} HIGH/CRITICAL finding(s)")
+    if dry_run:
+        for f in findings:
+            print(f"  would open (unless tracked): {issue_title(f[1], f[2], image)}")
+        return 0
 
-    api = Api(base_url, repo, token)
+    api = Forgejo(base_url, repo, token)
+    try:
+        issues = api.issues(state="all")
+    except ApiError as exc:
+        print(f"  can't list issues: {describe(exc)}")
+        return 0
+    titles = {i.get("title") for i in issues}
+
     opened = existing = failed = 0
     for finding in findings:
         sev, vid, pkg = finding[:3]
         title = issue_title(vid, pkg, image)
-        if dry_run:
-            print(f"  would open: {title}")
+        if title in titles:
+            existing += 1
             continue
         if opened >= max_issues:
             print(f"  limit of {max_issues} new issues reached; the rest wait for the next run")
             break
         try:
-            if api.issue_exists(title, vid):
-                existing += 1
-                continue
             issue = api.create_issue(title, issue_body(finding, image))
             opened += 1
+            titles.add(title)
             print(f"  opened [{sev}] {vid} ({pkg}): {(issue or {}).get('html_url', '?')}")
-        except urllib.error.HTTPError as exc:
+        except ApiError as exc:
             failed += 1
-            print(f"  failed {vid} ({pkg}): HTTP {exc.code} {exc.read().decode(errors='replace')[:120]}")
-        except (urllib.error.URLError, OSError, ValueError) as exc:
+            print(f"  failed {vid} ({pkg}): {describe(exc)}")
+
+    current = {(f[1], f[2]) for f in findings}
+    closed = 0
+    for issue in issues:
+        m = TITLE_RE.match(issue.get("title") or "")
+        if issue.get("state") != "open" or not m or m["image"] != name:
+            continue
+        if (m["vid"], m["pkg"]) in current:
+            continue
+        number = issue.get("number")
+        try:
+            api.comment(number, f"No longer found in `{image}`. Closed by the CI Trivy job.")
+            api.close(number)
+            closed += 1
+            print(f"  closed #{number} {m['vid']} ({m['pkg']}): fixed in {image}")
+        except ApiError as exc:
             failed += 1
-            print(f"  failed {vid} ({pkg}): {exc}")
-    if not dry_run:
-        print(f"{image}: {opened} opened, {existing} already tracked, {failed} failed")
+            print(f"  failed to close #{number}: {describe(exc)}")
+
+    print(f"{name}: {opened} opened, {existing} already tracked, {closed} closed, {failed} failed")
     return 0
 
 

@@ -89,8 +89,9 @@ jobs:
   # Trivy scan of the images `publish` just pushed (tag 0.<VERSION>). Non-blocking:
   # findings and scan errors never turn CI red or hold up `deploy`. Reports are
   # uploaded as the `trivy-reports` artifact. With CREATE_ISSUES=1 and the
-  # TRIVY_ISSUE_TOKEN secret set, HIGH/CRITICAL findings become backlog issues
-  # (one per finding, never duplicated). See docs/ci.md#trivy-scan.
+  # ISSUES_TOKEN secret set, HIGH/CRITICAL findings become backlog issues (one
+  # per finding, never duplicated) and closed once a scan no longer finds them.
+  # See docs/ci.md#trivy-scan.
   trivy:
     needs: [publish]
     if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master'
@@ -114,14 +115,14 @@ jobs:
           name: trivy-reports
           path: trivy-reports/
           retention-days: 30
-      - name: Open backlog issues for HIGH/CRITICAL findings
+      - name: Open and close issues for HIGH/CRITICAL findings
         if: env.CREATE_ISSUES == '1'
         continue-on-error: true
         env:
-          TRIVY_ISSUE_TOKEN: ${{ secrets.TRIVY_ISSUE_TOKEN }}
+          TRIVY_ISSUE_TOKEN: ${{ secrets.ISSUES_TOKEN || secrets.TRIVY_ISSUE_TOKEN }}
         run: |
           if [ -z "$TRIVY_ISSUE_TOKEN" ]; then
-            echo "TRIVY_ISSUE_TOKEN secret not set; skipping issue creation."
+            echo "ISSUES_TOKEN secret not set; skipping issue updates."
             exit 0
           fi
           for component in api web; do
@@ -130,3 +131,24 @@ jobs:
             python3 scripts/create_trivy_issues.py "$FORGEJO_URL" "$FORGEJO_REPO" \
               "openfamhub-$component:0.$(cat VERSION)" "$report"
           done
+
+  # Keep Forgejo issues in step with TODO.md once a build is deployed to `test`:
+  # close issues TODO.md marks done, then print the triage report (open issues by
+  # priority, and drift from TODO.md). Non-blocking. See docs/releasing.md.
+  issues:
+    needs: [deploy]
+    if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master'
+    runs-on: openfamhub
+    steps:
+      - uses: builtin:checkout
+      - name: Close done issues and report triage
+        continue-on-error: true
+        env:
+          ISSUES_TOKEN: ${{ secrets.ISSUES_TOKEN || secrets.TRIVY_ISSUE_TOKEN }}
+        run: |
+          if [ -z "$ISSUES_TOKEN" ]; then
+            echo "ISSUES_TOKEN secret not set; skipping."
+            exit 0
+          fi
+          python3 scripts/issues.py close-done --apply
+          python3 scripts/issues.py triage

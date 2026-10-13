@@ -7,6 +7,7 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 - Default branch: `master`. Remotes: `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary; CI runs here) and `origin` (GitHub). Mirrors: `192.168.10.101:3002` and `192.168.10.102:3002` (same `vernon/OpenFamHub.git` path). Push to the primary first, then the others.
 - After rebasing onto a moved `master`, run `scripts/renumber origin/master` so commits continue the `VERSION` sequence.
 - Work on a branch with one commit per logical change.
+- When a change completes a Forgejo issue, tick its TODO.md line (which names the issue as `#N` or its link) in the same commit, and add `Fixes #N` to the commit message. See `docs/releasing.md`.
 - After cloning, run `git config core.hooksPath .githooks`. The next commit will be `0.(current+1)`.
 
 ## Registries
