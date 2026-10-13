@@ -196,6 +196,14 @@ Rolling back across a schema change isn't supported: restore the backup taken be
 
 ### Version notes
 
+- **0.75–0.82 (Phase 3, iCal correctness).** No configuration changes. Calendar subscriptions now honour cancelled and moved instances, keep wall-clock times across DST changes, and store only 90 days back to a year ahead (older synced events are removed at the next sync). Times without a timezone in a feed are read in the **family timezone**. Installs set up before 0.78 defaulted that to UTC; check it, and if it's wrong, set it (there's no settings page yet) and press **Sync Now** on each calendar:
+
+  ```bash
+  ssh test 'cd ~/openfamhub && docker compose exec api python -c "import sqlite3; c = sqlite3.connect(\"/data/db/homehub.db\"); print(c.execute(\"SELECT name, timezone FROM families\").fetchall())"'
+  ssh test 'cd ~/openfamhub && docker compose exec api python -c "import sqlite3; c = sqlite3.connect(\"/data/db/homehub.db\"); c.execute(\"UPDATE families SET timezone = ?\", (\"America/Detroit\",)); c.commit()"'
+  ```
+
+  Adding a calendar now fails straight away (with the reason) if its first sync fails, instead of adding a calendar that shows an error later.
 - **0.31–0.73 (review fixes).** No configuration changes. Migration 006 (one family per install) runs at startup. Image tags changed from `0.30.<run>` to one number per commit, `0.<n>`; the current `deploy.sh remote` writes the new tag to the server's `.env`. Repeating calendar subscriptions showed their first occurrence twice; the extra copy disappears at the next sync (or press **Sync Now** in Admin › Calendars). Reload wall displays once to get the midnight rollover and the revocation fix.
 - **0.30.** Migrations run automatically at startup; older databases are stamped first. Sign-in moved to avatar + PIN, with a password for admin changes.
 

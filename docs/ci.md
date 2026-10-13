@@ -18,9 +18,11 @@ or GitHub don't run CI.
 | `publish` | `openfamhub` (host) | push to `master` only |
 | `deploy` | `openfamhub` (host) | push to `master` only |
 
-`backend` runs `pytest backend/tests` (unit, API and a startup test that boots the
-app to check migrations and scheduled jobs). `frontend` runs `npm run lint`,
-`npm test` (Vitest), the build-info tests and `npm run build`. `version` checks the
+`backend` runs `pytest --cov` from `backend/` (unit, API and a startup test that
+boots the app to check migrations and scheduled jobs) and fails below the coverage
+floor in `backend/.coveragerc`. `frontend` runs `npm run lint`, `npm run test:coverage`
+(Vitest; fails below the thresholds in `vitest.config.ts`), the build-info tests and
+`npm run build`. `version` checks the
 `VERSION` sequence and runs the script test harnesses in `scripts/tests/`.
 
 `publish` builds `linux/amd64` and `linux/arm64` images for `openfamhub-api` and
@@ -116,4 +118,5 @@ or push to `master` to publish and deploy.
 | `publish`: `unauthorized` | `REGISTRY_TOKEN` is missing or lacks package write scope. |
 | arm64 build fails or is extremely slow | binfmt/QEMU not installed (step 5), or the emulated `pip install` timed out. Re-run; the buildx cache speeds up later runs. |
 | `deploy` succeeds but the site is stale | Check `docker compose ps` in `~/openfamhub`; the API should be `healthy` and `OPENFAMHUB_VERSION` should match `0.$(cat VERSION)`. |
+| `Required test coverage of 93% not reached` / `ERROR: Coverage for … does not meet threshold` | New code without tests. Add tests; don't lower the floor. `pytest --cov` (backend) and `npm run test:coverage` (frontend) show the uncovered lines. |
 | `builtin:checkout` fails with `needs git on PATH` | The job's container image has no `git` (e.g. a `-slim` image). Use an image that ships `git` (the `openfamhub-python` label maps to `python:3.12`). `git` on the runner host itself must also be ≥ 2.34.1. |

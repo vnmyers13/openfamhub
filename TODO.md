@@ -18,7 +18,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 |---|---|---|
 | Phases 2 + 4 | Security, sign-in model, infra/CI | 0.30 |
 | Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.73 except the prod host (deferred); **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
-| Phase 3 + 3b | iCal correctness; wall essentials (photo slideshow, sleep schedule, backups) | |
+| Phase 3 + 3b | iCal correctness (code complete at 0.82); wall essentials (photo slideshow, sleep schedule, backups) | |
 | Phase 5 | Chores, to-dos, routines | |
 | Phase 6 | Rewards | |
 | Phase 7 | Meals | |
@@ -124,17 +124,18 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
   - Users get an emoji avatar (reuse `avatar_type="emoji"`, `avatar_value`).
   - Tests first: lockout after N failures; a PIN session gets 403 on an admin endpoint; a password session passes; profiles exposes no other fields.
 
-## Phase 3 — iCal correctness
+## Phase 3 — iCal correctness ✅ (code complete at 0.82)
 - [x] Don't duplicate the first occurrence of recurring events. Fixed in the review backlog ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
-- [ ] Honor EXDATE and RECURRENCE-ID (cancelled or moved instances).
+- [x] Honor EXDATE and RECURRENCE-ID (cancelled or moved instances). Also RDATE and STATUS:CANCELLED; an override keeps the UID of the instance it replaces.
 - [x] Keep `all_day` on expanded recurrences. Fixed in the review backlog ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
-- [ ] Store a window only (about 90 days back to 365 days ahead) instead of full history.
-- [ ] Look up existing UIDs in one batch query per sync.
-- [ ] Floating times (no `TZID`, no `Z`) are local wall-clock times: interpret them in the family timezone, not UTC.
+- [x] Store a window only (about 90 days back to 365 days ahead) instead of full history. Series expand inside the window only; synced rows that leave it are deleted, not soft-deleted.
+- [x] Look up existing UIDs in one batch query per sync.
+- [x] Floating times (no `TZID`, no `Z`) are local wall-clock times: interpret them in the family timezone, not UTC. TZID series also keep their wall time across DST (icalendar's pytz zones are converted to zoneinfo).
 - [x] All-day events without `DTEND`/`DURATION` last one day ([#3](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/3)); fixed in the review backlog.
 - [x] Keep `all_day` on recurrences and drop the duplicate first occurrence ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
-- [ ] `add_ical_source` downloads the feed twice (a reachability check, then the sync). Run the sync once and turn a failed first sync into the 400 response.
-- Tests first: a recurring event yields each occurrence once; EXDATE removes an instance and RECURRENCE-ID moves one; all-day recurrences stay all-day; floating times land at the family's local time; events outside the window are not stored.
+- [x] `add_ical_source` downloads the feed twice (a reachability check, then the sync). Run the sync once and turn a failed first sync into the 400 response.
+- Tests first: a recurring event yields each occurrence once; EXDATE removes an instance and RECURRENCE-ID moves one; all-day recurrences stay all-day; floating times land at the family's local time; events outside the window are not stored. Done: `test_ical_phase3.py`, `test_calendar_sync.py`.
+- [ ] **Family settings page** (admin): change the family name and timezone after setup. The timezone now decides how floating feed times are read, and setup used to default it to UTC; until this exists, see the 0.75–0.82 upgrade note in `docs/deployment.md`.
 
 ## Phase 3b — Wall essentials
 Pulled forward from Phase 10: these are what make the wall worth looking at every day.
@@ -166,8 +167,8 @@ parallel product line (chores/rewards/meals), not 11 releases ahead of us. We po
 *our* architecture, one domain at a time, and inherit our auth, `family_id` tenant scoping,
 `UTCDateTime`, deploy tooling and CI rather than its code. Phases 11–13 extend past v0.29 with the Cozyla-parity items listed above.
 
-Each phase writes its tests **before** the code, in the same change. Baseline (0.73): 89 backend tests in 10
-files (`v0.29` has 65 in 13) and 35 frontend tests in 8 files (Vitest, `npm test`).
+Each phase writes its tests **before** the code, in the same change. Baseline (0.82): 166 backend tests in 17
+files (`v0.29` has 65 in 13) and 97 frontend tests in 20 files (Vitest). Coverage: backend 96% (CI floor 93%), frontend 93% of statements (CI thresholds in `vitest.config.ts`).
 
 Ordering is by dependency: rewards spends the points ledger chores introduce, and books awards points.
 

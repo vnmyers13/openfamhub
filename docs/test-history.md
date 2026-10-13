@@ -38,3 +38,9 @@ This document tracks the testing activities, bug reports, and verification steps
 - Release tooling: `scripts/tests/*-test.sh`: 4 harnesses passed; `scripts/check-version.sh` OK.
 - Not yet verified on the `test` VM.
 
+
+## 0.82 — Phase 3 + coverage — 2026-10-12
+- Backend: `pytest --cov`: 166 passed, coverage 96% (CI floor 93%). New: parser (EXDATE/RECURRENCE-ID/RDATE, floating times, DST, storage window), sync job, adding feeds, backups, users, wall and calendar routes.
+- Frontend: `npm run test:coverage`: 97 passed in 20 files, 93% statements / 82% branches; lint clean; build OK. New: app boot, sign-in, calendar page, admin pages, wall strip/layout, NavShell.
+- Found and fixed by the new tests: PATCH /calendar/sources answered 500; an unmounted password prompt could hang later admin actions; setup defaulted the family timezone to UTC.
+- Not yet verified on the `test` VM.

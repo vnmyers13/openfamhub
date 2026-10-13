@@ -17,7 +17,7 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 ```
 backend/app/        FastAPI app: core/ models/ schemas/ routers/ services/ integrations/ jobs/
 backend/scripts/    one-off maintenance (fix_event_timezones.py)
-backend/tests/      pytest (phase1/2, auth, ssrf, realtime, ical_recurrence, calendar_scoping, single_family, startup, version)
+backend/tests/      pytest (phase1/2, auth, ssrf, realtime, ical_recurrence, ical_phase3, calendar_sync, calendar_scoping, calendar_routes, single_family, users_api, wall_api, ws_manager, backup, startup, version)
 backend/alembic/    migrations 001–006 (004 = wall_devices, 005 = session auth_method, 006 = one family per install); run at startup
 frontend/src/       React app: api/ lib/ (dates, permissions) hooks/ pages/ (lazy-loaded) wall/ components/; tests are *.test.ts[x] beside the code
 config/             Caddyfile (LAN TLS), Caddyfile.proxy (behind proxy), routes.caddy (shared)
@@ -29,8 +29,8 @@ docker-compose.yml  build-from-source stack; image names match published ones
 ## Commands
 | Action | Command |
 |---|---|
-| Backend tests | `cd backend && source .venv/bin/activate && pytest -v` |
-| Frontend tests (Vitest, TZ pinned to America/Detroit) | `cd frontend && npm test` (`npm run test:watch` while developing) |
+| Backend tests (+ coverage, floor in `backend/.coveragerc`) | `cd backend && source .venv/bin/activate && pytest -v --cov` |
+| Frontend tests (Vitest, TZ pinned to America/Detroit) | `cd frontend && npm test`; `npm run test:coverage` for coverage + thresholds (CI); `npm run test:watch` while developing |
 | Frontend lint / typecheck + build | `cd frontend && npm run lint` / `npm run build` |
 | Dev servers | `uvicorn app.main:app --reload --port 8000` (in backend/) + `npm run dev` (in frontend/) |
 | Local container stack | `scripts/deploy.sh setup && scripts/deploy.sh deploy` |
@@ -44,6 +44,8 @@ docker-compose.yml  build-from-source stack; image names match published ones
 - **Schema:** startup runs Alembic (`app/core/migrate.py`; pre-0.30 databases are stamped first). Add a migration for every model change (next: 007), and import new models in `models/__init__.py` and `alembic/env.py`.
 - **Auth:** every user token's `jti` is a `sessions` row (revoked on logout, password change and removal). Sessions record `auth_method` (pin|password); admin endpoints need a password session or `/auth/elevate` within 15 min, otherwise 403 `password_required`. Failed sign-ins lock out per person (`login_throttle`). Wall displays use a `wall_token` cookie scoped to `/api/wall` (SHA-256 stored). The axios 401 handler skips `/auth/*` and `/wall/*`.
 - **Live updates:** never call `event_bus.emit` from request or job code; use `queue_event(db, ...)` so the notice is published after commit (`get_db` / `publish_queued`).
+- **iCal parsing:** `integrations/ical_feed.parse_ics(content, family_tz, now)` is pure; test it directly with a fixed `now`. Every occurrence is a UTC instant; zoned times go through zoneinfo (icalendar returns pytz zones, which drift at DST under rrule).
+- **Frontend component tests:** use `src/test/api.ts` (`mockApi`, `apiError`) and `src/test/render.tsx` (`renderApp`) rather than mocking hooks.
 - **Server-side fetches of user URLs:** use `resolve_public_addresses` and connect to the returned IP (see `fetch_ics_bytes`), never a plain `httpx.get(url)`.
 - **Single API worker:** the scheduler, event bus, WebSocket hub and PIN rate limiter are all in-process. Don't add uvicorn workers.
 - **node_modules on the Mac** holds macOS binaries. `vite build` fails in Linux containers or VMs that reuse it, so `frontend/.dockerignore` excludes it.

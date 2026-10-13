@@ -17,7 +17,7 @@ Read these before changing code:
 
 ## Rules
 
-- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 89 backend tests in 10 files and 35 frontend tests in 8 files (0.73). Run `cd backend && source .venv/bin/activate && pytest -v`, then `cd frontend && npm test && npm run lint && npm run build`.
+- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 166 backend tests in 17 files and 97 frontend tests in 20 files (0.82); coverage is 96% backend (CI fails below 93%) and 93% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
 - **Time:**
   - Every datetime column is `UTCDateTime` (`backend/app/core/types.py`).
   - The API returns `+00:00` values.
@@ -59,7 +59,7 @@ When porting a feature, re-implement it rather than copying the file. TODO.md ha
 |---|---|---|
 | 1 | Routing, login errors, time zones, ranges, Sync Now/Delete, source filter, wall pairing, `deploy.sh` | Done, shipped in 0.18 |
 | 2 | Security: event roles, avatar + PIN sign-in with password for admins, remove `/users/switch`, session revocation | Done, shipped in 0.30 |
-| 3 | iCal correctness: duplicate first occurrence, EXDATE/RECURRENCE-ID, all-day recurrences, floating times, storage window, batch UID lookup | Open |
+| 3 | iCal correctness: duplicate first occurrence, EXDATE/RECURRENCE-ID, all-day recurrences, floating times, storage window, batch UID lookup | Done, 0.82 |
 | 3b | Wall essentials: photo/video slideshow (media library, EXIF stripping, wall-token reads), sleep schedule, off-host backups | Open |
 | 4 | Infra/cleanup: Alembic on start, CI, Workbox patterns, Pi script, dead code, settings, `.gitignore` | Done, shipped in 0.30 |
 | 5 | Port chores (+ to-dos, routines); fix v0.29's missing points credit, interval drift, UTC due dates | Open |

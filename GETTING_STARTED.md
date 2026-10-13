@@ -60,11 +60,12 @@ To run the full container stack instead: `scripts/deploy.sh deploy` (LAN mode, `
 ```bash
 # Backend
 source backend/.venv/bin/activate
-cd backend && pytest -v
+cd backend && pytest -v        # add --cov for coverage (CI fails below the floor in .coveragerc)
 
 # Frontend
 cd frontend
-npm test           # Vitest unit tests (npm run test:watch while developing)
+npm test           # Vitest unit and component tests (npm run test:watch while developing)
+npm run test:coverage   # same, with coverage and the CI thresholds; HTML report in coverage/
 npm run lint
 npm run build      # tsc -b + vite build; fails on type errors
 
@@ -72,9 +73,10 @@ npm run build      # tsc -b + vite build; fails on type errors
 for t in scripts/tests/*-test.sh; do bash "$t"; done
 ```
 
+- **Coverage:** the backend is at 96% (CI fails below 93%), the frontend at 93% of statements (thresholds in `vitest.config.ts`). New code comes with tests; raise a threshold when coverage grows, never lower one to get a change through.
 - Backend tests use an in-memory SQLite database and need `SECRET_KEY` (read from the repo-root `.env`, or export it).
-- Backend: `test_phase1.py` covers time handling, range queries, calendar sources and wall pairing; `test_phase2.py` sign-in, sessions, the admin password gate and event permissions; `test_ical_recurrence.py` recurring feeds; `test_calendar_scoping.py` source and family scoping; `test_single_family.py` one family per install and sign-in scope; `test_ssrf.py` feed fetching; `test_realtime.py` live updates; `test_startup.py` boots the real app (migrations + scheduler) in a subprocess.
-- Frontend tests live next to the code (`src/**/*.test.ts[x]`) and run in jsdom with `TZ=America/Detroit`, so date bugs west of UTC show up on every machine. The first ones cover `lib/dates.ts`, the wall (midnight rollover, WebSocket cleanup, revocation), the password prompt and the admin guard.
+- Backend: `test_phase1.py` covers time handling, range queries, calendar sources and wall pairing; `test_phase2.py` sign-in, sessions, the admin password gate and event permissions; `test_ical_recurrence.py` and `test_ical_phase3.py` the feed parser (recurrences, EXDATE/RECURRENCE-ID, floating times, DST, storage window); `test_calendar_sync.py` the sync job and adding feeds; `test_calendar_routes.py`, `test_users_api.py`, `test_wall_api.py` the remaining routes; `test_backup.py` the daily backup; `test_calendar_scoping.py` source and family scoping; `test_single_family.py` one family per install and sign-in scope; `test_ssrf.py` feed fetching; `test_realtime.py` live updates; `test_startup.py` boots the real app (migrations + scheduler) in a subprocess.
+- Frontend tests live next to the code (`src/**/*.test.ts[x]`) and run in jsdom with `TZ=America/Detroit`, so date bugs west of UTC show up on every machine. They cover `lib/`, the wall, sign-in, the calendar page, the admin pages and app boot routing. Component tests fake the API with `mockApi()` from `src/test/api.ts` and render with `renderApp()` from `src/test/render.tsx`.
 - Run `npm` commands on the Mac itself: `node_modules` contains macOS-native binaries, and a Linux container or VM can't use them.
 
 ## Conventions

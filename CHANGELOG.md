@@ -1,3 +1,21 @@
+## [Unreleased] — Phase 3: iCal correctness (builds 0.75–0.82, 2026-10-12)
+
+### Fixed
+- Subscribed calendars honour cancelled and moved instances of repeating events (EXDATE, RECURRENCE-ID, and cancelled events), and extra dates (RDATE). A moved instance no longer appears twice.
+- Repeating events keep their local time across daylight-saving changes (a 9:00 meeting stays at 9:00 in November).
+- Times without a timezone in a feed are read in the family's timezone instead of UTC. New installs default the family timezone to the device's zone (it used to default to UTC) and can pick any zone.
+- Adding a calendar downloads it once and refuses it, with the reason, if the first sync fails (for example a URL that returns a login page).
+- Editing a calendar source through the API no longer fails with a server error.
+- If the password prompt is closed unexpectedly, later admin actions no longer hang.
+
+### Changed
+- Only events from 90 days ago to a year ahead are stored for subscribed calendars; long-running series no longer generate every instance since they began, and each sync looks up existing events in one query.
+
+### Added
+- Test coverage: backend 96% and frontend 93% of statements, measured in CI, which now fails below set thresholds. New tests cover backups, sign-in, the calendar and admin pages, wall pairing and app boot.
+
+---
+
 ## [Unreleased] — Review fixes (builds 0.31–0.73, 2026-10-12)
 
 > Entries are keyed by roadmap phase or work batch, not by commit. The per-commit build number lives in `VERSION` (repo root) and advances with every commit; when a batch is confirmed on the `test` VM, its heading gets the build that shipped it (`[0.<n>] - <date> — …`).

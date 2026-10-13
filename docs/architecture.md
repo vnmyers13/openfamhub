@@ -89,9 +89,13 @@ A wall display can only read `/api/wall/events` and `/api/wall/members`, and ope
 
 - Every 15 minutes, `jobs.calendar_sync.sync_all_due` syncs each enabled `ical` source whose `sync_interval_hours` has passed.
 - **Sync Now** (`POST /api/calendar/sources/{id}/sync`) runs the same code immediately.
-- A sync fetches the feed (following redirects; `webcal://` is treated as `https://`), parses `VEVENT`s and expands `RRULE`s up to 12 months ahead. The first occurrence keeps the series UID; later ones are `<uid>_<start>`. Every occurrence keeps the series' duration and `all_day` flag. It then upserts events by `external_uid` and soft-deletes UIDs that have disappeared.
+- A sync fetches the feed once (following redirects; `webcal://` is treated as `https://`) and `parse_ics` turns it into events inside the **storage window**, 90 days back to 365 days ahead:
+  - Every occurrence is computed as a UTC instant. Dates are all-day (`00:00Z`); zoned times use their `TZID` (converted from pytz to zoneinfo so series keep their wall time across DST); **floating times** (no zone) are read in the family timezone.
+  - `RRULE`s expand inside the window only, plus `RDATE`s, minus `EXDATE`s. A `RECURRENCE-ID` override replaces the instance it names, or drops it if `STATUS:CANCELLED`, and keeps that instance's UID. The DTSTART occurrence uses the series UID; others are `<uid>_<start>`. Every occurrence keeps the series' duration and `all_day` flag.
+- The sync loads the source's existing rows in one query, upserts by `external_uid`, soft-deletes UIDs that disappeared (restored under the same id if they return), and deletes outright rows that have left the window.
+- Adding a feed runs its first sync as the reachability check, inside a savepoint: if it fails, nothing is saved and the admin gets the reason (400).
 - Each run writes a `sync_logs` row; the last error is stored on the source.
-- Known gaps (Phase 3 in [TODO.md](../TODO.md)): EXDATE/RECURRENCE-ID handling, floating times read as UTC instead of the family zone, full history being stored, and one UID lookup per event.
+- The family timezone can't be changed in the app yet (TODO: family settings page).
 
 ## Realtime
 
