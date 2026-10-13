@@ -44,15 +44,15 @@ The `pre-commit` hook bumps `VERSION` on every commit (see `docs/ci.md`); CI pub
 
 Forgejo issues not yet scheduled into a phase, highest priority first. Every open issue must appear in this file, here or in the phase that will fix it, with a priority: **P0** fix before the next release is confirmed, **P1** before the next phase starts, **P2** schedule into a phase, **P3** someday. Run `python3 scripts/issues.py triage` at the start of each phase and before each release; it lists issues missing from this file with a line ready to paste. An issue closes automatically once every line naming it is ticked (see [docs/releasing.md](docs/releasing.md)).
 
-Triaged 2026-10-13: 68 open issues, all from the Trivy image scan. They're grouped by the change that clears them; tick a line once the rebuilt image scans clean for every issue on it.
+Triaged 2026-10-13: 68 open issues, all from the Trivy image scan. Build 1.08 cleared 24 of them (closed by CI); the 44 Debian package issues remain. They're grouped by the change that clears them; tick a line once the rebuilt image scans clean for every issue on it.
 
-- [ ] **P1** Replace `python-jose` with PyJWT in `backend/app/core/security.py` (only `jwt.encode`/`jwt.decode` with HS256 are used). Clears python-jose CVE-2026-85394 ([#17](http://192.168.10.2:3002/vernon/OpenFamHub/issues/17)). Fix before Phase 6.
-- [ ] **P2** Drop `ecdsa` with the python-jose swap above; it only comes in as a python-jose dependency. CVE-2024-23342 (#18).
-- [ ] **P2** Bump `fastapi` (pinned 0.115.6) to a release whose Starlette is patched: starlette CVE-2025-62727, CVE-2026-48818, CVE-2026-54283 (#19, #31, #36).
-- [ ] **P2** Bump `python-multipart` (pinned 0.0.20): CVE-2026-24486, CVE-2026-42561, CVE-2026-53539 (#26, #30, #32).
-- [ ] **P2** Bump `Pillow` (pinned 11.3.0; check `pillow-heif` compatibility and rerun the media tests): CVE-2026-25990, -40192, -42311, -54058, -54059, -54060, -55379, -55380, -59197, -59199, -59200, -59204, -59205 (#27, #28, #29, #33, #34, #35, #41, #42, #43, #44, #45, #46, #47).
-- [ ] **P2** API image OS packages (`python:3.12-slim`): rebuild on a current base and add `apt-get upgrade -y` (or move to a newer Debian tag). ncurses CVE-2025-69720 (#20, #21, #22, #23); systemd CVE-2026-16742 (#24, #25); libacl1 CVE-2026-54369 (#40); perl-base CVE-2026-9538 (#85); util-linux CVE-2026-76642 (#48, #49, #50, #51, #52, #53, #54, #55, #56), CVE-2026-78408 (#57, #58, #59, #60, #61, #62, #63, #64, #65), CVE-2026-78409 (#66, #67, #68, #69, #70, #71, #72, #73, #74), CVE-2026-78410 (#75, #76, #77, #78, #79, #81, #82, #83, #84). Some may have no Debian fix yet; if so, mark them **P3** here and on Forgejo.
-- [ ] **P2** Web image OS packages (`nginx:alpine`): rebuild on a current tag and add `apk upgrade --no-cache`. pcre2 CVE-2026-103111 (#37), tiff CVE-2026-4775 (#38), libexpat CVE-2026-93990 (#39).
+- [x] **P1** Replace `python-jose` with PyJWT in `backend/app/core/security.py` (only `jwt.encode`/`jwt.decode` with HS256 are used). Clears python-jose CVE-2026-85394 ([#17](http://192.168.10.2:3002/vernon/OpenFamHub/issues/17)). Fix before Phase 6.
+- [x] **P2** Drop `ecdsa` with the python-jose swap above; it only comes in as a python-jose dependency. CVE-2024-23342 (#18).
+- [x] **P2** Bump `fastapi` (pinned 0.115.6) to a release whose Starlette is patched: starlette CVE-2025-62727, CVE-2026-48818, CVE-2026-54283 (#19, #31, #36).
+- [x] **P2** Bump `python-multipart` (pinned 0.0.20): CVE-2026-24486, CVE-2026-42561, CVE-2026-53539 (#26, #30, #32).
+- [x] **P2** Bump `Pillow` (pinned 11.3.0; check `pillow-heif` compatibility and rerun the media tests): CVE-2026-25990, -40192, -42311, -54058, -54059, -54060, -55379, -55380, -59197, -59199, -59200, -59204, -59205 (#27, #28, #29, #33, #34, #35, #41, #42, #43, #44, #45, #46, #47).
+- [ ] **P3** API image OS packages (`python:3.12-slim`): rebuild on a current base and add `apt-get upgrade -y` (or move to a newer Debian tag). ncurses CVE-2025-69720 (#20, #21, #22, #23); systemd CVE-2026-16742 (#24, #25); libacl1 CVE-2026-54369 (#40); perl-base CVE-2026-9538 (#85); util-linux CVE-2026-76642 (#48, #49, #50, #51, #52, #53, #54, #55, #56), CVE-2026-78408 (#57, #58, #59, #60, #61, #62, #63, #64, #65), CVE-2026-78409 (#66, #67, #68, #69, #70, #71, #72, #73, #74), CVE-2026-78410 (#75, #76, #77, #78, #79, #81, #82, #83, #84). Still open after 1.08's `apt-get upgrade`: Debian has no fix for these yet (P3 since 2026-10-13). Every build upgrades and pulls a fresh base, so Trivy closes them once Debian ships fixes; then tick this line.
+- [x] **P2** Web image OS packages (`nginx:alpine`): rebuild on a current tag and add `apk upgrade --no-cache`. pcre2 CVE-2026-103111 (#37), tiff CVE-2026-4775 (#38), libexpat CVE-2026-93990 (#39).
 
 ## Review backlog (2026-10-11)
 
@@ -230,7 +230,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [ ] Notify an admin when a reward request is waiting (needs Phase 11's notifications).
 
 ### Phase 7 — Meals and recipes
-- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
+- [x] **Before starting:** triaged 2026-10-13 (report for build 1.08): no P0/P1 open; the 44 open issues are P3 Debian packages (see Open issues).
 - [ ] `recipes` with dietary tags, plus text and JSON-LD import.
 - [ ] 7-day meal-plan grid with bulk update.
 - [ ] Shopping list tracking which recipe each item came from, regenerate, weekly reset job.
