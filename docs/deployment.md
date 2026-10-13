@@ -196,7 +196,8 @@ Rolling back across a schema change isn't supported: restore the backup taken be
 
 ### Version notes
 
-- **0.75–0.82 (Phase 3, iCal correctness).** No configuration changes. Calendar subscriptions now honour cancelled and moved instances, keep wall-clock times across DST changes, and store only 90 days back to a year ahead (older synced events are removed at the next sync). Times without a timezone in a feed are read in the **family timezone**. Installs set up before 0.78 defaulted that to UTC; check it, and if it's wrong, set it (there's no settings page yet) and press **Sync Now** on each calendar:
+- **0.84–0.88 (Phase 3b, wall essentials).** Migration 007 (media) runs at startup. The API image is about 70 MB larger (ffmpeg and Pillow, for photos and videos). New: **Photos** (members upload photos and videos; the idle wall shows them), **Admin › Settings** (family name, timezone, wall sleep schedule) and `backup-offhost.sh` (put in `~/openfamhub` by `deploy.sh remote`; set up the [off-host copy](#off-host-copies-nas)). The unauthenticated `/photos/…` route is gone: media is served only to signed-in members and paired walls. If a reverse proxy in front of OpenFamHub limits request size (nginx's default is 1 MB), raise it for video uploads (e.g. `client_max_body_size 500m`); Caddy has no limit. Reload wall displays once.
+- **0.75–0.82 (Phase 3, iCal correctness).** No configuration changes. Calendar subscriptions now honour cancelled and moved instances, keep wall-clock times across DST changes, and store only 90 days back to a year ahead (older synced events are removed at the next sync). Times without a timezone in a feed are read in the **family timezone**. Installs set up before 0.78 defaulted that to UTC: check it under **Admin › Settings** (from 0.87), then press **Sync Now** on each calendar. On 0.82–0.86, before that page existed, check and set it from the server:
 
   ```bash
   ssh test 'cd ~/openfamhub && docker compose exec api python -c "import sqlite3; c = sqlite3.connect(\"/data/db/homehub.db\"); print(c.execute(\"SELECT name, timezone FROM families\").fetchall())"'
@@ -336,6 +337,10 @@ The response should include matching `version`, `build`, and `commit` fields; if
 | Sign-in says "Too many attempts" | Failed PIN or password attempts lock that person out for 1, 5, then 15 minutes. Wait, or sign in another way (password vs. PIN). |
 | "This display isn't paired" | Create a pairing link under Admin › Wall displays and open it on the display. |
 | A calendar feed shows an error | Admin › Calendars › Log shows the message; **Sync Now** retries immediately. |
+| Uploading a video fails with `413` | A proxy in front of OpenFamHub limits request size; raise it (nginx: `client_max_body_size 500m`). OpenFamHub itself allows 500 MB (photos 30 MB, videos 10 minutes). |
+| A video stays on "Converting…" | Videos convert one at a time; a long clip can take a few minutes on a small server. `docker compose logs api` shows ffmpeg errors; a restart marks unfinished ones as failed so they can be uploaded again. |
+| An iPhone photo is refused as HEIC | Set the iPhone to Settings › Camera › Formats › Most Compatible, or share the photo as JPEG. HEIC support is planned. |
+| The wall screen is black | The sleep schedule (Admin › Settings) is on; a touch lights it for a few minutes. |
 
 ---
 

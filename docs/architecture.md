@@ -95,21 +95,36 @@ A wall display can only read `/api/wall/events` and `/api/wall/members`, and ope
 - The sync loads the source's existing rows in one query, upserts by `external_uid`, soft-deletes UIDs that disappeared (restored under the same id if they return), and deletes outright rows that have left the window.
 - Adding a feed runs its first sync as the reachability check, inside a savepoint: if it fails, nothing is saved and the admin gets the reason (400).
 - Each run writes a `sync_logs` row; the last error is stored on the source.
-- The family timezone can't be changed in the app yet (TODO: family settings page).
+- The family timezone is set in the setup wizard and changed under **Admin › Settings**.
+
+## Photos and videos (wall slideshow)
+
+- **Upload** (`POST /api/media`, admins and members): the file is the raw request body, streamed to `data/photos/media/.incoming/` with a running size check (500 MB upload, 30 MB photo, 10-minute video). The type comes from the first bytes (JPEG, PNG, WebP, GIF; MP4/MOV, WebM), never the client's header; HEIC is refused with instructions.
+- **Photos** are processed in a worker thread with Pillow: camera rotation applied, converted to RGB, saved as `wall.jpg` (long edge ≤ 1920) and `thumb.jpg` (≤ 400) with no EXIF.
+- **Videos** answer 202 and convert in the background (one at a time) with ffmpeg from `imageio-ffmpeg`: H.264/AAC MP4, ≤ 1920×1080, `-map_metadata -1` (no location, titles or dates), faststart, plus a thumbnail. The item is `processing`, then `ready` or `failed` (with the reason). Conversions interrupted by a restart are marked failed at startup.
+- **Storage**: `data/photos/media/<family_id>/<media_id>/`; the uploaded original is deleted after processing. The `media` table (migration 007) has `family_id` on every row.
+- **Serving**: only `/api/media/{id}/{wall|thumb}` (signed-in family members) and `/api/wall/media/{id}/{wall|thumb}` (paired displays), with HTTP range support for video. There is no public static route to `data/photos`.
+- **Deleting**: the uploader or an admin; files go with the row.
+
+## Family settings and the wall's sleep schedule
+
+`GET /api/family` (members) and `PATCH /api/family` (admins with an unlocked session) hold the family name, the IANA timezone and the wall sleep schedule (`enabled`, `off`, `on` as HH:MM; `off` later than `on` means overnight), stored in `families.settings_json`. The wall session returns the timezone and schedule; the wall evaluates the schedule itself with `Intl` in the family timezone (`lib/sleep.ts`), so it follows DST regardless of the display's own zone. While asleep the screen is black; a touch lights it for one idle period. Changing settings pushes `settings_updated`, and the wall refetches its session.
+
+On the idle screen `WallSlideshow` shows the family's ready media full screen, in an order from `lib/shuffle.ts` that uses every item before repeating; photos stay up 12 s, videos play muted to the end.
 
 ## Realtime
 
-Calendar changes call `queue_event(db, "calendar_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Walls reconnect after a drop (`wall/useWallWebSocket.ts`, which stops cleanly on unmount) and also poll every 15 minutes.
+Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Each wall opens one socket (`wall/useWallWebSocket.ts`, which reconnects after a drop and stops cleanly on unmount) and refetches the matching data; walls also poll every 15 minutes.
 
 ## Frontend layout (`frontend/src`)
 
 ```
 App.tsx            boot: setup status → /auth/me; routes (wall is outside the nav shell); pages are React.lazy chunks
 api/               axios client (401 → /login, except /auth/* and /wall/*; 403 password_required → one shared password prompt + retry), React Query hooks; wall.ts onWallUnauthorized
-lib/               dates.ts (time convention above), permissions.ts (client mirror of event roles)
+lib/               dates.ts (time convention above), permissions.ts (client mirror of event roles), sleep.ts, shuffle.ts, timezones.ts
 hooks/             useToday (local midnight, rolls over)
-pages/             Dashboard, CalendarPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays
-wall/              WallLayout (pairing gate, revocation → pairing screen, idle screen), clock, 7-day strip, useWallWebSocket, member list
+pages/             Dashboard, CalendarPage, PhotosPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays, admin/FamilySettings
+wall/              WallLayout (pairing gate, revocation → pairing screen, live session, sleep schedule, idle screen), WallSlideshow, clock, 7-day strip, useWallWebSocket, member list
 components/        NavShell (sidebar / mobile bottom nav, "Unlock admin", Help & About), RequireAdmin, PasswordPrompt, Avatar, BuildInfoBadge
 test/setup.ts      Vitest setup; tests are *.test.ts[x] next to the code
 ```

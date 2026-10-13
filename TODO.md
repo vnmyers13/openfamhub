@@ -18,7 +18,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 |---|---|---|
 | Phases 2 + 4 | Security, sign-in model, infra/CI | 0.30 |
 | Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.73 except the prod host (deferred); **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
-| Phase 3 + 3b | iCal correctness (code complete at 0.82); wall essentials (photo slideshow, sleep schedule, backups) | |
+| Phase 3 + 3b | iCal correctness (code complete at 0.82); wall essentials: photo/video slideshow, sleep schedule, family settings, off-host backups (code complete at 0.88) | |
 | Phase 5 | Chores, to-dos, routines | |
 | Phase 6 | Rewards | |
 | Phase 7 | Meals | |
@@ -135,16 +135,19 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
 - [x] Keep `all_day` on recurrences and drop the duplicate first occurrence ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
 - [x] `add_ical_source` downloads the feed twice (a reachability check, then the sync). Run the sync once and turn a failed first sync into the 400 response.
 - Tests first: a recurring event yields each occurrence once; EXDATE removes an instance and RECURRENCE-ID moves one; all-day recurrences stay all-day; floating times land at the family's local time; events outside the window are not stored. Done: `test_ical_phase3.py`, `test_calendar_sync.py`.
-- [ ] **Family settings page** (admin): change the family name and timezone after setup. The timezone now decides how floating feed times are read, and setup used to default it to UTC; until this exists, see the 0.75–0.82 upgrade note in `docs/deployment.md`.
+- [x] **Family settings page** (admin): change the family name and timezone after setup. Done in Phase 3b: Admin › Settings (also holds the wall sleep schedule).
 
-## Phase 3b — Wall essentials
+## Phase 3b — Wall essentials ✅ (code complete at 0.88)
 Pulled forward from Phase 10: these are what make the wall worth looking at every day.
-- [ ] **Photo/video slideshow screensaver.** Family media library: upload from the PWA (admins and members), list, delete; the idle wall screen cycles through it (replaces `WallPhotoPlaceholder`). Store originals and thumbnails under `data/photos` (already mounted and served at `/photos`).
+- [x] **Photo/video slideshow screensaver.** Family media library: upload from the PWA (admins and members), list, delete; the idle wall screen cycles through it (replaces `WallPhotoPlaceholder`). Store originals and thumbnails under `data/photos` (already mounted and served at `/photos`).
   - Uploads: size limit, image/video MIME allow-list, strip EXIF (location), generate a wall-sized rendition and a thumbnail; `family_id` on every media row (migration 007).
   - The wall reads media through a paired-device endpoint (`/api/wall/media`), never a user session.
-- [ ] **Sleep schedule.** Family setting for screen off/on times (separate from the idle timeout); the wall goes dark on schedule and wakes on touch. Evaluated in the family timezone.
-- [ ] **Off-host backups.** Photos make the data worth more: document (and optionally script) copying `data/backups` and `data/photos` to the NAS, and include photos in the restore steps.
-- Tests first: an upload with a disallowed type or size is rejected; EXIF GPS is stripped; another family's media is never listed; the slideshow uses every item before repeating; the sleep schedule respects the family timezone across DST; an unpaired wall can't read media.
+  - Done (0.84–0.87): videos are converted by ffmpeg (imageio-ffmpeg's static build) to H.264 MP4 with all metadata removed; photos lose EXIF. Only renditions are stored, never the original (stricter than "store originals": no location data stays on disk). The unauthenticated `/photos` static route is gone; files are served by `/api/media` and `/api/wall/media` only. HEIC isn't accepted yet (see below).
+- [x] **Sleep schedule.** Family setting for screen off/on times (separate from the idle timeout); the wall goes dark on schedule and wakes on touch. Evaluated in the family timezone.
+- [x] **Off-host backups.** Photos make the data worth more: document (and optionally script) copying `data/backups` and `data/photos` to the NAS, and include photos in the restore steps.
+- Tests first: an upload with a disallowed type or size is rejected; EXIF GPS is stripped; another family's media is never listed; the slideshow uses every item before repeating; the sleep schedule respects the family timezone across DST; an unpaired wall can't read media. Done: `test_media.py`, `test_family_settings.py`, `lib/sleep.test.ts`, `lib/shuffle.test.ts`, `WallSlideshow.test.tsx`, `WallLayout.test.tsx`, `scripts/tests/backup-offhost-test.sh`.
+- [ ] HEIC/HEIF photo uploads (iPhone default). Rejected with instructions today; converting needs `pillow-heif` (or ffmpeg). Follow-up.
+- [ ] Upload progress for large videos on the Photos page (axios `onUploadProgress`).
 
 ## Phase 4 — Infra and cleanup ✅ (shipped in 0.30)
 - [x] Run Alembic migrations on container start instead of `create_all`.
@@ -167,13 +170,13 @@ parallel product line (chores/rewards/meals), not 11 releases ahead of us. We po
 *our* architecture, one domain at a time, and inherit our auth, `family_id` tenant scoping,
 `UTCDateTime`, deploy tooling and CI rather than its code. Phases 11–13 extend past v0.29 with the Cozyla-parity items listed above.
 
-Each phase writes its tests **before** the code, in the same change. Baseline (0.82): 166 backend tests in 17
-files (`v0.29` has 65 in 13) and 97 frontend tests in 20 files (Vitest). Coverage: backend 96% (CI floor 93%), frontend 93% of statements (CI thresholds in `vitest.config.ts`).
+Each phase writes its tests **before** the code, in the same change. Baseline (0.88): 207 backend tests in 19
+files (`v0.29` has 65 in 13) and 128 frontend tests in 26 files (Vitest). Coverage: backend 96% (CI floor 93%), frontend 94% of statements (CI thresholds in `vitest.config.ts`).
 
 Ordering is by dependency: rewards spends the points ledger chores introduce, and books awards points.
 
 ### Phase 5 — Chores
-- [ ] `chore_templates` and `chore_instances` models + the next Alembic migration (006 is taken by the single-family trigger; 007 goes to Phase 3b media, so chores get 008). `UTCDateTime` throughout, `family_id` on both.
+- [ ] `chore_templates` and `chore_instances` models + the next Alembic migration (006 = single-family trigger, 007 = media, so chores get 008). `UTCDateTime` throughout, `family_id` on both.
 - [ ] Recurrence expansion into instances (reuse the Phase 3 iCal recurrence work where it fits).
 - [ ] Claim / complete lifecycle, quick-add, completion audit log.
 - [ ] Admin "By User" view: group by assignee with pending and completed counts.

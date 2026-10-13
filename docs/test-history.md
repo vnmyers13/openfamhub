@@ -44,3 +44,10 @@ This document tracks the testing activities, bug reports, and verification steps
 - Frontend: `npm run test:coverage`: 97 passed in 20 files, 93% statements / 82% branches; lint clean; build OK. New: app boot, sign-in, calendar page, admin pages, wall strip/layout, NavShell.
 - Found and fixed by the new tests: PATCH /calendar/sources answered 500; an unmounted password prompt could hang later admin actions; setup defaulted the family timezone to UTC.
 - Not yet verified on the `test` VM.
+
+## 0.88 — Phase 3b — 2026-10-12
+- Backend: `pytest --cov`: 207 passed, coverage 96%. New: media uploads (type/size limits, EXIF GPS stripped, video converted with metadata removed, range requests, family scoping, unpaired walls refused), family settings and the sleep schedule in the wall session.
+- Frontend: `npm run test:coverage`: 128 passed in 26 files, 94% statements / 84% branches. New: sleep schedule across DST in the family zone, shuffle bag, slideshow, Photos page, Admin › Settings.
+- Release tooling: 5 harnesses passed, including the new `backup-offhost-test.sh` (rsync and cp modes).
+- Not yet verified on the `test` VM.
+

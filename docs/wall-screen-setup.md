@@ -43,6 +43,10 @@ The wall doesn't use a family member's login. Instead, each display is paired on
 
 The display then stays signed in indefinitely (its cookie refreshes on every load). To cut a display off, click **Unpair** on the same page: at its next request (a live update or the 15-minute refresh) the display clears the calendar and shows the clock and a short "not paired" message instead of the login page.
 
+### What the wall shows
+- The clock, the family and the next seven days. After a few minutes without a touch it switches to a slideshow of the family's photos and videos (added on the **Photos** page), with the clock in the corner; a touch brings the calendar back. Videos play muted.
+- With a sleep schedule (**Admin › Settings**), the screen goes black between the off and on times, in the family's timezone. A touch lights it for a few minutes.
+
 ### 5. Reboot and Verify
 - Reboot your Raspberry Pi: `sudo reboot`.
 - The system should automatically launch Chromium in kiosk mode, pointing to your wall display URL.

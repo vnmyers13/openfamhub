@@ -1,3 +1,19 @@
+## [Unreleased] — Phase 3b: wall essentials (builds 0.84–0.88, 2026-10-12)
+
+### Added
+- **Photos & videos**: family members add photos and videos on the new Photos page, and the wall shows them full screen when it's idle, each one before any repeats. Photos lose their location data and are resized for the wall; videos are converted so a Raspberry Pi plays them smoothly, with all their metadata removed. The original upload isn't kept.
+- **Sleep schedule**: wall screens can go dark overnight, at times set in the family's timezone; a touch lights them for a few minutes.
+- **Family settings** (Admin › Settings): change the family name, timezone and sleep schedule after setup.
+- **Off-host backups**: `backup-offhost.sh` copies the daily database snapshots and the photos to a NAS or another disk, and the restore steps now include photos.
+
+### Security
+- The family's photo folder was readable without signing in at `/photos/…`. That route is gone: photos and videos are served only to signed-in family members and paired wall displays.
+
+### Changed
+- The API image is about 70 MB larger (ffmpeg and Pillow).
+
+---
+
 ## [Unreleased] — Phase 3: iCal correctness (builds 0.75–0.82, 2026-10-12)
 
 ### Fixed

@@ -17,12 +17,12 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 ```
 backend/app/        FastAPI app: core/ models/ schemas/ routers/ services/ integrations/ jobs/
 backend/scripts/    one-off maintenance (fix_event_timezones.py)
-backend/tests/      pytest (phase1/2, auth, ssrf, realtime, ical_recurrence, ical_phase3, calendar_sync, calendar_scoping, calendar_routes, single_family, users_api, wall_api, ws_manager, backup, startup, version)
-backend/alembic/    migrations 001–006 (004 = wall_devices, 005 = session auth_method, 006 = one family per install); run at startup
+backend/tests/      pytest (phase1/2, auth, ssrf, realtime, ical_recurrence, ical_phase3, calendar_sync, calendar_scoping, calendar_routes, single_family, family_settings, media, users_api, wall_api, ws_manager, backup, startup, version)
+backend/alembic/    migrations 001–007 (004 = wall_devices, 005 = session auth_method, 006 = one family per install, 007 = media); run at startup
 frontend/src/       React app: api/ lib/ (dates, permissions) hooks/ pages/ (lazy-loaded) wall/ components/; tests are *.test.ts[x] beside the code
 config/             Caddyfile (LAN TLS), Caddyfile.proxy (behind proxy), routes.caddy (shared)
 deploy/             compose.yml + env.template, copied to servers by deploy.sh remote
-scripts/            deploy.sh (setup/deploy/update/publish/remote/…), setup-wall-pi.sh
+scripts/            deploy.sh (setup/deploy/update/publish/remote/…), backup-offhost.sh, setup-wall-pi.sh; tests/ holds the shell harnesses
 docker-compose.yml  build-from-source stack; image names match published ones
 ```
 
@@ -41,10 +41,11 @@ docker-compose.yml  build-from-source stack; image names match published ones
 ## Gotchas
 - **Time:** every datetime column is `UTCDateTime`. Always pass aware datetimes, or naive values meaning UTC. The API returns `+00:00`. All-day events are `00:00Z` dates with an exclusive end. Frontend code must use `src/lib/dates.ts`.
 - **Range queries** use overlap, not start-in-range.
-- **Schema:** startup runs Alembic (`app/core/migrate.py`; pre-0.30 databases are stamped first). Add a migration for every model change (next: 007), and import new models in `models/__init__.py` and `alembic/env.py`.
+- **Schema:** startup runs Alembic (`app/core/migrate.py`; pre-0.30 databases are stamped first). Add a migration for every model change (next: 008), and import new models in `models/__init__.py` and `alembic/env.py`.
 - **Auth:** every user token's `jti` is a `sessions` row (revoked on logout, password change and removal). Sessions record `auth_method` (pin|password); admin endpoints need a password session or `/auth/elevate` within 15 min, otherwise 403 `password_required`. Failed sign-ins lock out per person (`login_throttle`). Wall displays use a `wall_token` cookie scoped to `/api/wall` (SHA-256 stored). The axios 401 handler skips `/auth/*` and `/wall/*`.
 - **Live updates:** never call `event_bus.emit` from request or job code; use `queue_event(db, ...)` so the notice is published after commit (`get_db` / `publish_queued`).
 - **iCal parsing:** `integrations/ical_feed.parse_ics(content, family_tz, now)` is pure; test it directly with a fixed `now`. Every occurrence is a UTC instant; zoned times go through zoneinfo (icalendar returns pytz zones, which drift at DST under rrule).
+- **Media uploads** are a raw request body (`X-Filename` header), not multipart, so the size limit applies while streaming. The type is sniffed from the first bytes. Background video jobs use `services/media.session_factory`; tests swap it for the test session and call `wait_for_jobs()`. Tests must point `MEDIA_ROOT` at a temp dir.
 - **Frontend component tests:** use `src/test/api.ts` (`mockApi`, `apiError`) and `src/test/render.tsx` (`renderApp`) rather than mocking hooks.
 - **Server-side fetches of user URLs:** use `resolve_public_addresses` and connect to the returned IP (see `fetch_ics_bytes`), never a plain `httpx.get(url)`.
 - **Single API worker:** the scheduler, event bus, WebSocket hub and PIN rate limiter are all in-process. Don't add uvicorn workers.
