@@ -16,7 +16,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Release | Contents | Shipped in |
 |---|---|---|
 | Phases 2 + 4 | Security, sign-in model, infra/CI | 0.30 |
-| Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, …) | in progress; **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
+| Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.70 except #5 (needs a decision) and the prod host (deferred); **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
 | Phase 3 + 3b | iCal correctness; wall essentials (photo slideshow, sleep schedule, backups) | |
 | Phase 5 | Chores, to-dos, routines | |
 | Phase 6 | Rewards | |
@@ -39,20 +39,20 @@ Findings from the codebase review. Each item should be handled with tests first 
 - [x] Harden iCal feed fetching against SSRF. Calendar URLs are fetched server-side with redirects and no host/IP restrictions (`backend/app/integrations/ical_feed.py`, `backend/app/routers/integrations.py`). Restrict schemes, reject private/loopback/link-local/multicast targets after DNS resolution, validate redirect targets, and cover blocked hosts in tests. ([#1](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/1)) Fixed: `backend/app/core/url_safety.py` validates every hop; `fetch_ics_bytes` follows redirects manually (`backend/tests/test_ssrf.py`).
 - [x] Delete stale events when a successful iCal sync returns zero events. `sync_source()` only soft-deletes stale events when `incoming_uids` is non-empty (`backend/app/jobs/calendar_sync.py`). Add a test that syncs one event, then an empty feed, and expects the old event hidden. ([#2](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/2)) Fixed: guard removed; `test_empty_feed_hides_previous_events`.
 - [x] Treat all-day iCal events without `DTEND` or `DURATION` as one-day events. The parser currently falls back to one hour (`backend/app/integrations/ical_feed.py`). Add parser tests for `DTSTART;VALUE=DATE` with no end. ([#3](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/3)) Fixed: all-day no-end events now end at the next UTC midnight; timed no-end events still default to one hour (`backend/tests/test_ssrf.py`).
-- [ ] Preserve `all_day` on recurring iCal expansions and avoid duplicating the first occurrence. This overlaps Phase 3; keep it there if fixing it with Phase 3 (`backend/app/integrations/ical_feed.py`). ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4))
+- [x] Preserve `all_day` on recurring iCal expansions and avoid duplicating the first occurrence. This overlaps Phase 3; keep it there if fixing it with Phase 3 (`backend/app/integrations/ical_feed.py`). ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)) Fixed: the DTSTART occurrence is no longer re-emitted, every occurrence keeps the series duration and `all_day`, and an all-day series with a UTC `UNTIL` expands (`backend/tests/test_ical_recurrence.py`).
 - [ ] Decide whether public auth queries must enforce a single-family invariant or explicit family scope. `profiles()`, password login, and PIN login are global today (`backend/app/routers/auth.py`); add multi-family regression tests or document/enforce one-family-per-install at the DB/application boundary. ([#5](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/5))
-- [ ] Reject `provider: "internal"` on calendar source creation. The admin source API can create extra internal sources that are then protected from deletion (`backend/app/routers/calendar.py`, `backend/app/schemas/calendar.py`). ([#6](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/6))
-- [ ] Add `CalendarEvent.family_id == family_id` to event reads, in addition to source family joins, so malformed rows cannot cross tenants (`backend/app/services/calendar.py`, `backend/app/routers/calendar.py`). ([#7](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/7))
+- [x] Reject `provider: "internal"` on calendar source creation. The admin source API can create extra internal sources that are then protected from deletion (`backend/app/routers/calendar.py`, `backend/app/schemas/calendar.py`). ([#6](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/6)) Fixed: the schema accepts only `ical` (`backend/tests/test_calendar_scoping.py`).
+- [x] Add `CalendarEvent.family_id == family_id` to event reads, in addition to source family joins, so malformed rows cannot cross tenants (`backend/app/services/calendar.py`, `backend/app/routers/calendar.py`). ([#7](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/7)) Fixed in the event list and single-event lookup (`backend/tests/test_calendar_scoping.py`).
 
 ### Frontend wall, auth, and role behavior
-- [ ] Make the wall 7-day window roll over after midnight. `WallSevenDayStrip` computes `today` once and keeps querying/highlighting the stale range until reload (`frontend/src/wall/WallSevenDayStrip.tsx`). ([#8](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/8))
-- [ ] Show timed events on every local day they overlap. `eventDayKeys()` returns only the start day for timed events, so wall views drop events that span midnight (`frontend/src/lib/dates.ts`, `frontend/src/wall/WallSevenDayStrip.tsx`). ([#9](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/9))
-- [ ] Clear wall state and cached wall queries when a paired display receives 401 after revocation. Wall requests intentionally skip the global login redirect, but no wall-specific handler switches the board back to unpaired (`frontend/src/wall/WallLayout.tsx`, `frontend/src/api/client.ts`, `frontend/src/api/wall.ts`). ([#10](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/10))
-- [ ] Prevent wall WebSocket reconnect timers from surviving unmount/React StrictMode cleanup. Add a stopped flag or remove handlers before closing (`frontend/src/wall/WallSevenDayStrip.tsx`). ([#11](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/11))
-- [ ] Queue or coalesce concurrent `password_required` prompts. The prompt component stores one pending request, so simultaneous admin requests can orphan the earlier promise (`frontend/src/api/client.ts`, `frontend/src/components/PasswordPrompt.tsx`). ([#12](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/12))
-- [ ] Hide or disable event creation for viewer users and show API error details when create/update fails (`frontend/src/pages/CalendarPage.tsx`). ([#13](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/13))
-- [ ] Add a frontend admin guard for every `/admin/*` route/page. `CalendarSettings` and `WallDisplays` are directly reachable by non-admin users and can show misleading 403-derived empty states (`frontend/src/App.tsx`, `frontend/src/pages/admin/CalendarSettings.tsx`, `frontend/src/pages/admin/WallDisplays.tsx`). ([#14](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/14))
-- [ ] Add a frontend test runner and cover the high-risk date/auth/wall cases above. Suggested first tests: `lib/dates.ts`, wall midnight rollover, wall revocation handling, password elevation concurrency, and role-gated event creation. ([#15](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/15))
+- [x] Make the wall 7-day window roll over after midnight. `WallSevenDayStrip` computes `today` once and keeps querying/highlighting the stale range until reload (`frontend/src/wall/WallSevenDayStrip.tsx`). ([#8](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/8)) Fixed: `hooks/useToday.ts` updates after midnight and on visibility change.
+- [x] Show timed events on every local day they overlap. `eventDayKeys()` returns only the start day for timed events, so wall views drop events that span midnight (`frontend/src/lib/dates.ts`, `frontend/src/wall/WallSevenDayStrip.tsx`). ([#9](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/9)) Fixed in `eventDayKeys` (`lib/dates.test.ts`).
+- [x] Clear wall state and cached wall queries when a paired display receives 401 after revocation. Wall requests intentionally skip the global login redirect, but no wall-specific handler switches the board back to unpaired (`frontend/src/wall/WallLayout.tsx`, `frontend/src/api/client.ts`, `frontend/src/api/wall.ts`). ([#10](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/10)) Fixed: `onWallUnauthorized` in `api/wall.ts`; `WallLayout` clears wall queries and shows the pairing screen.
+- [x] Prevent wall WebSocket reconnect timers from surviving unmount/React StrictMode cleanup. Add a stopped flag or remove handlers before closing (`frontend/src/wall/WallSevenDayStrip.tsx`). ([#11](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/11)) Fixed: `wall/useWallWebSocket.ts` stops on cleanup (tested under StrictMode).
+- [x] Queue or coalesce concurrent `password_required` prompts. The prompt component stores one pending request, so simultaneous admin requests can orphan the earlier promise (`frontend/src/api/client.ts`, `frontend/src/components/PasswordPrompt.tsx`). ([#12](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/12)) Fixed: concurrent callers share one prompt (`api/client.test.ts`).
+- [x] Hide or disable event creation for viewer users and show API error details when create/update fails (`frontend/src/pages/CalendarPage.tsx`). ([#13](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/13)) Fixed: `lib/permissions.ts`; create/delete failures show the API's message.
+- [x] Add a frontend admin guard for every `/admin/*` route/page. `CalendarSettings` and `WallDisplays` are directly reachable by non-admin users and can show misleading 403-derived empty states (`frontend/src/App.tsx`, `frontend/src/pages/admin/CalendarSettings.tsx`, `frontend/src/pages/admin/WallDisplays.tsx`). ([#14](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/14)) Fixed: `components/RequireAdmin.tsx` wraps `/admin/*`.
+- [x] Add a frontend test runner and cover the high-risk date/auth/wall cases above. Suggested first tests: `lib/dates.ts`, wall midnight rollover, wall revocation handling, password elevation concurrency, and role-gated event creation. ([#15](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/15)) Done: Vitest + jsdom + Testing Library (`npm test`, run in CI); 35 tests in 8 files.
 
 ### Infra, deployment, and test coverage
 - [x] Restrict GHCR `latest` image publishing to the canonical `master` branch. The GitHub workflow currently runs on both `main` and `master`, but `main` is the retired/divergent v0.29 line (`.github/workflows/build.yml`).
@@ -62,8 +62,8 @@ Findings from the codebase review. Each item should be handled with tests first 
 - [x] Close the SSRF DNS-rebinding window: `fetch_ics_bytes` connects to the IP the guard approved (Host header + TLS SNI keep the name) and caps feeds at 10 MB (`TestDnsRebinding`, `TestResponseLimits` in `backend/tests/test_ssrf.py`; see `docs/security-notes.md`).
 - [x] Give every CI publish its own image tag and show the running build in `/api/health` plus setup/login/sidebar Help & About, so "what's deployed?" has an answer and rollback can target a build. Shipped first as `<version>.<run>` (e.g. `0.30.17`); since the per-commit numbering change the tag is `0.<n>`.
 - [ ] Production path: CI deploys only to `test`. Add a `prod` host and a deliberate promotion step (`scripts/deploy.sh remote <prod-host> <build>`) once the family uses it daily.
-- [ ] Code-split the frontend (route-level `React.lazy`). The main bundle is 623 KB (Vite warns at 500 KB) before chores, meals and the rest add pages.
-- [ ] Add a production-startup/migration smoke test. Current backend tests create metadata directly and do not exercise Alembic startup or scheduler registration (`backend/tests/conftest.py`, `backend/app/main.py`). ([#16](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/16))
+- [x] Code-split the frontend (route-level `React.lazy`). The main bundle is 623 KB (Vite warns at 500 KB) before chores, meals and the rest add pages. Done: main bundle 351 KB; the calendar page is its own chunk.
+- [x] Add a production-startup/migration smoke test. Current backend tests create metadata directly and do not exercise Alembic startup or scheduler registration (`backend/tests/conftest.py`, `backend/app/main.py`). ([#16](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/16)) Done: `backend/tests/test_startup.py` boots the app twice against a fresh SQLite file.
 - [x] Fix manual backup docs for SQLite WAL mode. The deployment docs copy only `homehub.db`; document online backup, stopping the API first, or copying `homehub.db`, `homehub.db-wal`, and `homehub.db-shm` together (`docs/deployment.md`).
 - [x] Run CI on pull requests without pushing images. Add a PR trigger for `master`; gate image publishing to push events (`.github/workflows/build.yml`).
 
@@ -124,14 +124,14 @@ Feature audit against Cozyla Calendar+ (CalendarOS). The **NEW** items in Phases
   - Tests first: lockout after N failures; a PIN session gets 403 on an admin endpoint; a password session passes; profiles exposes no other fields.
 
 ## Phase 3 — iCal correctness
-- [ ] Don't duplicate the first occurrence of recurring events.
+- [x] Don't duplicate the first occurrence of recurring events. Fixed in the review backlog ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
 - [ ] Honor EXDATE and RECURRENCE-ID (cancelled or moved instances).
-- [ ] Keep `all_day` on expanded recurrences.
+- [x] Keep `all_day` on expanded recurrences. Fixed in the review backlog ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
 - [ ] Store a window only (about 90 days back to 365 days ahead) instead of full history.
 - [ ] Look up existing UIDs in one batch query per sync.
 - [ ] Floating times (no `TZID`, no `Z`) are local wall-clock times: interpret them in the family timezone, not UTC.
 - [x] All-day events without `DTEND`/`DURATION` last one day ([#3](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/3)); fixed in the review backlog.
-- [ ] Keep `all_day` on recurrences and drop the duplicate first occurrence ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
+- [x] Keep `all_day` on recurrences and drop the duplicate first occurrence ([#4](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/4)).
 - [ ] `add_ical_source` downloads the feed twice (a reachability check, then the sync). Run the sync once and turn a failed first sync into the 400 response.
 - Tests first: a recurring event yields each occurrence once; EXDATE removes an instance and RECURRENCE-ID moves one; all-day recurrences stay all-day; floating times land at the family's local time; events outside the window are not stored.
 
@@ -165,8 +165,8 @@ parallel product line (chores/rewards/meals), not 11 releases ahead of us. We po
 *our* architecture, one domain at a time, and inherit our auth, `family_id` tenant scoping,
 `UTCDateTime`, deploy tooling and CI rather than its code. Phases 11–13 extend past v0.29 with the Cozyla-parity items listed above.
 
-Each phase writes its tests **before** the code, in the same change. Baseline (0.52): 70 backend tests in 6
-files; `v0.29` has 65 in 13. No frontend test runner exists yet ([#15](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/15)); add it no later than Phase 3b, whose slideshow and sleep logic need it.
+Each phase writes its tests **before** the code, in the same change. Baseline (0.70): 81 backend tests in 9
+files (`v0.29` has 65 in 13) and 35 frontend tests in 8 files (Vitest, `npm test`).
 
 Ordering is by dependency: rewards spends the points ledger chores introduce, and books awards points.
 
@@ -218,7 +218,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduce, an
 - Tests first: cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes; birthday age crosses the year boundary; layout persistence; filter scoping.
 
 ### Phase 9 — Offline sync
-- [ ] Add the frontend test runner and its first tests.
+- [x] Add the frontend test runner and its first tests. Done early, in the review backlog (#15).
 - [ ] IndexedDB write queue in `frontend/src/lib/idb.ts`.
 - [ ] Sync orchestrator replaying the queue on reconnect and on tab visibility.
 - [ ] Conflict resolution modal: 409 detection, keep-local / keep-server / merge.

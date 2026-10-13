@@ -17,7 +17,7 @@ Read these before changing code:
 
 ## Rules
 
-- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 70 backend tests in 6 files (0.52); no frontend test runner yet (add it by Phase 3b). Run `cd backend && source .venv/bin/activate && pytest -v`, then `cd frontend && npm run lint && npm run build`.
+- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 81 backend tests in 9 files and 35 frontend tests in 8 files (0.70). Run `cd backend && source .venv/bin/activate && pytest -v`, then `cd frontend && npm test && npm run lint && npm run build`.
 - **Time:**
   - Every datetime column is `UTCDateTime` (`backend/app/core/types.py`).
   - The API returns `+00:00` values.
@@ -66,7 +66,7 @@ When porting a feature, re-implement it rather than copying the file. TODO.md ha
 | 6 | Port rewards (append-only points ledger, idempotent weekly allowance in cents, catalog, badges/streaks) + progress widget | Open; needs 5 |
 | 7 | Port meals and recipes (auth on every endpoint, SSRF-safe URL import, plan, pantry, shopping list, recipe catalog) | Open |
 | 8 | Port books (+ shared-library writes), announcements, birthdays, weather, dashboard summary + customization | Open; needs 6 |
-| 9 | Offline sync (frontend test runner, IndexedDB queue, conflict modal) | Open |
+| 9 | Offline sync (IndexedDB queue, conflict modal) | Open |
 | 10 | OCR shopping-list scan, wall cycling panels via read-only wall endpoints | Open; needs 7 |
 | 11 | Notifications and reminders (events, chores, to-dos, birthdays, pantry; Web Push/ntfy/SMTP; quiet hours, wellness) | Open; needs 5, 7–8 |
 | 12 | Home Assistant local integration, local-first AI voice agent, notes board | Open |

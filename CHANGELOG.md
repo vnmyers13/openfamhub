@@ -1,13 +1,24 @@
-## [Unreleased] — Review fixes (builds 0.31–0.52, 2026-10-12)
+## [Unreleased] — Review fixes (builds 0.31–0.70, 2026-10-12)
 
 > Entries are keyed by roadmap phase or work batch, not by commit. The per-commit build number lives in `VERSION` (repo root) and advances with every commit; when a batch is confirmed on the `test` VM, its heading gets the build that shipped it (`[0.<n>] - <date> — …`).
 
 ### Changed
 - Every commit now carries its own version, `0.<n>`, incremented by one per commit by a `pre-commit` hook and enforced in CI. The CI run-number suffix (`0.30.17`) is gone; images are tagged `0.<n>` with a matching `v0.<n>` release tag.
+- Pages load on demand, so the first download is about 45% smaller (351 KB, down from 626 KB).
 
 ### Fixed
 - Wall displays now update live after scheduled and automatic calendar syncs, not only after manual changes. Live-update notices are sent only after the change is saved, so a wall never re-reads stale data.
 - Calendar-feed fetches connect to the address the safety check approved (closing a DNS-rebinding gap) and refuse feeds over 10 MB.
+- Recurring calendar-feed events no longer show their first occurrence twice, all-day repeating events stay all-day, and all-day series that end with a UTC timestamp keep their repeats.
+- The wall's seven-day view moves on at midnight instead of showing yesterday until it's reloaded, and timed events that cross midnight appear on both days.
+- A wall display whose pairing is revoked returns to the pairing screen instead of freezing on its last calendar, and closed walls no longer keep reopening live-update connections.
+- Two admin actions that both need your password now share one prompt; previously one of them could hang.
+- Viewers no longer see "New Event", and failed saves or deletes show the server's reason.
+- Admin pages redirect members and viewers to the dashboard instead of showing empty lists.
+- Admins can no longer create extra, undeletable "internal" calendars, and event lookups check the event's own family as well as its calendar's.
+
+### Added
+- Frontend unit tests (Vitest; `npm test`, run in CI) and a startup test that boots the real app to check migrations and scheduled jobs.
 
 ---
 

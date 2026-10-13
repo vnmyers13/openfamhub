@@ -29,6 +29,7 @@ docker-compose.yml  build-from-source stack; image names match published ones
 | Action | Command |
 |---|---|
 | Backend tests | `cd backend && source .venv/bin/activate && pytest -v` |
+| Frontend tests (Vitest, TZ pinned to America/Detroit) | `cd frontend && npm test` (`npm run test:watch` while developing) |
 | Frontend lint / typecheck + build | `cd frontend && npm run lint` / `npm run build` |
 | Dev servers | `uvicorn app.main:app --reload --port 8000` (in backend/) + `npm run dev` (in frontend/) |
 | Local container stack | `scripts/deploy.sh setup && scripts/deploy.sh deploy` |
