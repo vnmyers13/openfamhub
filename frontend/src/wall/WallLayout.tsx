@@ -6,6 +6,7 @@ import WallClock from './WallClock'
 import WallSevenDayStrip from './WallSevenDayStrip'
 import WallMemberList from './WallMemberList'
 import WallSlideshow from './WallSlideshow'
+import WallRoutines from './WallRoutines'
 import { useWallWebSocket } from './useWallWebSocket'
 
 const DEFAULT_IDLE_MS = 300_000
@@ -153,6 +154,7 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
           </h2>
           <WallMemberList />
         </div>
+        <WallRoutines timeZone={session.timezone} />
       </div>
 
       {/* Right panel */}

@@ -8,6 +8,7 @@ const REFRESH: Record<string, string> = {
   calendar_updated: 'wall-events',
   media_updated: 'wall-media',
   settings_updated: 'wall-session',
+  chores_updated: 'wall-routines',
 }
 
 /**

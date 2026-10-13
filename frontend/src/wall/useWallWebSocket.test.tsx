@@ -57,9 +57,10 @@ describe('useWallWebSocket (#11)', () => {
     const { invalidate } = setup()
     act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'media_updated' }) }))
     act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'settings_updated' }) }))
+    act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'chores_updated' }) }))
     act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'something_else' }) }))
     act(() => open()[0].onmessage?.({ data: 'not json' }))
-    expect(invalidate.mock.calls).toEqual([[{ queryKey: ['wall-media'] }], [{ queryKey: ['wall-session'] }]])
+    expect(invalidate.mock.calls).toEqual([[{ queryKey: ['wall-media'] }], [{ queryKey: ['wall-session'] }], [{ queryKey: ['wall-routines'] }]])
   })
 
   it('reconnects after the server drops the connection', async () => {

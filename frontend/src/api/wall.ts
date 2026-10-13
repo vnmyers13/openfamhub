@@ -3,6 +3,7 @@ import { isAxiosError } from 'axios'
 import { apiClient } from './client'
 import type { CalendarEvent } from './calendar'
 import type { SleepSchedule } from '../lib/sleep'
+import type { RoutineRun } from './chores'
 
 export interface WallMember {
   id: string
@@ -119,5 +120,14 @@ export function useRevokeWallDevice() {
       await apiClient.delete(`/wall/devices/${id}`)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wall-devices'] }),
+  })
+}
+
+/** Today's routines for the wall's countdown (refreshed on chores_updated pushes). */
+export function useWallRoutines() {
+  return useQuery({
+    queryKey: ['wall-routines'],
+    queryFn: async () => (await apiClient.get('/wall/routines')).data as RoutineRun[],
+    refetchInterval: 5 * 60 * 1000,
   })
 }
