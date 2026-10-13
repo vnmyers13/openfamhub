@@ -24,6 +24,9 @@ from app.models.wall_device import WallDevice
 from app.schemas.calendar import CalendarEventResponse
 from app.routers.ws import manager
 from app.services.calendar import get_events_in_range
+from app.services import media as media_service
+from app.schemas.media import WallMediaResponse
+from app.routers.media import serve_file
 
 router = APIRouter()
 
@@ -209,6 +212,28 @@ async def wall_members(
         WallMember(id=u.id, display_name=u.display_name, color_hex=u.color_hex)
         for u in result.scalars().all()
     ]
+
+
+# ---- display: slideshow media (read-only, paired displays only) -------------
+
+@router.get("/media", response_model=List[WallMediaResponse])
+async def wall_media(db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device)):
+    items = await media_service.family_media(db, device.family_id, ready_only=True)
+    return [
+        WallMediaResponse(
+            id=i.id, kind=i.kind, width=i.width, height=i.height, duration_s=i.duration_s,
+            wall_url=f"/api/wall/media/{i.id}/wall", thumb_url=f"/api/wall/media/{i.id}/thumb",
+        )
+        for i in items
+    ]
+
+
+@router.get("/media/{media_id}/{variant}")
+async def wall_media_file(
+    media_id: str, variant: str,
+    db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device),
+):
+    return serve_file(await media_service.get_family_item(db, device.family_id, media_id), variant)
 
 
 @router.websocket("/ws")

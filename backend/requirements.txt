@@ -12,6 +12,9 @@ httpx==0.28.1
 apscheduler==3.10.4
 python-dateutil==2.9.0
 icalendar==5.0.13
+Pillow==11.3.0
+# Static ffmpeg (amd64 + arm64) for converting uploaded videos
+imageio-ffmpeg==0.6.0
 
 # test
 pytest==8.3.4

@@ -5,3 +5,4 @@ from app.models.calendar_event import CalendarEvent
 from app.models.calendar_source import CalendarSource
 from app.models.calendar_sync_log import SyncLog
 from app.models.wall_device import WallDevice
+from app.models.media import Media
