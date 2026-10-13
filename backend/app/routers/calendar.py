@@ -224,6 +224,9 @@ async def update_source(
         for k, v in updates.items():
             setattr(source, k, v)
         await db.flush()
+        # updated_at is set by the database (onupdate), which expires it; load
+        # it now; the response can't lazy-load outside the async context.
+        await db.refresh(source)
     return source
 
 
