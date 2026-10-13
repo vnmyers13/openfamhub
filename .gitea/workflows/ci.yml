@@ -41,10 +41,15 @@ jobs:
   version:
     runs-on: openfamhub
     if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master' || gitea.event_name == 'pull_request' && gitea.base_ref == 'master'
+    outputs:
+      release: ${{ steps.release.outputs.release }}
     steps:
       - uses: builtin:checkout
         with:
           fetch-depth: 0
+      - name: Compute release name
+        id: release
+        run: echo "release=$(scripts/release-name)" >> "$GITHUB_OUTPUT"
       - name: Run the versioning harnesses
         run: |
           set -euo pipefail
@@ -75,6 +80,8 @@ jobs:
       - name: Log in to the Forgejo registry
         run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login forgejo.vernonmyers.cloud --username vernon --password-stdin
       - name: Build and push images
+        env:
+          OPENFAMHUB_VERSION: ${{ needs.version.outputs.release }}
         run: scripts/deploy.sh publish
 
   deploy:
@@ -84,7 +91,9 @@ jobs:
     steps:
       - uses: builtin:checkout
       - name: Install bundle and restart the stack
-        run: scripts/deploy.sh server "$HOME/openfamhub"
+        env:
+          OPENFAMHUB_VERSION: ${{ needs.version.outputs.release }}
+        run: scripts/deploy.sh server "$HOME/openfamhub" "${{ needs.version.outputs.release }}"
 
   # Trivy scan of the images `publish` just pushed (tag: scripts/release-name). Non-blocking:
   # findings and scan errors never turn CI red or hold up `deploy`. Reports are
@@ -93,7 +102,7 @@ jobs:
   # per finding, never duplicated) and closed once a scan no longer finds them.
   # See docs/ci.md#trivy-scan.
   trivy:
-    needs: [publish]
+    needs: [publish, version]
     if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master'
     runs-on: openfamhub
     env:
@@ -107,7 +116,7 @@ jobs:
         env:
           TRIVY_USERNAME: vernon
           TRIVY_PASSWORD: ${{ secrets.REGISTRY_TOKEN }}
-        run: scripts/trivy-scan.sh
+        run: scripts/trivy-scan.sh "${{ needs.version.outputs.release }}"
       - name: Upload scan reports
         continue-on-error: true
         uses: actions/upload-artifact@v4
@@ -129,7 +138,7 @@ jobs:
             report="trivy-reports/trivy-$component.json"
             [ -s "$report" ] || { echo "No report for $component"; continue; }
             python3 scripts/create_trivy_issues.py "$FORGEJO_URL" "$FORGEJO_REPO" \
-              "openfamhub-$component:$(scripts/release-name)" "$report"
+              "openfamhub-$component:${{ needs.version.outputs.release }}" "$report"
           done
 
   # Keep Forgejo issues in step with TODO.md once a build is deployed to `test`:

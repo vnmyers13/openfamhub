@@ -29,9 +29,12 @@ floor in `backend/.coveragerc`. `frontend` runs `npm run lint`, `npm run test:co
 
 `publish` builds `linux/amd64` and `linux/arm64` images for `openfamhub-api` and
 `openfamhub-web` and pushes them to the Forgejo registry. `deploy` then runs
-`scripts/deploy.sh server "$HOME/openfamhub"`, which copies the compose bundle
-into `~/openfamhub`, pins `REGISTRY`/`OPENFAMHUB_VERSION`, and pulls + restarts
-the stack.
+`scripts/deploy.sh server "$HOME/openfamhub" <release>`, where `<release>` is the
+exact release string computed by the `version` job and used by `publish`. Passing
+it explicitly prevents the deploy from reusing an older `OPENFAMHUB_VERSION` from
+the runner environment or the server's `.env`. The server command copies the
+compose bundle into `~/openfamhub`, pins `REGISTRY`/`OPENFAMHUB_VERSION`, and
+pulls + restarts the stack.
 
 **Version numbering.** `VERSION` (repo root) holds a single integer; the `pre-commit`
 hook bumps it per commit; `scripts/check-version.sh` enforces `+1` on `master`'s
