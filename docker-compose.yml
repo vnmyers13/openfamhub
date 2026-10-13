@@ -15,6 +15,7 @@ services:
       args:
         APP_VERSION: ${OPENFAMHUB_VERSION:-dev}
         OPENFAMHUB_BUILD: ${OPENFAMHUB_VERSION:-dev}
+        OPENFAMHUB_COMMIT: ${OPENFAMHUB_COMMIT:-unknown}
     env_file: .env
     environment:
       DATA_PATH: /data

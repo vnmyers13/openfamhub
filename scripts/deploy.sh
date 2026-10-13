@@ -69,6 +69,10 @@ app_version() {
     printf '0.%s' "$n"
 }
 
+git_commit() {
+    git rev-parse --short HEAD 2>/dev/null || echo unknown
+}
+
 resolve_registry() {
     REGISTRY="${REGISTRY:-$(env_value REGISTRY)}"
     REGISTRY="${REGISTRY:-$DEFAULT_REGISTRY}"
@@ -104,10 +108,13 @@ exit 1
 
 deploy_local() {
     require_env
-    # Resolve the version the same way publish() does, so an explicit
-    # OPENFAMHUB_VERSION (or .env) is honoured instead of being clobbered.
-    resolve_version
+    if [ -n "${OPENFAMHUB_VERSION:-}" ] && [ "${OPENFAMHUB_VERSION:-}" != "latest" ]; then
+        resolve_version "$OPENFAMHUB_VERSION"
+    else
+        VERSION="$(app_version)"
+    fi
     export OPENFAMHUB_VERSION="$VERSION"
+    export OPENFAMHUB_COMMIT="$(git_commit)"
     mkdir -p data/db data/photos data/backups
     # docker-compose.yml builds from this checkout, so --build is what picks up changes.
     log "Building images and starting services..."
@@ -136,7 +143,7 @@ publish() {
     fi
 
     local sha
-    sha=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+    sha=$(git_commit)
     for component in api web; do
         local context=backend
         [ "$component" = web ] && context=frontend
