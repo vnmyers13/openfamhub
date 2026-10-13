@@ -6,3 +6,4 @@ from app.models.calendar_source import CalendarSource
 from app.models.calendar_sync_log import SyncLog
 from app.models.wall_device import WallDevice
 from app.models.media import Media
+from app.models.chores import ChoreCompletion, ChoreInstance, ChoreTemplate, PointsEntry, Routine, Todo

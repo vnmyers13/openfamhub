@@ -21,6 +21,7 @@ import app.models.family
 import app.models.auth
 import app.models.wall_device
 import app.models.media
+import app.models.chores
 
 config = context.config
 if config.config_file_name is not None:
