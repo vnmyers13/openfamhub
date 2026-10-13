@@ -244,10 +244,11 @@ scripts/deploy.sh status | logs [service] | stop
 
 By default this runs in **LAN mode**: Caddy listens on 80/443 and serves `https://$SITE_ADDRESS` with its internal CA, which each device must trust ([cert-trust.md](cert-trust.md)). To put it behind another proxy instead, set `CADDYFILE=Caddyfile.proxy` and `HTTP_PORT=8080` in `.env`.
 
-Build-from-source deploys stamp images from the checkout too: `scripts/deploy.sh deploy` sets `OPENFAMHUB_VERSION` from the root `VERSION` file (`0.<n>`) and `OPENFAMHUB_COMMIT` from the current git commit before running `docker compose up --build`. To verify what is actually running, check either the setup/login Help & About box before signing in or:
+Build-from-source deploys stamp images from the checkout too: `scripts/deploy.sh deploy` sets `OPENFAMHUB_VERSION` from the root `VERSION` file (`0.<n>`) and `OPENFAMHUB_COMMIT` from the current git commit before running `docker compose up --build`. To verify what is actually running, check either the setup/login Help & About box before signing in or the health endpoint for the mode you are running:
 
 ```bash
-curl -s http://localhost:8080/api/health
+curl -ks https://openfamhub.local/api/health        # default LAN mode, adjust SITE_ADDRESS if changed
+curl -s http://localhost:8080/api/health            # proxy mode with HTTP_PORT=8080
 ```
 
 The response should include matching `version`, `build`, and `commit` fields; if git metadata is unavailable, `commit` falls back to `unknown` and is hidden in the UI.
