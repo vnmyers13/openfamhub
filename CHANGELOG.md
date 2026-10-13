@@ -1,3 +1,10 @@
+## [Unreleased]
+
+### Fixed
+- Frontend linting now uses an ESLint 9 flat config (`frontend/eslint.config.js`) and `npm run lint` passes.
+
+---
+
 ## [1.0.1] - 2026-06-21
 
 ### Fixed

@@ -166,8 +166,10 @@ source backend/.venv/bin/activate
 pip install ruff  # one-time
 ruff check backend/
 
-# Frontend type check
-cd frontend && npm run build  # fails on TypeScript errors
+# Frontend lint + type check
+cd frontend
+npm run lint
+npm run build  # fails on TypeScript errors
 ```
 
 ---

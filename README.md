@@ -116,7 +116,7 @@ openfamhub.local
 ```
 
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2.0 async, APScheduler, JWT auth
-- **Frontend**: React 19, Vite 8, TypeScript 6, Tailwind CSS 3, Zustand, TanStack Query
+- **Frontend**: React 19, Vite 8, TypeScript 6, Tailwind CSS 3, Zustand, TanStack Query, ESLint 9 flat config
 - **Database**: SQLite with WAL mode, foreign keys on, Alembic migrations
 - **Infra**: Docker Compose, Caddy 2 with internal TLS, GitHub Actions CI
 

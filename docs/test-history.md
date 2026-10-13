@@ -1,4 +1,8 @@
 
+## Unreleased — Test Run — 2026-10-13
+- Frontend lint: OK (`cd frontend && npm run lint`)
+- Frontend build: OK (`cd frontend && npm run build`; Vite emitted existing deprecation/chunk-size warnings)
+
 ## Release unknown — Test Run — 2026-06-12T18:08:32.602634
 - pytest: 30 passed 19 failed (19 pre-existing failures in events/meals/rewards tests)
 - Frontend build: OK
