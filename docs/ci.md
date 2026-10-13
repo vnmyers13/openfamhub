@@ -2,7 +2,9 @@
 
 CI runs on the self-hosted Gitea instance (`https://forgejo.vernonmyers.cloud`).
 Workflows live in `.gitea/workflows/` and execute on a runner installed on the
-test VM (`192.168.10.80`).
+test VM (`192.168.10.80`). The runner is registered with the primary instance
+only, so pushes to the mirrors (`192.168.10.101:3002`, `192.168.10.102:3002`)
+or GitHub don't run CI.
 
 ## Pipeline
 
@@ -16,6 +18,11 @@ test VM (`192.168.10.80`).
 | `publish` | `openfamhub` (host) | push to `master` only |
 | `deploy` | `openfamhub` (host) | push to `master` only |
 
+`backend` runs `pytest backend/tests` (unit, API and a startup test that boots the
+app to check migrations and scheduled jobs). `frontend` runs `npm run lint`,
+`npm test` (Vitest), the build-info tests and `npm run build`. `version` checks the
+`VERSION` sequence and runs the script test harnesses in `scripts/tests/`.
+
 `publish` builds `linux/amd64` and `linux/arm64` images for `openfamhub-api` and
 `openfamhub-web` and pushes them to the Forgejo registry. `deploy` then runs
 `scripts/deploy.sh server "$HOME/openfamhub"`, which copies the compose bundle
@@ -26,7 +33,7 @@ the stack.
 hook bumps it per commit; `scripts/check-version.sh` enforces `+1` on `master`'s
 first-parent chain and "greater than base" on branches; the release string is `0.<n>`;
 tags are `v0.<n>` pushed to `forgejo`. `deploy` pins that exact tag in
-`~/openfamhub/.env`. To see what's running, check the sidebar footer in the app or
+`~/openfamhub/.env`. To see what's running, check **Help & About** (login page or sidebar) or
 `curl -s https://openfamhub.vernonmyers.cloud/api/health` (`build` and `commit` fields).
 To roll the test VM back to an earlier build, run `scripts/deploy.sh server "$HOME/openfamhub" 0.<n>`
 on the VM (or `scripts/deploy.sh remote test 0.<n>` from the Mac).

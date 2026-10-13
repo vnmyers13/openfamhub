@@ -11,6 +11,10 @@ There are two ways to run OpenFamHub:
 
 Everything goes through `scripts/deploy.sh`. Run it from anywhere inside the repo; `scripts/deploy.sh help` lists the commands.
 
+For the `test` VM you normally don't run these by hand: every push to `master` on the primary Forgejo runs CI, which publishes the images and deploys them (see [ci.md](ci.md)). The manual commands below are for other servers, first-time setup, and when CI is unavailable.
+
+**Source repositories.** The primary is Forgejo at `http://192.168.10.2:3002/vernon/OpenFamHub.git` (also reachable as `https://forgejo.vernonmyers.cloud`); CI runs there. `192.168.10.101:3002` and `192.168.10.102:3002` are mirrors, and GitHub (`vnmyers13/openfamhub`) is an off-site copy. Clone or pull from any of them; push to the primary first.
+
 ---
 
 ## 1. How the test VM is set up
@@ -159,18 +163,43 @@ docker compose down                # stop (data in ./data is kept)
 
 ## 5. Upgrade and roll back
 
-```bash
-# Upgrade: the hook bumps VERSION; add a CHANGELOG entry, commit, then
-scripts/deploy.sh publish
-scripts/deploy.sh remote test
+### Before you upgrade
 
-# Roll back to any version or CI build that was published
-scripts/deploy.sh remote test 0.<n>
+1. **Take a backup** (section 7). Migrations only move forward, so a backup is the only way back across a schema change.
+2. Read the new [CHANGELOG](../CHANGELOG.md) entries and the version notes below.
+
+### Upgrade
+
+| Installed with | Upgrade |
+|---|---|
+| CI (the `test` VM) | Push to `master` on the primary Forgejo. CI runs the tests, publishes `0.<n>` and deploys it. |
+| Registry (`deploy.sh remote`) | `scripts/deploy.sh publish`, then `PUBLIC_URL=https://… scripts/deploy.sh remote <host>`. |
+| Build from source (`deploy.sh deploy`) | `scripts/deploy.sh update`: `git pull --ff-only`, rebuild, restart, wait for healthy. |
+
+Every path keeps `.env` and `data/`. A registry deploy only updates `REGISTRY` and `OPENFAMHUB_VERSION` in the server's `.env`.
+
+### After upgrading
+
+- **Migrations run by themselves.** The API applies Alembic migrations at startup. Installs from before 0.30 are recognized, stamped and brought up to date. If the API doesn't become healthy, check `docker compose logs api`.
+- **Check the version.** The build number appears under **Help & About** on the setup and login pages and in the sidebar, and in `/api/health` (`version`, `build`, `commit`).
+- **Reload wall displays.** A kiosk keeps running the web app it loaded until the page reloads. Reboot the Pi or refresh the page; the service worker can need a second reload.
+- **Phones** pick up the new app the next time it's opened.
+
+### Roll back
+
+```bash
+scripts/deploy.sh remote test 0.<n>                 # from the Mac: any published version
+scripts/deploy.sh server "$HOME/openfamhub" 0.<n>   # on the VM itself
 ```
 
-**Database changes:** from 0.30, the API applies Alembic migrations automatically at startup. Installs from before 0.30 are recognized and brought up to date. Migrations only move forward: rolling back to an older version across a schema change isn't supported, so take a backup before upgrading (see below).
+Rolling back across a schema change isn't supported: restore the backup taken before the upgrade instead (section 7).
 
-### Upgrading an install from 0.17 or earlier: fix event times
+### Version notes
+
+- **0.31–0.71 (review fixes).** No configuration changes. Image tags changed from `0.30.<run>` to one number per commit, `0.<n>`; the current `deploy.sh remote` writes the new tag to the server's `.env`. Repeating calendar subscriptions showed their first occurrence twice; the extra copy disappears at the next sync (or press **Sync Now** in Admin › Calendars). Reload wall displays once to get the midnight rollover and the revocation fix.
+- **0.30.** Migrations run automatically at startup; older databases are stamped first. Sign-in moved to avatar + PIN, with a password for admin changes.
+
+#### Upgrading an install from 0.17 or earlier: fix event times
 
 Before 0.18, events created in the web app were stored as local time. Calendar-subscription events were already correct. After upgrading, preview the conversion, then apply it:
 
@@ -196,7 +225,7 @@ Settings live in `.env`: in the repo root for build-from-source, or in `~/openfa
 | `DATABASE_URL` | `sqlite+aiosqlite:////data/db/homehub.db` | Path inside the API container. |
 | `BACKUP_RETENTION_DAYS` | `30` | Daily backups older than this are pruned. |
 | `BACKUP_TIME` | `03:00` | Daily backup time (24h, in `TIMEZONE`). |
-| `WALL_IDLE_TIMEOUT_SECONDS` | `300` | Reserved; the wall currently uses a fixed 5 minutes. |
+| `WALL_IDLE_TIMEOUT_SECONDS` | `300` | Seconds without a touch before the wall switches to its idle (clock) screen. |
 | `CADDYFILE` | `Caddyfile` (source) / `Caddyfile.proxy` (server) | `Caddyfile` = Caddy serves HTTPS itself with its internal CA. `Caddyfile.proxy` = plain HTTP behind another proxy. |
 | `SITE_ADDRESS` | `openfamhub.local` | Hostname Caddy serves in LAN mode. |
 | `HTTP_PORT` / `HTTPS_PORT` | `80`/`443` (source), `8080`/`8443` (server) | Host ports for Caddy. |
@@ -278,7 +307,7 @@ The response should include matching `version`, `build`, and `commit` fields; if
 ## CI
 
 CI runs on the self-hosted Gitea instance via Gitea Actions. `.gitea/workflows/ci.yml`
-runs backend tests and frontend lint/build on every push and pull request, then
+runs the backend tests and the frontend lint, unit tests and build on every push and pull request, then
 publishes `forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}` (amd64 + arm64)
 and deploys the test VM on pushes to `master`. The one-time runner and secret
 setup is in [ci.md](ci.md).

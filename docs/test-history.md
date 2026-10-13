@@ -10,7 +10,7 @@ This document tracks the testing activities, bug reports, and verification steps
     - Integration tests for database connectivity.
 - **Status**: PASS
 
-## Release v0.16 (Current)
+## Release v0.16
 - **Date**: 2026-05-16
 - **Scope**: Documentation, Kiosk scripts, and Deployment automation.
 - **Tests Performed**: 
@@ -31,3 +31,10 @@ This document tracks the testing activities, bug reports, and verification steps
 - pytest: 5 passed 0 failed
 - Frontend build: OK
 - Migration round-trip: OK
+
+## 0.71 — review fixes — 2026-10-12
+- Backend: `pytest backend/tests`: 81 passed (adds recurring-feed, calendar-scoping and app-startup tests).
+- Frontend: `npm test` (Vitest, new): 35 passed in 8 files; `npm run lint` clean; `npm run build` OK (main bundle 351 KB).
+- Release tooling: `scripts/tests/*-test.sh`: 4 harnesses passed; `scripts/check-version.sh` OK.
+- Not yet verified on the `test` VM.
+

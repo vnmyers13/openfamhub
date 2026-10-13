@@ -1,5 +1,7 @@
 # OpenFamHub — Future Enhancements
 
+> **Superseded.** [TODO.md](TODO.md) is the source of truth for the roadmap and its order (Phases 3–13). This older idea list is kept for reference; the release-checklist process it describes is no longer used.
+
 This file tracks feature requests, enhancement ideas, and post-MVP capabilities. It is updated before every release by running Phase 1 of the release checklist, which fetches open GitHub issues labelled `enhancement` or `feature request` automatically.
 
 Items are sourced from:

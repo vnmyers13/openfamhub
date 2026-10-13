@@ -4,7 +4,8 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 
 ## Version and branches
 - Current version: the integer in `VERSION` (repo root). The canonical release string is `0.<n>`. The `pre-commit` hook bumps `VERSION` by one on every commit. `scripts/check-version.sh` enforces `+1` on `master`'s first-parent chain and "greater than base" on branches. Tags are `v0.<n>`. Do not edit `VERSION` by hand.
-- Default branch: `master`. Remotes: `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary) and `origin` (GitHub mirror).
+- Default branch: `master`. Remotes: `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary; CI runs here) and `origin` (GitHub). Mirrors: `192.168.10.101:3002` and `192.168.10.102:3002` (same `vernon/OpenFamHub.git` path). Push to the primary first, then the others.
+- After rebasing onto a moved `master`, run `scripts/renumber origin/master` so commits continue the `VERSION` sequence.
 - Work on a branch with one commit per logical change.
 - After cloning, run `git config core.hooksPath .githooks`. The next commit will be `0.(current+1)`.
 
@@ -16,9 +17,9 @@ Start with [CLAUDE.md](CLAUDE.md) (canonical line, rules, roadmap status), then 
 ```
 backend/app/        FastAPI app: core/ models/ schemas/ routers/ services/ integrations/ jobs/
 backend/scripts/    one-off maintenance (fix_event_timezones.py)
-backend/tests/      pytest (conftest.py, test_auth.py, test_phase1.py, test_phase2.py, test_ssrf.py, test_realtime.py)
+backend/tests/      pytest (phase1/2, auth, ssrf, realtime, ical_recurrence, calendar_scoping, startup, version)
 backend/alembic/    migrations 001–005 (004 = wall_devices, 005 = session auth_method); run at startup
-frontend/src/       React app: api/ lib/dates.ts pages/ wall/ components/
+frontend/src/       React app: api/ lib/ (dates, permissions) hooks/ pages/ (lazy-loaded) wall/ components/; tests are *.test.ts[x] beside the code
 config/             Caddyfile (LAN TLS), Caddyfile.proxy (behind proxy), routes.caddy (shared)
 deploy/             compose.yml + env.template, copied to servers by deploy.sh remote
 scripts/            deploy.sh (setup/deploy/update/publish/remote/…), setup-wall-pi.sh
@@ -50,4 +51,4 @@ docker-compose.yml  build-from-source stack; image names match published ones
 - **CI** runs on the Gitea instance via Gitea Actions (`.gitea/workflows/ci.yml`), on a runner hosted on the test VM. It publishes the Forgejo registry and deploys on `master`; see [docs/ci.md](docs/ci.md).
 
 ## Open work
-See [TODO.md](TODO.md): Phases 2–4 (review fixes) and 5–10 (porting the v0.29 feature set). CLAUDE.md has a status table.
+See [TODO.md](TODO.md), the source of truth: the remaining review-backlog items, then Phase 3 + 3b (iCal correctness, wall essentials) and Phases 5–13 (porting the v0.29 feature set, Cozyla parity). CLAUDE.md has a status table.

@@ -14,7 +14,7 @@ Node 20.19+ or 22 is needed (Vite 8).
 ## First-time setup
 
 ```bash
-git clone http://192.168.10.2:3002/vernon/OpenFamHub.git
+git clone http://192.168.10.2:3002/vernon/OpenFamHub.git   # primary; mirrors: 192.168.10.101:3002, 192.168.10.102:3002
 cd OpenFamHub
 git config core.hooksPath .githooks    # the pre-commit hook bumps VERSION (release string 0.<n>)
 scripts/deploy.sh setup                # .env with a generated SECRET_KEY, ./data folders
@@ -64,12 +64,17 @@ cd backend && pytest -v
 
 # Frontend
 cd frontend
+npm test           # Vitest unit tests (npm run test:watch while developing)
 npm run lint
 npm run build      # tsc -b + vite build; fails on type errors
+
+# Release tooling (VERSION hook, renumber, deploy stamping)
+for t in scripts/tests/*-test.sh; do bash "$t"; done
 ```
 
 - Backend tests use an in-memory SQLite database and need `SECRET_KEY` (read from the repo-root `.env`, or export it).
-- `tests/test_phase1.py` covers time handling, range queries, calendar sources and wall pairing. `tests/test_phase2.py` covers sign-in, sessions, the admin password gate and event permissions.
+- Backend: `test_phase1.py` covers time handling, range queries, calendar sources and wall pairing; `test_phase2.py` sign-in, sessions, the admin password gate and event permissions; `test_ical_recurrence.py` recurring feeds; `test_calendar_scoping.py` source and family scoping; `test_ssrf.py` feed fetching; `test_realtime.py` live updates; `test_startup.py` boots the real app (migrations + scheduler) in a subprocess.
+- Frontend tests live next to the code (`src/**/*.test.ts[x]`) and run in jsdom with `TZ=America/Detroit`, so date bugs west of UTC show up on every machine. The first ones cover `lib/dates.ts`, the wall (midnight rollover, WebSocket cleanup, revocation), the password prompt and the admin guard.
 - Run `npm` commands on the Mac itself: `node_modules` contains macOS-native binaries, and a Linux container or VM can't use them.
 
 ## Conventions
@@ -80,12 +85,16 @@ npm run build      # tsc -b + vite build; fails on type errors
 
 ## Releasing
 
-1. Do nothing by hand: the `pre-commit` hook bumps `VERSION` (repo root) and updates the `README.md` badge on every commit. After a rebase, run `scripts/renumber` to restore the per-commit `VERSION` sequence.
-2. Add a section to `CHANGELOG.md`.
-3. Run the tests and checks above.
-4. Commit and push the changes; there is no manual tag step — `scripts/deploy.sh publish` (next) creates and pushes the `v0.<n>` tag itself.
-5. `scripts/deploy.sh publish`
-6. Deploy to test, check it, then deploy to production: `scripts/deploy.sh remote test`, then `scripts/deploy.sh remote <prod-host>`.
+Every commit is a build, so there is no separate release step for the `test` VM:
+
+1. **Version numbers are automatic.** The `pre-commit` hook bumps `VERSION` (repo root) and the `README.md` badge on every commit. Never edit `VERSION` by hand.
+2. **Rebasing?** If `master` moved while you worked, rebase onto it and run `scripts/renumber origin/master`, so your commits continue the sequence instead of reusing numbers. `scripts/check-version.sh master origin/master HEAD` confirms the result.
+3. **CHANGELOG.** Entries are keyed by phase or work batch, not by commit. Add your user-visible changes under the `[Unreleased]` entry; when the batch is confirmed on `test`, its heading gets the build number that shipped it.
+4. Run the tests and checks above.
+5. **Push to the primary Forgejo** (`git push forgejo master`). CI runs the checks, publishes `0.<n>`, tags `v0.<n>` and deploys to `test`. Then update the off-site copies: `git push origin master` (GitHub) and the mirrors at `192.168.10.101:3002` and `192.168.10.102:3002`.
+6. Check the build on `test` (Help & About or `/api/health`). A production host is planned but not set up yet; when it is, promote a checked build with `scripts/deploy.sh remote <prod-host> 0.<n>`.
+
+Without CI, publish and deploy by hand: `scripts/deploy.sh publish` (creates and pushes the `v0.<n>` tag), then `scripts/deploy.sh remote test`.
 
 `release_checklist.json` and `sprint_s*.json` are the original sprint-planning manifests. They're kept for history, and some of their steps (Docker Hub, `deploy.sh staging|production`) are out of date.
 

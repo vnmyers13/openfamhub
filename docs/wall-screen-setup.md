@@ -41,7 +41,7 @@ The wall doesn't use a family member's login. Instead, each display is paired on
 2. Enter a name (e.g. "Kitchen") and click **Create pairing link**. The link is shown only once.
 3. Open that link on the Pi (or pass it to the setup script as above).
 
-The display then stays signed in indefinitely (its cookie refreshes on every load). To cut a display off, click **Unpair** on the same page. A display that isn't paired shows the clock and a short "not paired" message instead of the login page.
+The display then stays signed in indefinitely (its cookie refreshes on every load). To cut a display off, click **Unpair** on the same page: at its next request (a live update or the 15-minute refresh) the display clears the calendar and shows the clock and a short "not paired" message instead of the login page.
 
 ### 5. Reboot and Verify
 - Reboot your Raspberry Pi: `sudo reboot`.
@@ -56,3 +56,4 @@ The display then stays signed in indefinitely (its cookie refreshes on every loa
 | **Certificate Error** | The browser is blocking the connection due to untrusted SSL. | Re-follow the [cert trust steps](cert-trust.md). |
 | **"This display isn't paired"** | Never paired, unpaired by an admin, or browser data cleared. | Create a new pairing link under Admin › Wall displays and open it on the Pi. |
 | **Wall doesn't update** | Network issues or server downtime. | Ensure the Pi can reach the server, and that the proxy passes WebSockets (`/api/wall/ws`). Displays also refresh every 15 minutes. |
+| **Wall looks old after a server upgrade** | The kiosk keeps the web app it loaded until the page reloads. | Reboot the Pi (`sudo reboot`) or refresh the page; the service worker may need a second reload. |

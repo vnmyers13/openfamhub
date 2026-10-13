@@ -13,7 +13,7 @@ Read these before changing code:
 
 - **`master` is the product.** Feature work branches from it. CI publishes every `master` push as its own per-commit build (`0.<n>`, the integer in `VERSION`) and deploys it to the `test` VM (see docs/ci.md).
 - **`origin/main` (tagged v0.29) is a different codebase with no shared history.** Use it only as a reference for features to port (Phases 5–10). Never merge, rebase onto or cherry-pick from it. Re-implement each feature on our architecture: our auth, `family_id` scoping, `UTCDateTime`, Alembic migrations, deploy tooling and CI.
-- **Remotes:** `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary) and `origin` (GitHub). Push to both.
+- **Remotes:** `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary; CI runs here) and `origin` (GitHub). Mirrors at `192.168.10.101:3002` and `192.168.10.102:3002` (same path). Push to the primary first, then GitHub and the mirrors. After rebasing onto a moved `master`, run `scripts/renumber origin/master`.
 
 ## Rules
 

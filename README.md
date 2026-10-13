@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-0.71-blue)
+![Version](https://img.shields.io/badge/version-0.72-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -9,15 +9,15 @@ A self-hosted family calendar and organizer, a home version of a Skylight-style 
 
 - **Shared family calendar**: month, week, day and agenda views, with color-coded sources and filters.
 - **Calendar subscriptions**: import Google, iCloud, school and sports calendars through their ICS or `webcal://` links. Feeds re-sync on a schedule, and you can trigger a sync from the settings page.
-- **Family members**: tap-your-avatar sign-in with a PIN; admin, member and read-only viewer roles; admin changes need a password.
-- **Wall display**: a full-screen kiosk view (`/wall`) with a clock, a 7-day strip and the family list. Each display is paired once with a revocable device link and stays signed in after that.
+- **Family members**: tap-your-avatar sign-in with a PIN; admin, member and read-only viewer roles; admin changes need a password, and admin pages are hidden from everyone else.
+- **Wall display**: a full-screen kiosk view (`/wall`) with a clock, a 7-day strip that rolls over at midnight, and the family list. Each display is paired once with a revocable device link and stays signed in after that.
 - **Live updates**: wall displays refresh as soon as events change, over a WebSocket.
 - **Installable app (PWA)**: works on iOS and Android phones and can show cached data offline.
 - **Automatic backups**: a daily SQLite backup with configurable retention.
 
 ## Quick start (single machine)
 
-Requirements: Docker with Compose, and `openssl`.
+Requirements: Docker with Compose, `git` and `openssl`.
 
 ```bash
 git clone http://192.168.10.2:3002/vernon/OpenFamHub.git openfamhub
@@ -30,7 +30,9 @@ Open `https://openfamhub.local` (point that name at the machine in DNS or `/etc/
 
 ## Deploying to a server
 
-The recommended setup is to build images once and publish them to the Forgejo container registry. Servers then only pull and run them:
+The recommended setup is to build images once and publish them to the Forgejo container registry. Servers then only pull and run them.
+
+**Normally CI does this for you:** every push to `master` on the primary Forgejo (`192.168.10.2:3002`) runs the tests, publishes the images as `0.<n>` and deploys them to the `test` VM ([docs/ci.md](docs/ci.md)). The manual commands are:
 
 ```bash
 scripts/deploy.sh publish                                     # build + push v0.<n> (amd64 + arm64)
@@ -49,17 +51,31 @@ Registry login can use the 1Password Development item `forgejo.vernonmyers.cloud
 - backups and restore
 - troubleshooting
 
+## Upgrading
+
+Back up first ([backups](docs/deployment.md#7-backups-and-restore)), then use the path that matches how you installed:
+
+| Installed with | Upgrade with |
+|---|---|
+| CI (the `test` VM) | Push to `master` on the primary Forgejo; CI publishes and deploys. |
+| `deploy.sh remote` (registry) | `scripts/deploy.sh publish`, then `scripts/deploy.sh remote <host>`. Add a version to roll back: `scripts/deploy.sh remote <host> 0.<n>`. |
+| `deploy.sh deploy` (build from source) | `scripts/deploy.sh update` (`git pull --ff-only`, then rebuild and restart). |
+
+Database migrations run automatically when the API starts, and `.env` settings are kept. Afterwards, check the build number under **Help & About** (on the login page or in the sidebar) or at `/api/health`, and reload wall displays so they pick up the new web app. Version-specific notes are in [docs/deployment.md](docs/deployment.md#5-upgrade-and-roll-back) and [CHANGELOG.md](CHANGELOG.md).
+
 ## Documentation
 
 | Topic | Where |
 |---|---|
 | Deploying, upgrading, backups | [docs/deployment.md](docs/deployment.md) |
+| CI: tests, publish and deploy on `master` | [docs/ci.md](docs/ci.md) |
 | How it works (components, data, auth, time zones) | [docs/architecture.md](docs/architecture.md) |
 | Developing and testing | [GETTING_STARTED.md](GETTING_STARTED.md) |
 | Raspberry Pi wall display | [docs/wall-screen-setup.md](docs/wall-screen-setup.md) |
 | Trusting the LAN certificate | [docs/cert-trust.md](docs/cert-trust.md) |
-| Known issues / planned fixes | [TODO.md](TODO.md) |
-| Feature backlog | [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) |
+| Security notes (feed fetching, live updates) | [docs/security-notes.md](docs/security-notes.md) |
+| Roadmap and task list | [TODO.md](TODO.md) |
+| Older idea list (superseded by TODO.md) | [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) |
 | Version history | [CHANGELOG.md](CHANGELOG.md) |
 | Notes for AI coding agents | [AGENTS.md](AGENTS.md) |
 
