@@ -16,7 +16,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Release | Contents | Shipped in |
 |---|---|---|
 | Phases 2 + 4 | Security, sign-in model, infra/CI | 0.30 |
-| Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, …) | in progress (0.52 locally); **not yet confirmed on the test VM** (check `/api/health` or the sidebar build number) |
+| Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, …) | in progress; **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
 | Phase 3 + 3b | iCal correctness; wall essentials (photo slideshow, sleep schedule, backups) | |
 | Phase 5 | Chores, to-dos, routines | |
 | Phase 6 | Rewards | |
@@ -60,7 +60,7 @@ Findings from the codebase review. Each item should be handled with tests first 
 - [x] Stop caching service worker assets as immutable for one year. Add no-cache rules for `/sw.js`, Workbox files, and the manifest; keep immutable caching for hashed `/assets/*` (`frontend/nginx.conf`).
 - [x] Push live wall updates after background and automatic iCal syncs, and only after the change is committed (`queue_event`/`publish_queued`, `backend/tests/test_realtime.py`).
 - [x] Close the SSRF DNS-rebinding window: `fetch_ics_bytes` connects to the IP the guard approved (Host header + TLS SNI keep the name) and caps feeds at 10 MB (`TestDnsRebinding`, `TestResponseLimits` in `backend/tests/test_ssrf.py`; see `docs/security-notes.md`).
-- [x] Give every CI publish its own image tag and show the running build in `/api/health` and the app sidebar, so "what's deployed?" has an answer and rollback can target a build. Shipped first as `<version>.<run>` (e.g. `0.30.17`); since the per-commit numbering change the tag is `0.<n>`.
+- [x] Give every CI publish its own image tag and show the running build in `/api/health` plus setup/login/sidebar Help & About, so "what's deployed?" has an answer and rollback can target a build. Shipped first as `<version>.<run>` (e.g. `0.30.17`); since the per-commit numbering change the tag is `0.<n>`.
 - [ ] Production path: CI deploys only to `test`. Add a `prod` host and a deliberate promotion step (`scripts/deploy.sh remote <prod-host> <build>`) once the family uses it daily.
 - [ ] Code-split the frontend (route-level `React.lazy`). The main bundle is 623 KB (Vite warns at 500 KB) before chores, meals and the rest add pages.
 - [ ] Add a production-startup/migration smoke test. Current backend tests create metadata directly and do not exercise Alembic startup or scheduler registration (`backend/tests/conftest.py`, `backend/app/main.py`). ([#16](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues/16))

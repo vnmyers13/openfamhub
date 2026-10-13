@@ -97,7 +97,7 @@ scripts/deploy.sh publish            # version = 0.<VERSION> (repo root)
 scripts/deploy.sh publish 0.30-rc1   # or an explicit tag
 ```
 
-This builds `linux/amd64` and `linux/arm64` images for the API and web app and pushes each one as `:<version>` and `:latest`. Images are tagged `0.<n>` with a matching `v0.<n>` release tag; see [ci.md](ci.md). The build is baked into the images: `/api/health` reports `build` and `commit`, and the app's sidebar shows it.
+This builds `linux/amd64` and `linux/arm64` images for the API and web app and pushes each one as `:<version>` and `:latest`. Images are tagged `0.<n>` with a matching `v0.<n>` release tag; see [ci.md](ci.md). The build is baked into the images: `/api/health` reports `build` and `commit`, and the setup page, login page, and app sidebar show the same Help & About build info.
 
 - The first run creates a buildx builder named `openfamhub`.
 - If the server and the Mac share an architecture, `PLATFORMS=linux/amd64 scripts/deploy.sh publish` is faster.
@@ -243,6 +243,14 @@ scripts/deploy.sh status | logs [service] | stop
 ```
 
 By default this runs in **LAN mode**: Caddy listens on 80/443 and serves `https://$SITE_ADDRESS` with its internal CA, which each device must trust ([cert-trust.md](cert-trust.md)). To put it behind another proxy instead, set `CADDYFILE=Caddyfile.proxy` and `HTTP_PORT=8080` in `.env`.
+
+Build-from-source deploys stamp images from the checkout too: `scripts/deploy.sh deploy` sets `OPENFAMHUB_VERSION` from the root `VERSION` file (`0.<n>`) and `OPENFAMHUB_COMMIT` from the current git commit before running `docker compose up --build`. To verify what is actually running, check either the setup/login Help & About box before signing in or:
+
+```bash
+curl -s http://localhost:8080/api/health
+```
+
+The response should include matching `version`, `build`, and `commit` fields; if git metadata is unavailable, `commit` falls back to `unknown` and is hidden in the UI.
 
 ---
 
