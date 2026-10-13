@@ -372,7 +372,7 @@ The response should include matching `version`, `build`, and `commit` fields; if
 | A calendar feed shows an error | Admin › Calendars › Log shows the message; **Sync Now** retries immediately. |
 | Uploading a video fails with `413` | A proxy in front of OpenFamHub limits request size; raise it (nginx: `client_max_body_size 500m`). OpenFamHub itself allows 500 MB (photos 30 MB, videos 10 minutes). |
 | A video stays on "Converting…" | Videos convert one at a time; a long clip can take a few minutes on a small server. `docker compose logs api` shows ffmpeg errors; a restart marks unfinished ones as failed so they can be uploaded again. |
-| An iPhone photo is refused as HEIC | Set the iPhone to Settings › Camera › Formats › Most Compatible, or share the photo as JPEG. HEIC support is planned. |
+| An iPhone photo fails to upload | HEIC/HEIF is supported; if it still fails, check `docker compose logs api` for image decode errors and confirm the server is running a build with `pillow-heif` installed. |
 | The wall screen is black | The sleep schedule (Admin › Settings) is on; a touch lights it for a few minutes. |
 
 ---
