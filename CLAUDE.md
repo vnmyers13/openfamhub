@@ -17,7 +17,7 @@ Read these before changing code:
 
 ## Rules
 
-- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 207 backend tests in 19 files and 128 frontend tests in 26 files (0.88); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
+- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 278 backend tests in 22 files and 174 frontend tests in 31 files (0.94); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
 - **Time:**
   - Every datetime column is `UTCDateTime` (`backend/app/core/types.py`).
   - The API returns `+00:00` values.
@@ -29,7 +29,8 @@ Read these before changing code:
   - User sessions are an HttpOnly JWT cookie (30 days) whose `jti` is a `sessions` row, checked on every request. Admin endpoints also need a password session (or `/auth/elevate` within 15 minutes).
   - Wall displays use a paired-device cookie scoped to `/api/wall`.
   - Never trust a role claim from a token without loading the user.
-- **Schema:** for a new model, add it under `backend/app/models/`, import it in `models/__init__.py` and `alembic/env.py`, and add an Alembic migration. The next migration number is **008** (006 = one family per install, 007 = media). Migrations run automatically at startup.
+- **Schema:** for a new model, add it under `backend/app/models/`, import it in `models/__init__.py` and `alembic/env.py`, and add an Alembic migration. The next migration number is **009** (006 = one family per install, 007 = media, 008 = chores). Migrations run automatically at startup.
+- **Chores and points:** due dates are plain family-local `Date`s (`services/chores.family_today`), never UTC dates. The `points_ledger` is append-only and unique per (source_type, source_id): credit and reverse with new rows, never update or delete. Routine steps are chore templates with `routine_id`.
 - **Media:** family photos and videos live under `data/photos/media/<family>/<id>/` and are served only by `/api/media` (family members) and `/api/wall/media` (paired displays). Never add a public static route to them. Only processed renditions are stored (no EXIF/metadata). ffmpeg comes from `imageio-ffmpeg`; conversions run in the background, one at a time.
 - **Single API worker:** the scheduler, event bus, WebSocket hub and rate limiter are all in-process. Add jobs to the existing scheduler (`backend/app/jobs/scheduler.py`, which runs in `TIMEZONE`); never start a second scheduler.
 - **Secrets:** `SECRET_KEY` has no default on purpose. Never commit `.env`, databases or tokens.
@@ -63,7 +64,7 @@ When porting a feature, re-implement it rather than copying the file. TODO.md ha
 | 3 | iCal correctness: duplicate first occurrence, EXDATE/RECURRENCE-ID, all-day recurrences, floating times, storage window, batch UID lookup | Done, 0.82 |
 | 3b | Wall essentials: photo/video slideshow (media library, EXIF stripping, wall-token reads), sleep schedule, off-host backups | Done, 0.88 |
 | 4 | Infra/cleanup: Alembic on start, CI, Workbox patterns, Pi script, dead code, settings, `.gitignore` | Done, shipped in 0.30 |
-| 5 | Port chores (+ to-dos, routines); fix v0.29's missing points credit, interval drift, UTC due dates | Open |
+| 5 | Port chores (+ to-dos, routines); fix v0.29's missing points credit, interval drift, UTC due dates | Done, 0.94 |
 | 6 | Port rewards (append-only points ledger, idempotent weekly allowance in cents, catalog, badges/streaks) + progress widget | Open; needs 5 |
 | 7 | Port meals and recipes (auth on every endpoint, SSRF-safe URL import, plan, pantry, shopping list, recipe catalog) | Open |
 | 8 | Port books (+ shared-library writes), announcements, birthdays, weather, dashboard summary + customization | Open; needs 6 |

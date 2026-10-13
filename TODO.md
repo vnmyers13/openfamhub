@@ -19,7 +19,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Phases 2 + 4 | Security, sign-in model, infra/CI | 0.30 |
 | Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.73 except the prod host (deferred); **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
 | Phase 3 + 3b | iCal correctness (code complete at 0.82); wall essentials: photo/video slideshow, sleep schedule, family settings, off-host backups (code complete at 0.88) | |
-| Phase 5 | Chores, to-dos, routines | |
+| Phase 5 | Chores, to-dos, routines (code complete at 0.94) | |
 | Phase 6 | Rewards | |
 | Phase 7 | Meals | |
 | Phase 8 | Books, announcements, weather, birthdays, dashboard summary | |
@@ -170,27 +170,30 @@ parallel product line (chores/rewards/meals), not 11 releases ahead of us. We po
 *our* architecture, one domain at a time, and inherit our auth, `family_id` tenant scoping,
 `UTCDateTime`, deploy tooling and CI rather than its code. Phases 11–13 extend past v0.29 with the Cozyla-parity items listed above.
 
-Each phase writes its tests **before** the code, in the same change. Baseline (0.88): 207 backend tests in 19
-files (`v0.29` has 65 in 13) and 128 frontend tests in 26 files (Vitest). Coverage: backend 96% (CI floor 93%), frontend 94% of statements (CI thresholds in `vitest.config.ts`).
+Each phase writes its tests **before** the code, in the same change. Baseline (0.94): 278 backend tests in 22
+files (`v0.29` has 65 in 13) and 174 frontend tests in 31 files (Vitest). Coverage: backend 96% (CI floor 93%), frontend 94% of statements (CI thresholds in `vitest.config.ts`).
 
-Ordering is by dependency: rewards spends the points ledger chores introduce, and books awards points.
+Ordering is by dependency: rewards spends the points ledger chores introduced (Phase 5, `points_ledger`), and books awards points.
 
-### Phase 5 — Chores
-- [ ] `chore_templates` and `chore_instances` models + the next Alembic migration (006 = single-family trigger, 007 = media, so chores get 008). `UTCDateTime` throughout, `family_id` on both.
-- [ ] Recurrence expansion into instances (reuse the Phase 3 iCal recurrence work where it fits).
-- [ ] Claim / complete lifecycle, quick-add, completion audit log.
-- [ ] Admin "By User" view: group by assignee with pending and completed counts.
-- [ ] Per-user completion stats.
-- [ ] `jobs/chore_generator.py` on the existing scheduler (06:00), not a second scheduler.
-- [ ] **Fix v0.29 bugs while porting:**
+### Phase 5 — Chores ✅ (code complete at 0.94)
+- [x] `chore_templates` and `chore_instances` models + the next Alembic migration (006 = single-family trigger, 007 = media, so chores get 008). `UTCDateTime` throughout, `family_id` on both.
+- [x] Recurrence expansion into instances (reuse the Phase 3 iCal recurrence work where it fits).
+- [x] Claim / complete lifecycle, quick-add, completion audit log.
+- [x] Admin "By User" view: group by assignee with pending and completed counts.
+- [x] Per-user completion stats.
+- [x] `jobs/chore_generator.py` on the existing scheduler, not a second scheduler. Runs hourly and at startup instead of 06:00: it's idempotent, so each family's day rolls over within the hour in its own timezone, and a server that was down catches up.
+- [x] **Fix v0.29 bugs while porting:**
   - Completing a chore never writes to the points ledger (only `points_earned` on the log), so chores earn no points. Credit the ledger in the same transaction, exactly once.
   - `every_N_days` restarts from "today" on each run, so with a daily run every day gets an instance. Anchor the interval to the template's start date.
   - Due dates use the UTC date. Use the family's timezone date.
   - Anyone can claim an *assigned* chore. Only the assignee (or an admin) can.
   - Add a unique (`template_id`, `due_date`) constraint so double generation is impossible.
-- [ ] **To-do list:** one-off family tasks with an optional assignee and due date; no recurrence and no points side effects. Shown beside chores.
-- [ ] **Routines:** ordered groups of recurring steps (morning/bedtime) with a visual countdown timer on the wall; built on chore instances. Reminders come from Phase 11.
-- Tests first: recurrence expansion across DST; instance generation idempotency; claim/complete role gating; admin view counts; generator does not double-generate; to-do CRUD is family-scoped; routine step order survives edits.
+- [x] **To-do list:** one-off family tasks with an optional assignee and due date; no recurrence and no points side effects. Shown beside chores.
+- [x] **Routines:** ordered groups of recurring steps (morning/bedtime) with a visual countdown timer on the wall; built on chore instances. Reminders come from Phase 11.
+- Tests first: recurrence expansion across DST; instance generation idempotency; claim/complete role gating; admin view counts; generator does not double-generate; to-do CRUD is family-scoped; routine step order survives edits. Done: `test_chore_schedule.py`, `test_chores_api.py`, `test_todos_routines.py`, `lib/repeat.test.ts`, `lib/routine.test.ts`, `lib/choreActions.test.ts`, `pages/chores/*.test.tsx`, `WallRoutines.test.tsx`.
+- Done notes: the points ledger (`points_ledger`, append-only, unique per source) arrived here because completing must credit it; undo writes a reversal. Points go to the assignee, else whoever claimed it. Instances still open after their day are marked missed by the generator.
+- [ ] Check off routine steps from the wall. The wall shows routines and the current step's countdown, but steps are ticked in the app: completing from a paired display (no user session) would credit a child's points without anyone signing in, so it needs a decision (e.g. allow it only for routine steps assigned to a child).
+
 
 ### Phase 6 — Rewards
 - [ ] Points ledger as an append-only table (no balances stored on the user).

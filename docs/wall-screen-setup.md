@@ -45,6 +45,7 @@ The display then stays signed in indefinitely (its cookie refreshes on every loa
 
 ### What the wall shows
 - The clock, the family and the next seven days. After a few minutes without a touch it switches to a slideshow of the family's photos and videos (added on the **Photos** page), with the clock in the corner; a touch brings the calendar back. Videos play muted.
+- During a routine (set up under **Chores › Manage**), the left panel shows its current step with a countdown, starting half an hour before; steps are ticked off in the app.
 - With a sleep schedule (**Admin › Settings**), the screen goes black between the off and on times, in the family's timezone. A touch lights it for a few minutes.
 
 ### 5. Reboot and Verify

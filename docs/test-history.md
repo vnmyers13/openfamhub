@@ -51,3 +51,8 @@ This document tracks the testing activities, bug reports, and verification steps
 - Release tooling: 5 harnesses passed, including the new `backup-offhost-test.sh` (rsync and cp modes).
 - Not yet verified on the `test` VM.
 
+## 0.94 — Phase 5 — 2026-10-12
+- Backend: `pytest --cov`: 278 passed, coverage 96%. New: recurrence across DST and anchored intervals, family-local "today", idempotent generator and the unique (template, date) constraint, claim/complete role gating, exactly-once points with undo reversals, admin by-person counts, stats and streaks, family-scoped to-dos, routine step order across edits, the wall routines endpoint.
+- Frontend: `npm run test:coverage`: 174 passed in 31 files, 94% statements / 86% branches. New: repeat descriptions, routine timeline in the family zone, chore action rules, the Chores page tabs and forms, wall routine countdown.
+- Not yet verified on the `test` VM.
+

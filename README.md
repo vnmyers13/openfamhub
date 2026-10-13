@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-0.94-blue)
+![Version](https://img.shields.io/badge/version-0.95-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -13,6 +13,7 @@ A self-hosted family calendar and organizer, a home version of a Skylight-style 
 - **Wall display**: a full-screen kiosk view (`/wall`) with a clock, a 7-day strip that rolls over at midnight, and the family list. Each display is paired once with a revocable device link and stays signed in after that.
 - **Live updates**: wall displays refresh as soon as events change, over a WebSocket.
 - **Installable app (PWA)**: works on iOS and Android phones and can show cached data offline.
+- **Chores, routines and to-dos**: repeating chores assigned to someone or up for grabs, points for finishing them (an append-only ledger rewards will spend), morning and bedtime routines with a countdown on the wall, and a shared to-do list.
 - **Photo and video slideshow**: family members add photos and videos; the wall shows them full screen when nobody is using it. Location data is removed on upload.
 - **Sleep schedule**: wall screens go dark overnight (in the family's timezone) and wake on touch.
 - **Backups**: a daily SQLite snapshot with configurable retention, plus `backup-offhost.sh` to copy snapshots and photos to a NAS.

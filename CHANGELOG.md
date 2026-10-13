@@ -1,3 +1,21 @@
+## [Unreleased] — Phase 5: chores, routines and to-dos (builds 0.90–0.94, 2026-10-12)
+
+### Added
+- **Chores**: admins set up chores that repeat every few days, on chosen weekdays or monthly, either assigned to someone or up for grabs. Family members see today's chores, claim open ones, mark them done (or undo) and earn points.
+- **Points**: every completed chore adds to a points balance kept in an append-only ledger, ready for rewards. Each person sees their points, streak and week; everyone sees the family table.
+- **Routines**: ordered steps such as a morning or bedtime routine, each with a few minutes; the wall shows the current step with a countdown.
+- **To-dos**: a shared list of one-off tasks with an optional person and due date.
+- Admins see today's chores counted by person, and a history of who did what.
+
+### Fixed (compared with the retired 0.29 line)
+- Chores earn points: they're credited exactly once when completed.
+- "Every 3 days" chores stay every 3 days instead of appearing daily.
+- Due dates follow the family's timezone, not UTC.
+- Only the person a chore is assigned to (or an admin) can claim it.
+- The same chore can't be created twice for one day.
+
+---
+
 ## [Unreleased] — Phase 3b: wall essentials (builds 0.84–0.88, 2026-10-12)
 
 ### Added
