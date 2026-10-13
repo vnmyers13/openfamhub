@@ -228,7 +228,7 @@ class TestEventRoles:
     async def test_synced_events_are_read_only(self, client, admin, monkeypatch):
         from datetime import datetime, timezone
 
-        async def fake_fetch(url):
+        async def fake_fetch(url, **kwargs):
             return [{
                 "external_uid": "u1", "title": "School assembly",
                 "start_dt": datetime(2026, 10, 12, 13, tzinfo=timezone.utc),

@@ -100,7 +100,7 @@ class TestSources:
     async def test_sync_now_runs_the_sync(self, client, admin, monkeypatch):
         from datetime import datetime, timezone
 
-        async def fake_fetch(url):
+        async def fake_fetch(url, **kwargs):
             return [{
                 "external_uid": "abc",
                 "title": "Field trip",
@@ -122,7 +122,7 @@ class TestSources:
     async def test_empty_feed_hides_previous_events(self, client, admin, monkeypatch):
         from datetime import datetime, timezone
 
-        async def one_event(url):
+        async def one_event(url, **kwargs):
             return [{
                 "external_uid": "abc",
                 "title": "Field trip",
@@ -133,7 +133,7 @@ class TestSources:
                 "description": None,
             }]
 
-        async def empty_feed(url):
+        async def empty_feed(url, **kwargs):
             return []
 
         source = await self._ical_source(client, admin)
@@ -147,7 +147,7 @@ class TestSources:
         assert await _list(client, admin, "2026-10-07T00:00:00Z", "2026-10-08T00:00:00Z") == []
 
     async def test_sync_error_is_reported(self, client, admin, monkeypatch):
-        async def failing_fetch(url):
+        async def failing_fetch(url, **kwargs):
             raise ValueError("ICS fetch returned HTTP 404")
 
         monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", failing_fetch)
@@ -158,7 +158,7 @@ class TestSources:
     async def test_deleted_source_is_hidden_with_its_events(self, client, admin, monkeypatch):
         from datetime import datetime, timezone
 
-        async def fake_fetch(url):
+        async def fake_fetch(url, **kwargs):
             return [{
                 "external_uid": "x1", "title": "Game",
                 "start_dt": datetime(2026, 10, 8, 18, tzinfo=timezone.utc),

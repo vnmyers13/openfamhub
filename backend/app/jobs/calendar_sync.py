@@ -1,81 +1,90 @@
 import time
 from datetime import datetime, timezone
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
 from app.core.events import publish_queued, queue_event
-from app.integrations.ical_feed import fetch_and_parse
+from app.integrations.ical_feed import WINDOW_PAST, fetch_and_parse
 from app.models.calendar_event import CalendarEvent
+from app.models.family import Family
 from app.models.calendar_source import CalendarSource
 from app.models.calendar_sync_log import SyncLog
 
 
-async def sync_source(source: CalendarSource, db: AsyncSession) -> None:
+def describe_sync_error(exc: Exception) -> str:
+    """A message an admin can act on (some httpx errors stringify to "")."""
+    if isinstance(exc, httpx.TimeoutException):
+        return "The calendar URL timed out"
+    if isinstance(exc, httpx.RequestError):
+        return f"Could not reach the calendar URL: {exc}" if str(exc) else "Could not reach the calendar URL"
+    return str(exc) or exc.__class__.__name__
+
+
+async def sync_source(source: CalendarSource, db: AsyncSession) -> str | None:
+    """Fetch and store one iCal source. Errors are recorded on the source and
+    in its sync log; the message is also returned (None on success)."""
     start_ms = int(time.time() * 1000)
     upserted = 0
     deleted = 0
     error_msg = None
+    now = datetime.now(timezone.utc)
 
     try:
-        parsed = await fetch_and_parse(source.ics_url)
+        family = await db.get(Family, source.family_id)
+        parsed = await fetch_and_parse(
+            source.ics_url, family_tz=family.timezone if family else None, now=now
+        )
+        # A feed can repeat a UID; the last copy wins.
+        incoming = {event_data["external_uid"]: event_data for event_data in parsed}
 
-        incoming_uids = set()
-        for event_data in parsed:
-            incoming_uids.add(event_data["external_uid"])
-
-            existing = await db.execute(
-                select(CalendarEvent).where(
-                    CalendarEvent.source_id == source.id,
-                    CalendarEvent.external_uid == event_data["external_uid"],
-                )
-            )
-            ev = existing.scalar_one_or_none()
-
-            if ev:
-                ev.title = event_data["title"]
-                ev.start_dt = event_data["start_dt"]
-                ev.end_dt = event_data["end_dt"]
-                ev.all_day = event_data["all_day"]
-                ev.location = event_data["location"]
-                ev.description = event_data["description"]
-                ev.is_deleted = False
-            else:
-                ev = CalendarEvent(
-                    source_id=source.id,
-                    family_id=source.family_id,
-                    external_uid=event_data["external_uid"],
-                    title=event_data["title"],
-                    start_dt=event_data["start_dt"],
-                    end_dt=event_data["end_dt"],
-                    all_day=event_data["all_day"],
-                    location=event_data["location"],
-                    description=event_data["description"],
-                )
-                db.add(ev)
-            upserted += 1
-
-        # A successful sync with an empty feed means every previously synced
-        # event is gone, so stale handling must run even when incoming_uids is empty.
+        # One query for every synced row of this source (deleted ones too, so
+        # an event that comes back is restored under its old id).
         result = await db.execute(
             select(CalendarEvent).where(
                 CalendarEvent.source_id == source.id,
                 CalendarEvent.external_uid.isnot(None),
-                CalendarEvent.external_uid.notin_(incoming_uids),
             )
         )
-        stale = list(result.scalars().all())
-        for s in stale:
-            s.is_deleted = True
-            deleted += 1
+        existing = {ev.external_uid: ev for ev in result.scalars().all()}
 
-        source.last_synced_at = datetime.now(timezone.utc)
+        for uid, event_data in incoming.items():
+            ev = existing.get(uid)
+            if ev is None:
+                ev = CalendarEvent(source_id=source.id, family_id=source.family_id, external_uid=uid)
+                db.add(ev)
+            ev.title = event_data["title"]
+            ev.start_dt = event_data["start_dt"]
+            ev.end_dt = event_data["end_dt"]
+            ev.all_day = event_data["all_day"]
+            ev.location = event_data["location"]
+            ev.description = event_data["description"]
+            ev.is_deleted = False
+            upserted += 1
+
+        # Gone from the feed. A successful sync of an empty feed means every
+        # event is gone, so this runs even when nothing came in. Rows that have
+        # left the storage window are deleted outright rather than kept as
+        # soft-deleted history; the rest are hidden and restored if they return.
+        window_start = now - WINDOW_PAST
+        for uid, ev in existing.items():
+            if uid in incoming:
+                continue
+            if ev.end_dt <= window_start:
+                await db.delete(ev)
+                deleted += 1
+            elif not ev.is_deleted:
+                ev.is_deleted = True
+                deleted += 1
+
+        source.last_synced_at = now
         source.sync_error = None
         await db.flush()
 
     except Exception as exc:
-        error_msg = str(exc)
+        error_msg = describe_sync_error(exc)
         source.sync_error = error_msg
         await db.flush()
 
@@ -93,6 +102,7 @@ async def sync_source(source: CalendarSource, db: AsyncSession) -> None:
     # Tell paired walls to re-fetch. Queued, so it is published only after the
     # caller commits (get_db for API requests, sync_all_due for the scheduler).
     queue_event(db, "calendar_updated", {"source_id": source.id})
+    return error_msg
 
 
 async def sync_all_due() -> None:

@@ -68,7 +68,7 @@ class TestBackgroundSync:
             headers=headers,
         )).json()
 
-        async def fake_fetch(url):
+        async def fake_fetch(url, **kwargs):
             return [{
                 "external_uid": "u1", "title": "Assembly",
                 "start_dt": datetime(2026, 10, 20, 13, tzinfo=timezone.utc),
@@ -117,7 +117,7 @@ class TestBackgroundSync:
             headers=headers,
         )).json()
 
-        async def fake_fetch(url):
+        async def fake_fetch(url, **kwargs):
             return []
 
         monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", fake_fetch)
