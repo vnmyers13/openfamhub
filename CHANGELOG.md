@@ -1,3 +1,22 @@
+## [Unreleased] — CI: Trivy image scan (builds 0.96–0.97, 2026-10-13)
+
+### Added
+- **Trivy scan in CI**: after each publish to `master`, the new `trivy` job scans the exact `openfamhub-api` and `openfamhub-web` images just pushed, prints a HIGH/CRITICAL table in the log and keeps the JSON reports as a CI artifact for 30 days. It never fails the pipeline or delays the deploy.
+- **Backlog issues from findings** (optional): with the `TRIVY_ISSUE_TOKEN` secret set, each HIGH/CRITICAL finding gets one Forgejo issue. Findings already tracked, including closed issues, aren't opened again, and at most 20 are opened per run.
+- `scripts/trivy-scan.sh` to scan any published build by hand, and `scripts/tests/trivy-test.sh` covering both scripts.
+
+### Fixed (in 0.96's first version of the job)
+- The issue step would have crashed (`${secrets…}` isn't shell syntax), and it put the token on the command line; the token now comes from the environment.
+- The step condition read `secrets` in `if:`, which isn't allowed there.
+- The scan always checked `latest` instead of the build that was just published.
+- Every push would have reopened an issue for every finding; issues are now deduplicated against existing ones.
+- API calls had no timeout, and a report with `"Vulnerabilities": null` crashed the script.
+
+### Security
+- The scanner runs from a pinned `aquasec/trivy:0.69.3` image instead of `aquasecurity/trivy-action`, whose tags (and Trivy 0.69.4) were hijacked in March 2026 (CVE-2026-33634).
+
+---
+
 ## [Unreleased] — Phase 5: chores, routines and to-dos (builds 0.90–0.94, 2026-10-12)
 
 ### Added

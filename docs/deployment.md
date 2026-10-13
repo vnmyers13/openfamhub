@@ -350,5 +350,6 @@ The response should include matching `version`, `build`, and `commit` fields; if
 CI runs on the self-hosted Gitea instance via Gitea Actions. `.gitea/workflows/ci.yml`
 runs the backend tests and the frontend lint, unit tests and build on every push and pull request, then
 publishes `forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}` (amd64 + arm64)
-and deploys the test VM on pushes to `master`. The one-time runner and secret
-setup is in [ci.md](ci.md).
+and deploys the test VM on pushes to `master`, then scans the published images
+with Trivy (non-blocking; HIGH/CRITICAL findings can become backlog issues). The
+one-time runner and secret setup is in [ci.md](ci.md).

@@ -86,69 +86,47 @@ jobs:
       - name: Install bundle and restart the stack
         run: scripts/deploy.sh server "$HOME/openfamhub"
 
-  # ---------------------------------------------------------------------------
-  # Trivy scan: non-blocking.  Scans published images and optionally creates
-  # backlog issues from HIGH/CRITICAL findings.  Set CREATE_ISSUES=1 to enable
-  # issue creation (requires secrets.TRIVY_ISSUE_TOKEN).
-  # ---------------------------------------------------------------------------
+  # Trivy scan of the images `publish` just pushed (tag 0.<VERSION>). Non-blocking:
+  # findings and scan errors never turn CI red or hold up `deploy`. Reports are
+  # uploaded as the `trivy-reports` artifact. With CREATE_ISSUES=1 and the
+  # TRIVY_ISSUE_TOKEN secret set, HIGH/CRITICAL findings become backlog issues
+  # (one per finding, never duplicated). See docs/ci.md#trivy-scan.
   trivy:
     needs: [publish]
     if: gitea.event_name == 'push' && gitea.ref == 'refs/heads/master'
     runs-on: openfamhub
     env:
-      GITEA_URL: https://forgejo.vernonmyers.cloud
-      GITEA_REPO: vernon/OpenFamHub
+      FORGEJO_URL: https://forgejo.vernonmyers.cloud
+      FORGEJO_REPO: vernon/OpenFamHub
       CREATE_ISSUES: "1"
     steps:
       - uses: builtin:checkout
-
-      - name: Log in to the Forgejo registry
-        run: echo "${{ secrets.REGISTRY_TOKEN }}" | \
-             docker login forgejo.vernonmyers.cloud \
-               --username vernon --password-stdin
-
-      # --- API image scan (non-blocking) -----------------------------------
-      - name: Scan API image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: >-
-            forgejo.vernonmyers.cloud/vernon/openfamhub-api:${{
-              gitea.release_tag || 'latest' }}
-          format:    json
-          output:    trivy-api.json
-          exit-code: '0'
-
-      # --- Web image scan (non-blocking) ------------------------------------
-      - name: Scan Web image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: >-
-            forgejo.vernonmyers.cloud/vernon/openfamhub-web:${{
-              gitea.release_tag || 'latest' }}
-          format:    json
-          output:    trivy-web.json
-          exit-code: '0'
-
-      # --- Upload reports as CI artifacts -----------------------------------
-      - name: Upload scan results
+      - name: Scan published images
+        continue-on-error: true
+        env:
+          TRIVY_USERNAME: vernon
+          TRIVY_PASSWORD: ${{ secrets.REGISTRY_TOKEN }}
+        run: scripts/trivy-scan.sh
+      - name: Upload scan reports
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name:         trivy-reports
-          path:         |
-            trivy-api.json
-            trivy-web.json
+          name: trivy-reports
+          path: trivy-reports/
           retention-days: 30
-
-      # --- (Optional) Create backlog issues from HIGH/CRITICAL findings -----
-      - name: Create backlog issues from Trivy findings
-        if: env.CREATE_ISSUES == '1' && secrets.TRIVY_ISSUE_TOKEN != ''
+      - name: Open backlog issues for HIGH/CRITICAL findings
+        if: env.CREATE_ISSUES == '1'
+        continue-on-error: true
+        env:
+          TRIVY_ISSUE_TOKEN: ${{ secrets.TRIVY_ISSUE_TOKEN }}
         run: |
-          set -euo pipefail
-          TOKEN="${secrets.TRIVY_ISSUE_TOKEN}"
-
-          for report in trivy-api.json trivy-web.json; do
-            [ ! -s "$report" ] && continue
-            IMAGE=$(echo "$report" | sed 's/trivy-//;s/.json//')
-            python3 scripts/create_trivy_issues.py \
-              "$GITEA_URL" "$GITEA_REPO" "$TOKEN" "$IMAGE" "$report" || true
+          if [ -z "$TRIVY_ISSUE_TOKEN" ]; then
+            echo "TRIVY_ISSUE_TOKEN secret not set; skipping issue creation."
+            exit 0
+          fi
+          for component in api web; do
+            report="trivy-reports/trivy-$component.json"
+            [ -s "$report" ] || { echo "No report for $component"; continue; }
+            python3 scripts/create_trivy_issues.py "$FORGEJO_URL" "$FORGEJO_REPO" \
+              "openfamhub-$component:0.$(cat VERSION)" "$report"
           done
