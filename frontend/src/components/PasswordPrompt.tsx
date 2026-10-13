@@ -17,7 +17,19 @@ export default function PasswordPrompt() {
   const [busy, setBusy] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => onPasswordPrompt((req) => setPending(req)), [])
+  // Requests that share this prompt wait on it (api/client.ts coalesces them),
+  // so it must always settle: unmounting while open cancels it.
+  const pendingRef = useRef<Pending | null>(null)
+  useEffect(() => {
+    pendingRef.current = pending
+  }, [pending])
+  useEffect(() => {
+    const off = onPasswordPrompt((req) => setPending(req))
+    return () => {
+      off()
+      pendingRef.current?.reject()
+    }
+  }, [])
 
   useEffect(() => {
     if (pending) inputRef.current?.focus()
