@@ -9,6 +9,10 @@
 - **Family progress** on the dashboard and the wall: each member's points, points earned this week, streak and badges. On the wall it replaces the plain member list and updates live.
 - Migration 009: `rewards`, `reward_redemptions`, `badge_definitions`, `user_badges`, `allowance_plans`, `allowance_ledger`.
 
+### Photos (build 1.15)
+- The Photos page shows upload progress: which file is being sent ("2 of 3"), how much of it, then "Processing…" while the server converts it.
+- The file picker now offers HEIC/HEIF photos, which the server has accepted since 1.05.
+
 ### Security (build 1.08)
 - Replaced `python-jose` with PyJWT (CVE-2026-85394, and drops its `ecdsa` dependency). Existing sign-ins stay valid.
 - Bumped FastAPI (Starlette 1.8), python-multipart and Pillow, and both images now install OS security updates at build time; `deploy.sh publish` pulls fresh base images. This targets the 67 other Trivy findings.

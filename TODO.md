@@ -170,7 +170,7 @@ Pulled forward from Phase 10: these are what make the wall worth looking at ever
 - [x] **Off-host backups.** Photos make the data worth more: document (and optionally script) copying `data/backups` and `data/photos` to the NAS, and include photos in the restore steps.
 - Tests first: an upload with a disallowed type or size is rejected; EXIF GPS is stripped; another family's media is never listed; the slideshow uses every item before repeating; the sleep schedule respects the family timezone across DST; an unpaired wall can't read media. Done: `test_media.py`, `test_family_settings.py`, `lib/sleep.test.ts`, `lib/shuffle.test.ts`, `WallSlideshow.test.tsx`, `WallLayout.test.tsx`, `scripts/tests/backup-offhost-test.sh`.
 - [x] HEIC/HEIF photo uploads (iPhone default). Done: `pillow-heif` registers HEIF support with Pillow; uploads are converted to metadata-free JPEG wall/thumb renditions and covered by `test_heic_is_accepted_and_stored_as_jpeg_renditions`.
-- [ ] Upload progress for large videos on the Photos page (axios `onUploadProgress`).
+- [x] Upload progress for large videos on the Photos page (axios `onUploadProgress`). Done at 1.15: a progress bar shows the file being sent ("2 of 3"), its percent, then "Processing…" while the server converts it. The file picker also offers HEIC/HEIF now.
 
 ## Phase 4 — Infra and cleanup ✅ (shipped in 0.30)
 - [x] Run Alembic migrations on container start instead of `create_all`.

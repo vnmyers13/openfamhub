@@ -9,13 +9,33 @@ function duration(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
+/** Which file is uploading and how much of it has been sent; the server converts it afterwards. */
+function UploadProgress({ name, index, count, sent }: { name: string; index: number; count: number; sent: number | null }) {
+  const pct = sent === null ? null : Math.round(sent * 100)
+  const label = `Uploading ${name}${count > 1 ? ` (${index + 1} of ${count})` : ''}`
+  return (
+    <div className="mb-4 rounded-lg border border-gray-800 bg-gray-900 px-4 py-3" role="status">
+      <div className="mb-2 flex justify-between gap-3 text-sm text-gray-300">
+        <span className="truncate">{label}</span>
+        <span className="shrink-0">{pct === null ? 'Sending…' : pct >= 100 ? 'Processing…' : `${pct}%`}</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded bg-gray-800" role="progressbar" aria-label={label}
+        aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? undefined}>
+        <div className={`h-full bg-primary transition-[width] ${pct === null ? 'w-1/3 animate-pulse' : ''}`}
+          style={pct === null ? undefined : { width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
 /** The family's photos and videos, shown by the wall when it's idle. */
 export default function PhotosPage() {
   const user = useAuthStore((s) => s.user)
   const { data: items = [], isLoading } = useMedia()
   const upload = useUploadMedia()
   const remove = useDeleteMedia()
-  const [uploading, setUploading] = useState<string | null>(null)
+  const [uploading, setUploading] = useState<{ name: string; index: number; count: number } | null>(null)
+  const [sent, setSent] = useState<number | null>(null) // fraction of the current file sent
   const [failures, setFailures] = useState<string[]>([])
   const canUpload = canCreateEvents(user) // admins and members
   const canRemove = (item: MediaItem) => user?.role === 'admin' || (!!user && item.uploaded_by === user.id)
@@ -23,15 +43,17 @@ export default function PhotosPage() {
   const addFiles = async (files: File[]) => {
     setFailures([])
     // One at a time: a family server converts videos one by one anyway.
-    for (const file of files) {
-      setUploading(file.name)
+    for (const [index, file] of files.entries()) {
+      setUploading({ name: file.name, index, count: files.length })
+      setSent(0)
       try {
-        await upload.mutateAsync(file)
+        await upload.mutateAsync({ file, onProgress: setSent })
       } catch (err) {
         setFailures((f) => [...f, `${file.name}: ${errorDetail(err, 'Could not add it')}`])
       }
     }
     setUploading(null)
+    setSent(null)
   }
 
   return (
@@ -44,11 +66,11 @@ export default function PhotosPage() {
           </div>
           {canUpload && (
             <label className="cursor-pointer rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-primary-dark">
-              {uploading ? `Adding ${uploading}…` : 'Add photos or videos'}
+              {uploading ? 'Adding…' : 'Add photos or videos'}
               <input
                 type="file"
                 multiple
-                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif,video/mp4,video/quicktime,video/webm"
                 className="sr-only"
                 aria-label="Add photos or videos"
                 disabled={!!uploading}
@@ -61,6 +83,8 @@ export default function PhotosPage() {
             </label>
           )}
         </div>
+
+        {uploading && <UploadProgress {...uploading} sent={sent} />}
 
         {failures.length > 0 && (
           <ul className="mb-4 space-y-1 rounded bg-red-900/50 px-4 py-2 text-sm text-red-300">

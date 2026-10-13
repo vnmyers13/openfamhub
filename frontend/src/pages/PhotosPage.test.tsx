@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore, type User } from '../stores/auth'
 import { apiError, mockApi } from '../test/api'
@@ -56,6 +56,44 @@ describe('PhotosPage', () => {
     choose(files)
     await waitFor(() => expect(calls.filter((c) => c.method === 'POST')).toHaveLength(2))
     expect(calls.filter((c) => c.method === 'POST').map((c) => c.body)).toEqual(files)
+  })
+
+  it('shows which file is uploading and how much has been sent', async () => {
+    signIn('member')
+    type Progress = { onUploadProgress?: (e: { loaded: number; total?: number; progress?: number }) => void }
+    let finish: () => void = () => {}
+    let config: Progress = {}
+    mockApi({
+      'GET /media': [],
+      'POST /media': (body: unknown, c?: unknown) => {
+        config = c as Progress
+        return new Promise((resolve) => { finish = () => resolve(item((body as File).name)) })
+      },
+    })
+    renderApp(<PhotosPage />)
+    await screen.findByText(/No photos or videos yet/)
+    choose([file('big.mp4', 'video/mp4'), file('b.jpg', 'image/jpeg')])
+    const bar = await screen.findByRole('progressbar', { name: 'Uploading big.mp4 (1 of 2)' })
+    expect(bar.getAttribute('aria-valuenow')).toBe('0')
+    act(() => config.onUploadProgress?.({ loaded: 45, total: 100, progress: 0.45 }))
+    expect(screen.getByText('45%')).toBeTruthy()
+    expect(bar.getAttribute('aria-valuenow')).toBe('45')
+    act(() => config.onUploadProgress?.({ loaded: 100, total: 100, progress: 1 }))
+    expect(screen.getByText('Processing…')).toBeTruthy()
+    await act(async () => finish())
+    expect(await screen.findByRole('progressbar', { name: 'Uploading b.jpg (2 of 2)' })).toBeTruthy()
+    act(() => config.onUploadProgress?.({ loaded: 10 }))  // size unknown
+    expect(screen.getByText('Sending…')).toBeTruthy()
+    await act(async () => finish())
+    await waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull())
+  })
+
+  it('offers iPhone (HEIC) photos in the file picker', async () => {
+    signIn('member')
+    mockApi({ 'GET /media': [] })
+    renderApp(<PhotosPage />)
+    await screen.findByText(/No photos or videos yet/)
+    expect(screen.getByLabelText('Add photos or videos').getAttribute('accept')).toContain('image/heic')
   })
 
   it("lists each file that couldn't be added, with the reason", async () => {

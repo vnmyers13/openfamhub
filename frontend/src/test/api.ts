@@ -1,7 +1,7 @@
 import { vi } from 'vitest'
 import { apiClient } from '../api/client'
 
-type Reply = unknown | ((body: unknown) => unknown)
+type Reply = unknown | ((body: unknown, config?: unknown) => unknown)
 export type ApiCall = { method: string; url: string; body: unknown }
 
 /** An error shaped like an axios failure, as the app's errorDetail() reads it. */
@@ -20,14 +20,15 @@ export function mockApi(routes: Record<string, Reply>): ApiCall[] {
   const all: Record<string, Reply> = { 'GET /health': { build: '0.99' }, ...routes }
   const calls: ApiCall[] = []
   for (const method of ['get', 'post', 'put', 'patch', 'delete'] as const) {
-    vi.spyOn(apiClient, method).mockImplementation((async (url: string, bodyOrConfig?: unknown) => {
+    vi.spyOn(apiClient, method).mockImplementation((async (url: string, bodyOrConfig?: unknown, config?: unknown) => {
       // POST/PUT/PATCH: the request body. GET/DELETE: the query params, so replies can vary by them.
       const body = method === 'post' || method === 'put' || method === 'patch' ? bodyOrConfig : (bodyOrConfig as { params?: unknown } | undefined)?.params
       const key = `${method.toUpperCase()} ${url}`
       calls.push({ method: method.toUpperCase(), url, body })
       if (!(key in all)) throw apiError(404, `unmocked ${key}`)
       const reply = all[key]
-      return { data: typeof reply === 'function' ? await (reply as (b: unknown) => unknown)(body) : reply }
+      // POST/PUT/PATCH replies also get the request config (e.g. to drive onUploadProgress).
+      return { data: typeof reply === 'function' ? await (reply as (b: unknown, c?: unknown) => unknown)(body, config) : reply }
     }) as never)
   }
   return calls
