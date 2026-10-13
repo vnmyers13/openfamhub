@@ -42,6 +42,16 @@ tags are `v<release>` pushed to `forgejo`. `deploy` pins that exact tag in
 To roll the test VM back to an earlier build, run `scripts/deploy.sh server "$HOME/openfamhub" <release>`
 on the VM (or `scripts/deploy.sh remote test <release>` from the Mac).
 
+Production is not automatic. After a build is checked on `test`, promote that exact
+release with an SSH host alias such as `prod`:
+
+```bash
+PUBLIC_URL=https://<prod-url> scripts/deploy.sh promote prod <release>
+```
+
+`promote` requires the release argument so production never silently takes whatever
+build happens to be current in the checkout.
+
 Pull requests run the checks only; they never publish or deploy.
 
 ## Trivy scan

@@ -1,6 +1,7 @@
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- Production promotion path: `scripts/deploy.sh promote <prod-host> <checked-build>` deploys a deliberately selected, already-checked build to the production SSH host, and docs now keep CI's automatic deploy scoped to `test`.
 
 ---
 

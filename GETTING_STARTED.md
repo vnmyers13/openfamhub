@@ -95,7 +95,7 @@ Every commit is a build, so there is no separate release step for the `test` VM.
 4. **CHANGELOG.** Entries are keyed by phase or work batch, not by commit. Add user-visible changes under `[Unreleased]`; a release gives the batch its build (`[<release>] - <date>`) and gets notes in `docs/releases/v<release>.md`.
 5. Run the tests and checks above.
 6. **Push to the primary Forgejo** (`git push forgejo master`). CI runs the checks, publishes `<release>`, tags `v<release>`, deploys to `test`, scans the images and refreshes the Triage report. Then push `master` to GitHub and the mirrors, and push the tag once CI has created it.
-7. Check the build on `test` (Help & About or `/api/health`). A production host is planned but not set up yet; when it is, promote a checked build with `scripts/deploy.sh remote <prod-host> <release>`.
+7. Check the build on `test` (Help & About or `/api/health`). To promote a checked build to production, use an SSH host alias such as `prod` and run `PUBLIC_URL=https://<prod-url> scripts/deploy.sh promote prod <release>`.
 
 Without CI, publish and deploy by hand: `scripts/deploy.sh publish` (creates and pushes the `v<release>` tag), then `scripts/deploy.sh remote test`.
 
