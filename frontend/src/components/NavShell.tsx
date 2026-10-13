@@ -1,41 +1,20 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/auth'
 import { apiClient, requestPasswordPrompt } from '../api/client'
 import Avatar from './Avatar'
 import { cn } from '../lib/utils'
-import { buildLabel } from '../lib/buildInfo'
-
-// Set at image build time (deploy.sh publish -> OPENFAMHUB_BUILD, e.g. 0.30.17).
-const APP_BUILD = (import.meta.env.VITE_APP_BUILD as string | undefined) || 'dev'
+import BuildInfoBadge from './BuildInfoBadge'
 
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: '🏠' },
   { to: '/calendar', label: 'Calendar', icon: '📅' },
 ]
 
-type HealthResponse = {
-  version?: string
-  build?: string
-  commit?: string
-}
-
 export default function NavShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const { clearUser } = useAuthStore()
-  const { data: health } = useQuery({
-    queryKey: ['api-health'],
-    queryFn: async () => (await apiClient.get('/health')).data as HealthResponse,
-    staleTime: 5 * 60 * 1000,
-  })
-  const publishedBuild = buildLabel({
-    apiBuild: health?.build,
-    apiVersion: health?.version,
-    fallbackBuild: APP_BUILD,
-  })
-
   const isActive = (path: string) => location.pathname === path
 
   const adminItems = [
@@ -129,11 +108,7 @@ export default function NavShell() {
               </button>
             </div>
           )}
-          <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2 text-[11px] text-slate-500">
-            <p className="font-semibold uppercase tracking-wider text-slate-600">Help &amp; About</p>
-            <p className="mt-1 text-slate-400">OpenFamHub {publishedBuild}</p>
-            {health?.commit && <p className="font-mono text-[10px] text-slate-600">{health.commit.slice(0, 7)}</p>}
-          </div>
+          <BuildInfoBadge className="mt-3" />
         </div>
       </aside>
 

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient, errorDetail } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import Avatar from '../components/Avatar'
+import BuildInfoBadge from '../components/BuildInfoBadge'
 
 interface Profile {
   id: string
@@ -208,6 +209,7 @@ export default function Login() {
             )}
           </form>
         )}
+        <BuildInfoBadge className="mx-auto mt-6 max-w-xs text-center" />
       </div>
     </div>
   )

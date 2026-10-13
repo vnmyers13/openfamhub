@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import BuildInfoBadge from '../components/BuildInfoBadge'
 
 export default function SetupWizard() {
   const navigate = useNavigate()
@@ -113,6 +114,7 @@ export default function SetupWizard() {
             {loading ? 'Setting up...' : 'Create Family Hub'}
           </button>
         </form>
+        <BuildInfoBadge className="mx-auto mt-6 max-w-xs text-center" />
       </div>
     </div>
   )
