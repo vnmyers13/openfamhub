@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1-blue)
+![Version](https://img.shields.io/badge/version-1.01-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -64,7 +64,7 @@ Back up first ([backups](docs/deployment.md#7-backups-and-restore)), then use th
 | `deploy.sh remote` (registry) | `scripts/deploy.sh publish`, then `scripts/deploy.sh remote <host>`. Add a version to roll back: `scripts/deploy.sh remote <host> <release>`. |
 | `deploy.sh deploy` (build from source) | `scripts/deploy.sh update` (`git pull --ff-only`, then rebuild and restart). |
 
-Database migrations run automatically when the API starts, and `.env` settings are kept. Afterwards, check the build number under **Help & About** (on the login page or in the sidebar) or at `/api/health`, and reload wall displays so they pick up the new web app. Version-specific notes are in the [release notes](docs/releases/) (upgrading from 0.30: [Release 1](docs/releases/v1.md#upgrading-from-030)), [docs/deployment.md](docs/deployment.md#version-notes) and [CHANGELOG.md](CHANGELOG.md). Builds are named `0.<n>` up to 0.99, then 1, 1.01, 1.02 …
+Database migrations run automatically when the API starts, and `.env` settings are kept. Afterwards, check the build number under **Help & About** (on the login page or in the sidebar) or at `/api/health`, and reload wall displays so they pick up the new web app. Version-specific notes are in the [release notes](docs/releases/) (upgrading from 0.30: [Release 1.01](docs/releases/v1.01.md#upgrading-from-030)), [docs/deployment.md](docs/deployment.md#version-notes) and [CHANGELOG.md](CHANGELOG.md). Builds are named `0.<n>` up to 0.99, then 1, 1.01, 1.02 …
 
 ## Documentation
 
@@ -73,7 +73,7 @@ Database migrations run automatically when the API starts, and `.env` settings a
 | Deploying, upgrading, backups | [docs/deployment.md](docs/deployment.md) |
 | CI: tests, publish, deploy, Trivy scan and issue sync on `master` | [docs/ci.md](docs/ci.md) |
 | Releasing: phases, issues and TODO.md, release names | [docs/releasing.md](docs/releasing.md) |
-| Release notes (latest: [Release 1](docs/releases/v1.md)) and change log | [docs/releases/](docs/releases/), [CHANGELOG.md](CHANGELOG.md) |
+| Release notes (latest: [Release 1.01](docs/releases/v1.01.md)) and change log | [docs/releases/](docs/releases/), [CHANGELOG.md](CHANGELOG.md) |
 | How it works (components, data, auth, time zones) | [docs/architecture.md](docs/architecture.md) |
 | Developing and testing | [GETTING_STARTED.md](GETTING_STARTED.md) |
 | Raspberry Pi wall display | [docs/wall-screen-setup.md](docs/wall-screen-setup.md) |

@@ -4,13 +4,18 @@ Nothing yet.
 
 ---
 
-## [1] - 2026-10-13
+## [1.01] - 2026-10-13
 
-The first 1.x build, and the first release since 0.30: everything from builds 0.31 to 1, grouped by phase. Release notes and upgrade steps: [docs/releases/v1.md](docs/releases/v1.md).
+The first 1.x build, and the first release since 0.30: everything from builds 0.31 to 1.01, grouped by phase. Release notes and upgrade steps: [docs/releases/v1.01.md](docs/releases/v1.01.md).
+
+### Build fix (1.01)
+
+#### Fixed
+- Build 1 didn't publish: an edit dropped the executable bit from `scripts/deploy.sh`, so CI's `publish` step failed with "Permission denied". Every script under `scripts/` and `.githooks/` is executable again, and the new `scripts/tests/exec-bits-test.sh` (run in the `version` job, before `publish`) fails the build if one loses it. Build 1 has no images or tag; 1.01 is the first 1.x build published.
 
 > Entries are keyed by roadmap phase or work batch, not by commit. Every commit is its own build (`VERSION` in the repo root; named by `scripts/release-name`: 0.99, then 1, 1.01 …). New work goes under `[Unreleased]`; a release gives the batch the build that shipped it (`[<release>] - <date>`). The phases below are code complete and pass CI; TODO.md records each one's build once it's checked on the `test` VM.
 
-### Release names past 0.99 (build 1)
+### Release names past 0.99 (builds 1–1.01)
 
 #### Changed
 - **Release names after 0.99**: build 100 is **1**, not 0.100, followed by 1.01, 1.02 … 1.99, then 2, 2.01. Builds below 100 keep their names (0.5, 0.99), so no published tag or image changes. Tags follow the name (`v1`, `v1.01`). The rule lives in `scripts/release-name`, which the pre-commit hook (README badge), `renumber`, `deploy.sh`, the Trivy scan and CI use; the backend (`/api/health`, Help & About) and `scripts/issues.py` mirror it.

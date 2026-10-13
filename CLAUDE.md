@@ -20,7 +20,7 @@ Read these before changing code:
 
 - **Issues:** every open Forgejo issue appears in TODO.md with a priority (**P0**–**P3**); TODO.md decides the order of work. Each phase's first TODO item is the issues check: before any other work in a phase, get the Triage report, schedule what it lists (open P0/P1 items come first) and tick that item. When you finish an item, tick its TODO line, which names the issue as `#N` or its link; CI closes the issue once the build deploys. Claude sessions can't reach Forgejo, so ask Vern to paste the pinned **Triage report** issue (CI refreshes it on every build).
 
-- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 290 backend tests in 22 files and 174 frontend tests in 31 files (build 1); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
+- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 290 backend tests in 22 files and 174 frontend tests in 31 files (build 1.01); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
 - **Time:**
   - Every datetime column is `UTCDateTime` (`backend/app/core/types.py`).
   - The API returns `+00:00` values.

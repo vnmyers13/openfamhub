@@ -25,7 +25,7 @@ boots the app to check migrations and scheduled jobs) and fails below the covera
 floor in `backend/.coveragerc`. `frontend` runs `npm run lint`, `npm run test:coverage`
 (Vitest; fails below the thresholds in `vitest.config.ts`), the build-info tests and
 `npm run build`. `version` checks the
-`VERSION` sequence and runs the script test harnesses in `scripts/tests/`.
+`VERSION` sequence and runs the script test harnesses in `scripts/tests/`. One of them, `exec-bits-test.sh`, fails if a script under `scripts/` or `.githooks/` is committed without its executable bit (that broke `publish` for build 1).
 
 `publish` builds `linux/amd64` and `linux/arm64` images for `openfamhub-api` and
 `openfamhub-web` and pushes them to the Forgejo registry. `deploy` then runs

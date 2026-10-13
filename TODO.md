@@ -20,7 +20,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.73 except the prod host (deferred); **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
 | Phase 3 + 3b | iCal correctness (code complete at 0.82); wall essentials: photo/video slideshow, sleep schedule, family settings, off-host backups (code complete at 0.88) | |
 | Phase 5 | Chores, to-dos, routines (code complete at 0.94) | |
-| CI + release process | Trivy scan, issues closed from TODO.md, Triage report, release names past 0.99 | code complete at 1 |
+| CI + release process | Trivy scan, issues closed from TODO.md, Triage report, release names past 0.99 | code complete at 1.01 |
 | Phase 6 | Rewards | |
 | Phase 7 | Meals | |
 | Phase 8 | Books, announcements, weather, birthdays, dashboard summary | |
@@ -30,7 +30,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Phase 12 | Home Assistant, AI, notes | |
 | Phase 13 | Two-way calendar sync | |
 
-**Release 1 (2026-10-13)** collects Review fixes, Phases 3 + 3b and Phase 5 with the CI and release-process work; notes in [docs/releases/v1.md](docs/releases/v1.md). Put **1** in each row's **Shipped in** once it's checked on `test`.
+**Release 1.01 (2026-10-13)** collects Review fixes, Phases 3 + 3b and Phase 5 with the CI and release-process work; notes in [docs/releases/v1.01.md](docs/releases/v1.01.md). Put **1.01** in each row's **Shipped in** once it's checked on `test`.
 
 The `pre-commit` hook bumps `VERSION` on every commit (see `docs/ci.md`); CI publishes each `master` build and deploys it to `test`. The release steps, including the issue checks, are in [docs/releasing.md](docs/releasing.md).
 

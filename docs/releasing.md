@@ -82,7 +82,7 @@ refresh the Triage report issue). The last two never fail the pipeline; read the
    - TODO.md: put the build in the release plan's **Shipped in** column.
    - CHANGELOG.md: turn the phase's `[Unreleased]` entry into `[<release>] - <date> — Phase N`,
      and list the issues it closed (`#N`).
-   - `docs/releases/v<release>.md`: what's in it, upgrade notes, issues closed, checks. Use [v1.md](releases/v1.md) as the template.
+   - `docs/releases/v<release>.md`: what's in it, upgrade notes, issues closed, checks. Use [v1.01.md](releases/v1.01.md) as the template.
    - `docs/deployment.md` **Version notes**: one line for the builds in the release, if upgrading needs anything.
 5. **Push** to the primary first, then the mirrors and GitHub (zsh: no `#` comments when pasting):
    ```bash
