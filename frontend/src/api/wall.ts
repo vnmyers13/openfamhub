@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { apiClient } from './client'
 import type { CalendarEvent } from './calendar'
 
@@ -16,6 +17,25 @@ export interface WallDevice {
 }
 
 // ---- display side (authenticated by the wall_token cookie) ----
+
+/**
+ * Call `listener` when the server rejects this display's device cookie (401
+ * on a display endpoint), e.g. after an admin revokes it. Pairing requests are
+ * excluded: a bad pairing link is handled by the pairing flow itself.
+ * Returns an unsubscribe function.
+ */
+export function onWallUnauthorized(listener: () => void): () => void {
+  const id = apiClient.interceptors.response.use(undefined, (err: unknown) => {
+    if (isAxiosError(err) && err.response?.status === 401) {
+      const path = (err.config?.url ?? '').replace(/^\/+/, '')
+      if (path.startsWith('wall/') && !path.startsWith('wall/pair') && !path.startsWith('wall/devices')) {
+        listener()
+      }
+    }
+    return Promise.reject(err)
+  })
+  return () => apiClient.interceptors.response.eject(id)
+}
 
 export async function pairWall(token: string) {
   await apiClient.post('/wall/pair', { token })

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { getWallSession, pairWall } from '../api/wall'
+import { useQueryClient } from '@tanstack/react-query'
+import { getWallSession, onWallUnauthorized, pairWall } from '../api/wall'
 import WallClock from './WallClock'
 import WallSevenDayStrip from './WallSevenDayStrip'
 import WallMemberList from './WallMemberList'
@@ -41,6 +42,19 @@ export default function WallLayout() {
       cancelled = true
     }
   }, [])
+
+  // Once paired, a 401 from any display request means this device was revoked
+  // (or its cookie expired): forget the board's data and show the pairing
+  // screen instead of a frozen calendar.
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (state !== 'paired') return
+    return onWallUnauthorized(() => {
+      queryClient.removeQueries({ queryKey: ['wall-events'] })
+      queryClient.removeQueries({ queryKey: ['wall-members'] })
+      setState('unpaired')
+    })
+  }, [state, queryClient])
 
   if (state === 'checking') return <div className="fixed inset-0 bg-slate-900" />
   if (state === 'unpaired') {
