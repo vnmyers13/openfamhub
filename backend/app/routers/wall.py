@@ -28,6 +28,8 @@ from app.services import media as media_service
 from app.schemas.media import WallMediaResponse
 from app.routers.media import serve_file
 from app.routers.family import sleep_schedule
+from app.routers.routines import todays_runs
+from app.schemas.chores import RoutineRun
 from app.schemas.family import SleepSchedule
 
 router = APIRouter()
@@ -239,6 +241,12 @@ async def wall_media_file(
     db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device),
 ):
     return serve_file(await media_service.get_family_item(db, device.family_id, media_id), variant)
+
+
+@router.get("/routines", response_model=List[RoutineRun])
+async def wall_routines(db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device)):
+    """Today's routines for the wall's countdown (read-only)."""
+    return await todays_runs(db, device.family_id)
 
 
 @router.websocket("/ws")

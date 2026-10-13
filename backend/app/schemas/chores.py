@@ -119,3 +119,103 @@ class CompletionLogEntry(BaseModel):
     points: int
     completed_at: datetime
     undone_at: Optional[datetime] = None
+
+
+# ---- to-dos -----------------------------------------------------------------
+
+class TodoCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=256)
+    notes: Optional[str] = Field(None, max_length=4000)
+    assigned_to: Optional[str] = None
+    due_date: Optional[date] = None
+
+    @field_validator("title")
+    @classmethod
+    def not_blank(cls, v):
+        if not v.strip():
+            raise ValueError("title can't be blank")
+        return v.strip()
+
+
+class TodoUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=256)
+    notes: Optional[str] = Field(None, max_length=4000)
+    assigned_to: Optional[str] = None
+    due_date: Optional[date] = None
+    done: Optional[bool] = None
+
+
+class TodoResponse(BaseModel):
+    id: str
+    title: str
+    notes: Optional[str] = None
+    assigned_to: Optional[str] = None
+    due_date: Optional[date] = None
+    done: bool
+    completed_at: Optional[datetime] = None
+    completed_by: Optional[str] = None
+    created_by: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+# ---- routines ---------------------------------------------------------------
+
+class RoutineStepIn(BaseModel):
+    id: Optional[str] = None
+    title: str = Field(..., min_length=1, max_length=128)
+    minutes: int = Field(5, ge=1, le=180)
+    points: int = Field(0, ge=0, le=100000)
+
+
+class _RoutineFields(BaseModel):
+    assigned_to: Optional[str] = None
+    start_time: Optional[str] = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    repeat: Optional[Repeat] = None
+    start_date: Optional[date] = None
+
+
+class RoutineCreate(_RoutineFields):
+    name: str = Field(..., min_length=1, max_length=128)
+    steps: List[RoutineStepIn] = Field(..., min_length=1, max_length=20)
+
+
+class RoutineUpdate(_RoutineFields):
+    name: Optional[str] = Field(None, min_length=1, max_length=128)
+    steps: Optional[List[RoutineStepIn]] = Field(None, min_length=1, max_length=20)
+
+
+class RoutineStep(BaseModel):
+    id: str
+    title: str
+    minutes: int
+    points: int
+
+
+class RoutineResponse(BaseModel):
+    id: str
+    name: str
+    assigned_to: Optional[str] = None
+    start_time: Optional[str] = None
+    repeat: Optional[dict] = None
+    start_date: date
+    steps: List[RoutineStep]
+
+
+class RoutineRunStep(BaseModel):
+    instance_id: str
+    template_id: str
+    title: str
+    minutes: int
+    points: int
+    status: str
+
+
+class RoutineRun(BaseModel):
+    """A routine as it runs today, for the app and the wall."""
+    id: str
+    name: str
+    assigned_to: Optional[str] = None
+    assigned_name: Optional[str] = None
+    assigned_color: Optional[str] = None
+    start_time: Optional[str] = None
+    steps: List[RoutineRunStep]
