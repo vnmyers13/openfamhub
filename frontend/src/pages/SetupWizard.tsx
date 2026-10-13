@@ -3,29 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import BuildInfoBadge from '../components/BuildInfoBadge'
+import { allZones, deviceZone, zoneLabel } from '../lib/timezones'
 
 // The family timezone decides how calendar feeds' floating times (no zone
-// given) are read, so default to this device's zone rather than UTC, and offer
-// every zone the browser knows.
-function deviceZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-  } catch {
-    return 'UTC'
-  }
-}
-
-function allZones(first: string): string[] {
-  let zones: string[]
-  try {
-    zones = (Intl as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.('timeZone') ?? []
-  } catch {
-    zones = []
-  }
-  const common = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles']
-  return Array.from(new Set([first, ...common, ...zones]))
-}
-
+// given) are read, so default to this device's zone rather than UTC.
 export default function SetupWizard() {
   const navigate = useNavigate()
   const { setUser } = useAuthStore()
@@ -93,7 +74,7 @@ export default function SetupWizard() {
             >
               {zones.map((z) => (
                 <option key={z} value={z}>
-                  {z === zones[0] ? `${z.replace(/_/g, ' ')} (this device)` : z.replace(/_/g, ' ')}
+                  {z === zones[0] ? `${zoneLabel(z)} (this device)` : zoneLabel(z)}
                 </option>
               ))}
             </select>

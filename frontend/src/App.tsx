@@ -17,6 +17,8 @@ const CalendarPage = lazy(() => import('./pages/CalendarPage'))
 const CalendarSettings = lazy(() => import('./pages/admin/CalendarSettings'))
 const WallDisplays = lazy(() => import('./pages/admin/WallDisplays'))
 const WallLayout = lazy(() => import('./wall/WallLayout'))
+const PhotosPage = lazy(() => import('./pages/PhotosPage'))
+const FamilySettings = lazy(() => import('./pages/admin/FamilySettings'))
 
 // Paths an authenticated user should be moved off of after boot.
 const ENTRY_PATHS = new Set(['/', '/login', '/setup'])
@@ -76,10 +78,12 @@ function AppRoutes() {
         <Route element={<NavShell />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/photos" element={<PhotosPage />} />
           <Route element={<RequireAdmin />}>
             <Route path="/admin/users" element={<ManageUsers />} />
             <Route path="/admin/calendars" element={<CalendarSettings />} />
             <Route path="/admin/wall" element={<WallDisplays />} />
+            <Route path="/admin/settings" element={<FamilySettings />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>

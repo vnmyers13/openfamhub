@@ -9,6 +9,7 @@ import BuildInfoBadge from './BuildInfoBadge'
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: '🏠' },
   { to: '/calendar', label: 'Calendar', icon: '📅' },
+  { to: '/photos', label: 'Photos', icon: '🖼️' },
 ]
 
 export default function NavShell() {
@@ -22,6 +23,7 @@ export default function NavShell() {
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/calendars', label: 'Calendars' },
     { to: '/admin/wall', label: 'Wall displays' },
+    { to: '/admin/settings', label: 'Settings' },
   ]
 
   const handleLogout = async () => {
