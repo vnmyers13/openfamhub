@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
+from pillow_heif import register_heif_opener
 
 from app.services import media as media_service
 from tests.test_phase2 import SETUP, _cookie, _h, _member
@@ -63,6 +64,15 @@ def png_with_alpha() -> bytes:
     buf = io.BytesIO()
     Image.new("RGBA", (800, 600), (0, 128, 255, 120)).save(buf, "PNG")
     return buf.getvalue()
+
+
+def heic_photo() -> bytes:
+    register_heif_opener()
+    buf = io.BytesIO()
+    Image.new("RGB", (640, 480), (30, 200, 90)).save(buf, "HEIF")
+    data = buf.getvalue()
+    assert data[4:8] == b"ftyp" and data[8:12] in {b"heic", b"mif1"}
+    return data
 
 
 def ffmpeg() -> str:
@@ -143,11 +153,21 @@ class TestPhotoUploads:
         assert res.status_code == 415
         assert (await client.get("/api/media", headers=_h(admin))).json() == []
 
-    async def test_heic_gets_a_helpful_message(self, client, admin):
-        heic = b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic" + b"\x00" * 64
-        res = await upload(client, admin, heic, "IMG_0001.HEIC", "image/heic")
+    async def test_heic_is_accepted_and_stored_as_jpeg_renditions(self, client, admin):
+        res = await upload(client, admin, heic_photo(), "IMG_0001.HEIC", "image/heic")
+        assert res.status_code == 201, res.text
+        item = res.json()
+        assert item["kind"] == "photo" and item["status"] == "ready"
+        assert item["original_name"] == "IMG_0001.HEIC"
+
+        wall = await client.get(item["wall_url"], headers=_h(admin))
+        assert wall.status_code == 200 and wall.headers["content-type"] == "image/jpeg"
+        assert Image.open(io.BytesIO(wall.content)).format == "JPEG"
+
+    async def test_avif_is_not_implicitly_enabled_with_heif_support(self, client, admin):
+        avif = b"\x00\x00\x00\x18ftypavif\x00\x00\x00\x00avifmif1" + b"\x00" * 64
+        res = await upload(client, admin, avif, "image.avif", "image/avif")
         assert res.status_code == 415
-        assert "HEIC" in res.json()["detail"]
 
     async def test_a_broken_image_is_rejected_and_not_listed(self, client, admin):
         res = await upload(client, admin, b"\xff\xd8\xff\xe0" + b"\x00" * 200, "broken.jpg")

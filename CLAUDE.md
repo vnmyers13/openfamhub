@@ -93,6 +93,7 @@ When porting a feature, re-implement it rather than copying the file. TODO.md ha
 ```bash
 scripts/deploy.sh publish                                                   # build + push images to Forgejo
 PUBLIC_URL=https://openfamhub.vernonmyers.cloud scripts/deploy.sh remote test # deploy to the test VM
+PUBLIC_URL=https://<prod-url> scripts/deploy.sh promote prod <release>        # promote a checked build
 ```
 
 The `test` VM runs behind the existing Caddy at `openfamhub.vernonmyers.cloud`, which forwards to VM port 8080 (see [docs/deployment.md](docs/deployment.md)). Claude sessions in Cowork can't reach the LAN, Forgejo or GitHub, so Vern runs pushes and deploys.

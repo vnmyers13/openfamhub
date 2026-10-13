@@ -99,8 +99,8 @@ A wall display can only read `/api/wall/events` and `/api/wall/members`, and ope
 
 ## Photos and videos (wall slideshow)
 
-- **Upload** (`POST /api/media`, admins and members): the file is the raw request body, streamed to `data/photos/media/.incoming/` with a running size check (500 MB upload, 30 MB photo, 10-minute video). The type comes from the first bytes (JPEG, PNG, WebP, GIF; MP4/MOV, WebM), never the client's header; HEIC is refused with instructions.
-- **Photos** are processed in a worker thread with Pillow: camera rotation applied, converted to RGB, saved as `wall.jpg` (long edge ≤ 1920) and `thumb.jpg` (≤ 400) with no EXIF.
+- **Upload** (`POST /api/media`, admins and members): the file is the raw request body, streamed to `data/photos/media/.incoming/` with a running size check (500 MB upload, 30 MB photo, 10-minute video). The type comes from the first bytes (JPEG, PNG, WebP, GIF, HEIC/HEIF; MP4/MOV, WebM), never the client's header.
+- **Photos** are processed in a worker thread with Pillow plus `pillow-heif`: camera rotation applied, converted to RGB, saved as `wall.jpg` (long edge ≤ 1920) and `thumb.jpg` (≤ 400) with no EXIF.
 - **Videos** answer 202 and convert in the background (one at a time) with ffmpeg from `imageio-ffmpeg`: H.264/AAC MP4, ≤ 1920×1080, `-map_metadata -1` (no location, titles or dates), faststart, plus a thumbnail. The item is `processing`, then `ready` or `failed` (with the reason). Conversions interrupted by a restart are marked failed at startup.
 - **Storage**: `data/photos/media/<family_id>/<media_id>/`; the uploaded original is deleted after processing. The `media` table (migration 007) has `family_id` on every row.
 - **Serving**: only `/api/media/{id}/{wall|thumb}` (signed-in family members) and `/api/wall/media/{id}/{wall|thumb}` (paired displays), with HTTP range support for video. There is no public static route to `data/photos`.

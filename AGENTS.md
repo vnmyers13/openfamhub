@@ -37,6 +37,7 @@ docker-compose.yml  build-from-source stack; image names match published ones
 | Local container stack | `scripts/deploy.sh setup && scripts/deploy.sh deploy` |
 | Publish images | `scripts/deploy.sh publish [version]` |
 | Deploy to the test VM | `PUBLIC_URL=https://openfamhub.vernonmyers.cloud scripts/deploy.sh remote test` |
+| Promote checked build to prod | `PUBLIC_URL=https://<prod-url> scripts/deploy.sh promote prod <release>` |
 | Health | `curl http://localhost:8000/api/health` |
 | Script harnesses (versioning, deploy, Trivy, issues) | `for t in scripts/tests/*-test.sh; do bash "$t"; done` |
 | Issue triage against TODO.md | `ISSUES_TOKEN=… python3 scripts/issues.py triage` (CI also keeps the pinned Triage report issue current) |

@@ -55,6 +55,26 @@ class TestAuth:
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid credentials"
 
+    async def test_setup_created_admin_profile_id_can_pin_login(self, client):
+        setup_res = await client.post("/api/auth/setup", json={
+            "family_name": "Test Family",
+            "timezone": "UTC",
+            "admin_display_name": "Admin User",
+            "admin_password": "securepassword123",
+            "admin_pin": "1357",
+        })
+        assert setup_res.status_code == 200
+        created_id = setup_res.json()["id"]
+
+        profiles_res = await client.get("/api/auth/profiles")
+        assert profiles_res.status_code == 200
+        profiles = profiles_res.json()
+        assert profiles[0]["id"] == created_id
+
+        login_res = await client.post("/api/auth/login/pin", json={"user_id": profiles[0]["id"], "pin": "1357"})
+        assert login_res.status_code == 200
+        assert login_res.json()["id"] == created_id
+
     async def test_get_me_unauthorized(self, client):
         response = await client.get("/api/auth/me")
         assert response.status_code == 401

@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import AsyncIterator, Callable
 
 from PIL import Image, ImageOps, UnidentifiedImageError
+from pillow_heif import register_heif_opener
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +34,7 @@ from app.core.events import publish_queued, queue_event
 from app.models.media import Media
 
 logger = logging.getLogger(__name__)
+register_heif_opener(thumbnails=False)
 
 _DATA_ROOT = Path(os.environ.get("DATA_PATH", Path(__file__).resolve().parents[3] / "data"))
 MEDIA_ROOT = _DATA_ROOT / "photos" / "media"
@@ -108,7 +110,7 @@ async def save_upload(chunks: AsyncIterator[bytes], limit: int = None) -> Path:
 
 _VIDEO_BRANDS = {b"isom", b"iso2", b"iso4", b"iso5", b"iso6", b"mp41", b"mp42", b"avc1",
                  b"M4V ", b"M4VP", b"qt  ", b"3gp4", b"3gp5", b"3g2a", b"dash", b"MSNV"}
-_HEIF_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1", b"avif"}
+_HEIF_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1"}
 
 
 def sniff(head: bytes) -> str:
@@ -119,14 +121,12 @@ def sniff(head: bytes) -> str:
     if head[4:8] == b"ftyp":
         brand = head[8:12]
         if brand in _HEIF_BRANDS:
-            raise MediaError(
-                "HEIC/HEIF photos aren't supported yet. On iPhone, set Settings › Camera › Formats "
-                "to Most Compatible, or share the photo as JPEG.", 415)
+            return "photo"
         if brand in _VIDEO_BRANDS:
             return "video"
     if head.startswith(b"\x1a\x45\xdf\xa3"):  # Matroska/WebM
         return "video"
-    raise MediaError("Only photos (JPEG, PNG, WebP, GIF) and videos (MP4, MOV, WebM) can be added", 415)
+    raise MediaError("Only photos (JPEG, PNG, WebP, GIF, HEIC/HEIF) and videos (MP4, MOV, WebM) can be added", 415)
 
 
 # ---- photos ----------------------------------------------------------------

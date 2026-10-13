@@ -26,7 +26,7 @@ For the `test` VM you normally don't run these by hand: every push to `master` o
  ┌──────────────────────┐   your existing Caddy: real certificate, TLS ends here
  │  upstream Caddy      │
  └──────────┬───────────┘
-            │  http://<test-vm>:8080
+            │  http://192.168.10.80:8080
             ▼
  ┌──────────────────────────── test VM: ~/openfamhub ───────────────────────────┐
  │  caddy (Caddyfile.proxy, plain HTTP :80→8080)                                 │
@@ -36,7 +36,7 @@ For the `test` VM you normally don't run these by hand: every push to `master` o
  └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Images come from the Forgejo container registry (`forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}`).
+The `test` VM is `192.168.10.80`. Images come from the Forgejo container registry (`forgejo.vernonmyers.cloud/vernon/openfamhub-{api,web}`).
 
 ---
 
@@ -148,6 +148,35 @@ PUBLIC_URL=https://openfamhub.vernonmyers.cloud scripts/deploy.sh remote test
 5. Pair any wall displays under **Admin › Wall displays** (see [wall-screen-setup.md](wall-screen-setup.md)).
 
 > The site must be reached over **HTTPS**. Login cookies are marked `Secure`, so they aren't kept over plain `http://` (except on `localhost`). If logging in "does nothing", check the URL scheme first.
+
+### Production promotion
+
+CI deploys only to the `test` VM. Production is a deliberate promotion of a build
+you have already checked on `test`. Create an SSH host alias such as `prod` for the
+production server, make sure that server can pull from the Forgejo registry, then run:
+
+```bash
+PUBLIC_URL=https://<prod-url> scripts/deploy.sh promote prod <release>
+```
+
+`promote` uses the same deploy bundle and health checks as `remote`, but it requires
+the `<release>` argument and rejects `latest`. That keeps production pinned to a
+specific checked build instead of whatever build the local checkout would resolve by
+default. To re-promote or roll back, run the same command with another published
+release.
+
+When the production server is stood up, update these operator-owned values:
+
+1. **SSH config:** add a `Host prod` entry in `~/.ssh/config` with the production
+   server's real IP/DNS name and deploy user.
+2. **Upstream reverse proxy:** add the production public hostname and point it at
+   the production server's `:8080` port, the same way `test` points at
+   `192.168.10.80:8080`.
+3. **Promotion command:** replace `<prod-url>` in the examples with the production
+   HTTPS URL, then run `PUBLIC_URL=https://<prod-url> scripts/deploy.sh promote prod <release>`.
+4. **Docs after the first successful deploy:** replace the placeholders in this
+   section (and the short examples in `README.md` and `GETTING_STARTED.md`) with the
+   production hostname if you want the repo to carry the real prod URL.
 
 ### Useful commands on the server
 
@@ -343,7 +372,7 @@ The response should include matching `version`, `build`, and `commit` fields; if
 | A calendar feed shows an error | Admin › Calendars › Log shows the message; **Sync Now** retries immediately. |
 | Uploading a video fails with `413` | A proxy in front of OpenFamHub limits request size; raise it (nginx: `client_max_body_size 500m`). OpenFamHub itself allows 500 MB (photos 30 MB, videos 10 minutes). |
 | A video stays on "Converting…" | Videos convert one at a time; a long clip can take a few minutes on a small server. `docker compose logs api` shows ffmpeg errors; a restart marks unfinished ones as failed so they can be uploaded again. |
-| An iPhone photo is refused as HEIC | Set the iPhone to Settings › Camera › Formats › Most Compatible, or share the photo as JPEG. HEIC support is planned. |
+| An iPhone photo fails to upload | HEIC/HEIF is supported; if it still fails, check `docker compose logs api` for image decode errors and confirm the server is running a build with `pillow-heif` installed. |
 | The wall screen is black | The sleep schedule (Admin › Settings) is on; a touch lights it for a few minutes. |
 
 ---

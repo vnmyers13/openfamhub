@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.01-blue)
+![Version](https://img.shields.io/badge/version-1.04-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -43,6 +43,12 @@ PUBLIC_URL=https://openfamhub.vernonmyers.cloud \
   scripts/deploy.sh remote test                               # install/upgrade the "test" VM over SSH
 ```
 
+Production is a manual promotion after checking a build on `test`:
+
+```bash
+PUBLIC_URL=https://<prod-url> scripts/deploy.sh promote prod <release>
+```
+
 Registry login can use the 1Password Development item `forgejo.vernonmyers.cloud`; the full guide also covers LAN DNS for the registry hostname and server-side pull credentials.
 
 [docs/deployment.md](docs/deployment.md) covers:
@@ -61,6 +67,7 @@ Back up first ([backups](docs/deployment.md#7-backups-and-restore)), then use th
 | Installed with | Upgrade with |
 |---|---|
 | CI (the `test` VM) | Push to `master` on the primary Forgejo; CI publishes and deploys. |
+| Production promotion | Check the build on `test`, then `PUBLIC_URL=https://<prod-url> scripts/deploy.sh promote prod <release>`. |
 | `deploy.sh remote` (registry) | `scripts/deploy.sh publish`, then `scripts/deploy.sh remote <host>`. Add a version to roll back: `scripts/deploy.sh remote <host> <release>`. |
 | `deploy.sh deploy` (build from source) | `scripts/deploy.sh update` (`git pull --ff-only`, then rebuild and restart). |
 

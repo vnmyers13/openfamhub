@@ -22,7 +22,7 @@ scripts/deploy.sh setup                # .env with a generated SECRET_KEY, ./dat
 # Backend
 python3.12 -m venv backend/.venv
 source backend/.venv/bin/activate
-pip install -r backend/requirements.txt   # includes Pillow and a static ffmpeg (imageio-ffmpeg) for media
+pip install -r backend/requirements.txt   # includes Pillow, pillow-heif, and static ffmpeg (imageio-ffmpeg) for media
 
 # Frontend
 cd frontend && npm ci && cd ..
@@ -75,7 +75,7 @@ for t in scripts/tests/*-test.sh; do bash "$t"; done
 
 - **Coverage:** the backend is at 96% (CI fails below 93%), the frontend at 94% of statements (thresholds in `vitest.config.ts`). New code comes with tests; raise a threshold when coverage grows, never lower one to get a change through.
 - Backend tests use an in-memory SQLite database and need `SECRET_KEY` (read from the repo-root `.env`, or export it).
-- Backend: `test_phase1.py` covers time handling, range queries, calendar sources and wall pairing; `test_phase2.py` sign-in, sessions, the admin password gate and event permissions; `test_ical_recurrence.py` and `test_ical_phase3.py` the feed parser (recurrences, EXDATE/RECURRENCE-ID, floating times, DST, storage window); `test_calendar_sync.py` the sync job and adding feeds; `test_calendar_routes.py`, `test_users_api.py`, `test_wall_api.py` the remaining routes; `test_backup.py` the daily backup; `test_media.py` uploads, processing (Pillow, ffmpeg), family scoping and wall access; `test_family_settings.py` settings and the sleep schedule; `test_chore_schedule.py` recurrence and the generator; `test_chores_api.py` claiming, completing, points and admin views; `test_todos_routines.py` to-dos and routines; `test_calendar_scoping.py` source and family scoping; `test_single_family.py` one family per install and sign-in scope; `test_ssrf.py` feed fetching; `test_realtime.py` live updates; `test_startup.py` boots the real app (migrations + scheduler) in a subprocess.
+- Backend: `test_phase1.py` covers time handling, range queries, calendar sources and wall pairing; `test_phase2.py` sign-in, sessions, the admin password gate and event permissions; `test_ical_recurrence.py` and `test_ical_phase3.py` the feed parser (recurrences, EXDATE/RECURRENCE-ID, floating times, DST, storage window); `test_calendar_sync.py` the sync job and adding feeds; `test_calendar_routes.py`, `test_users_api.py`, `test_wall_api.py` the remaining routes; `test_backup.py` the daily backup; `test_media.py` uploads, HEIC/HEIF support, processing (Pillow, ffmpeg), family scoping and wall access; `test_family_settings.py` settings and the sleep schedule; `test_chore_schedule.py` recurrence and the generator; `test_chores_api.py` claiming, completing, points and admin views; `test_todos_routines.py` to-dos and routines; `test_calendar_scoping.py` source and family scoping; `test_single_family.py` one family per install and sign-in scope; `test_ssrf.py` feed fetching; `test_realtime.py` live updates; `test_startup.py` boots the real app (migrations + scheduler) in a subprocess.
 - Frontend tests live next to the code (`src/**/*.test.ts[x]`) and run in jsdom with `TZ=America/Detroit`, so date bugs west of UTC show up on every machine. They cover `lib/`, the wall, sign-in, the calendar page, the admin pages and app boot routing. Component tests fake the API with `mockApi()` from `src/test/api.ts` and render with `renderApp()` from `src/test/render.tsx`.
 - Run `npm` commands on the Mac itself: `node_modules` contains macOS-native binaries, and a Linux container or VM can't use them.
 
@@ -95,7 +95,7 @@ Every commit is a build, so there is no separate release step for the `test` VM.
 4. **CHANGELOG.** Entries are keyed by phase or work batch, not by commit. Add user-visible changes under `[Unreleased]`; a release gives the batch its build (`[<release>] - <date>`) and gets notes in `docs/releases/v<release>.md`.
 5. Run the tests and checks above.
 6. **Push to the primary Forgejo** (`git push forgejo master`). CI runs the checks, publishes `<release>`, tags `v<release>`, deploys to `test`, scans the images and refreshes the Triage report. Then push `master` to GitHub and the mirrors, and push the tag once CI has created it.
-7. Check the build on `test` (Help & About or `/api/health`). A production host is planned but not set up yet; when it is, promote a checked build with `scripts/deploy.sh remote <prod-host> <release>`.
+7. Check the build on `test` (Help & About or `/api/health`). To promote a checked build to production, use an SSH host alias such as `prod` and run `PUBLIC_URL=https://<prod-url> scripts/deploy.sh promote prod <release>`.
 
 Without CI, publish and deploy by hand: `scripts/deploy.sh publish` (creates and pushes the `v<release>` tag), then `scripts/deploy.sh remote test`.
 

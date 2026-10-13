@@ -8,6 +8,7 @@
 #   Registry (build here, run elsewhere):
 #     scripts/deploy.sh publish [version]          build + push multi-arch images
 #     scripts/deploy.sh remote <ssh-host> [version] install/upgrade a server over SSH
+#     scripts/deploy.sh promote <prod-host> <version> promote a checked build to production
 #
 set -euo pipefail
 
@@ -43,6 +44,8 @@ Registry workflow:
                         \$REGISTRY (default: $DEFAULT_REGISTRY)
   remote <host> [ver]   Install or upgrade OpenFamHub on <host> over SSH using the
                         published images (first run creates ~/openfamhub/.env)
+  promote <prod-host> <checked-build>
+                        Deliberately deploy one already-checked build to production
   server [dir] [ver]    Install the deploy bundle into [dir] (default: openfamhub)
                         and pull + restart the stack locally (no SSH)
 
@@ -245,6 +248,24 @@ REMOTE_ENV
     log "Deployed $VERSION to $host."
 }
 
+promote() {
+    local host="${1:-}"
+    local version="${2:-}"
+    [ -n "$host" ] && [ -n "$version" ] || error "Usage: $0 promote <prod-host> <checked-build>"
+    [ "$version" != "latest" ] || error "checked build must be a specific published tag, not latest"
+    case "$version" in
+        *[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-]*)
+            error "checked build contains unsupported characters: $version"
+            ;;
+        [.-]*)
+            error "checked build must start with a letter or number: $version"
+            ;;
+    esac
+
+    log "Promoting checked build $version to production host $host..."
+    remote "$host" "$version"
+}
+
 server() {
     local dir="${1:-${REMOTE_DIR:-openfamhub}}"
     resolve_registry
@@ -326,6 +347,7 @@ case "${1:-help}" in
         ;;
     publish) publish "${2:-}" ;;
     remote)  remote "${2:-}" "${3:-}" ;;
+    promote) promote "${2:-}" "${3:-}" ;;
     server)  server "${2:-}" "${3:-}" ;;
     status)  docker compose ps ;;
     logs)
