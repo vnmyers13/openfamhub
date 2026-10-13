@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/auth'
 import { apiClient, requestPasswordPrompt } from '../api/client'
@@ -114,7 +115,10 @@ export default function NavShell() {
 
       {/* Main content area */}
       <main className="flex-1 overflow-y-auto">
-        <Outlet />
+        {/* Pages are lazy-loaded; keep the nav visible while one loads. */}
+        <Suspense fallback={null}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* Mobile bottom nav */}

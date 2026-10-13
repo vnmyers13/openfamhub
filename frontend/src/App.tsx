@@ -1,18 +1,22 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { apiClient } from './api/client'
 import { useAuthStore } from './stores/auth'
-import SetupWizard from './pages/SetupWizard'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import ManageUsers from './pages/ManageUsers'
-import CalendarPage from './pages/CalendarPage'
-import CalendarSettings from './pages/admin/CalendarSettings'
-import WallDisplays from './pages/admin/WallDisplays'
 import NavShell from './components/NavShell'
 import RequireAdmin from './components/RequireAdmin'
-import WallLayout from './wall/WallLayout'
 import PasswordPrompt from './components/PasswordPrompt'
+
+// Route-level code splitting: each page (and react-big-calendar with the
+// calendar) loads on first visit, so the sign-in screen and the wall don't
+// download everything. Login stays in the main bundle; it's the first screen.
+const SetupWizard = lazy(() => import('./pages/SetupWizard'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const ManageUsers = lazy(() => import('./pages/ManageUsers'))
+const CalendarPage = lazy(() => import('./pages/CalendarPage'))
+const CalendarSettings = lazy(() => import('./pages/admin/CalendarSettings'))
+const WallDisplays = lazy(() => import('./pages/admin/WallDisplays'))
+const WallLayout = lazy(() => import('./wall/WallLayout'))
 
 // Paths an authenticated user should be moved off of after boot.
 const ENTRY_PATHS = new Set(['/', '/login', '/setup'])
@@ -64,21 +68,23 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/setup" element={<SetupWizard />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/wall" element={<WallLayout />} />
-      <Route element={<NavShell />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route element={<RequireAdmin />}>
-          <Route path="/admin/users" element={<ManageUsers />} />
-          <Route path="/admin/calendars" element={<CalendarSettings />} />
-          <Route path="/admin/wall" element={<WallDisplays />} />
+    <Suspense fallback={<div className="min-h-screen bg-gray-950" />}>
+      <Routes>
+        <Route path="/setup" element={<SetupWizard />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/wall" element={<WallLayout />} />
+        <Route element={<NavShell />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route element={<RequireAdmin />}>
+            <Route path="/admin/users" element={<ManageUsers />} />
+            <Route path="/admin/calendars" element={<CalendarSettings />} />
+            <Route path="/admin/wall" element={<WallDisplays />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Route>
-    </Routes>
+      </Routes>
+    </Suspense>
   )
 }
 
