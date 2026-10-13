@@ -213,3 +213,56 @@ class TestAddIcalSource:
         )
         assert res.status_code == 400
         assert res.json()["detail"] == "The calendar URL timed out"
+
+
+class TestScheduledSync:
+    """sync_all_due: which sources the 15-minute job actually syncs."""
+
+    async def test_only_due_enabled_feeds_are_synced(self, client, admin, setup_db, monkeypatch):
+        from contextlib import asynccontextmanager
+
+        from app.jobs import calendar_sync
+        from app.models.calendar_source import CalendarSource
+
+        urls = []
+
+        async def recording(url, **kwargs):
+            urls.append(url)
+            return []
+
+        @asynccontextmanager
+        async def shared_session():
+            yield setup_db
+
+        monkeypatch.setattr(calendar_sync, "fetch_and_parse", recording)
+        monkeypatch.setattr(calendar_sync, "AsyncSessionLocal", shared_session)
+
+        now = datetime.now(timezone.utc)
+        setup = {
+            "never": {},
+            "recent": {"last_synced_at": now - timedelta(hours=1)},   # interval is 6 h
+            "overdue": {"last_synced_at": now - timedelta(hours=7)},
+            "disabled": {"enabled": False},
+        }
+        for name, attrs in setup.items():
+            source = await setup_db.get(CalendarSource, await _source(client, admin))
+            source.ics_url = f"https://example.test/{name}.ics"
+            for key, value in attrs.items():
+                setattr(source, key, value)
+        await setup_db.flush()
+
+        await calendar_sync.sync_all_due()
+
+        assert sorted(urls) == ["https://example.test/never.ics", "https://example.test/overdue.ics"]
+
+    def test_job_runs_every_15_minutes(self):
+        from app.jobs.calendar_sync import register_sync_jobs
+
+        added = {}
+
+        class FakeScheduler:
+            def add_job(self, fn, trigger, **kw):
+                added.update(trigger=trigger, **kw)
+
+        register_sync_jobs(FakeScheduler())
+        assert (added["trigger"], added["minutes"], added["id"]) == ("interval", 15, "calendar_sync_all_due")

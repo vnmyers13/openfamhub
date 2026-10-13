@@ -14,9 +14,10 @@ jobs:
     steps:
       - uses: builtin:checkout
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt pytest pytest-asyncio httpx
-      - name: Run backend tests
-        run: pytest backend/tests -v
+        run: pip install -r backend/requirements.txt
+      - name: Run backend tests with coverage
+        # backend/.coveragerc sets the source and fail_under.
+        run: cd backend && pytest -v --cov
 
   frontend:
     runs-on: openfamhub-node
@@ -29,8 +30,9 @@ jobs:
         run: npm ci
       - name: Lint
         run: npm run lint
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests with coverage
+        # Thresholds live in vitest.config.ts.
+        run: npm run test:coverage
       - name: Test build info
         run: npm run test:build-info
       - name: Build

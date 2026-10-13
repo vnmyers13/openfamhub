@@ -1,0 +1,15 @@
+# Backend test coverage (pytest --cov; CI fails below fail_under).
+[run]
+source = app
+branch = false
+# SQLAlchemy's async layer runs request code in greenlets, and the startup
+# test boots the app in a subprocess; without these, covered code reads as missed.
+concurrency = greenlet,thread
+patch = subprocess
+parallel = true
+
+[report]
+show_missing = true
+skip_covered = true
+# Raise this as coverage grows; don't lower it to make a change pass.
+fail_under = 93

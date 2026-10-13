@@ -22,3 +22,9 @@ file:*
 # graphify: keep the readable report, not the regenerated graph/cache
 graphify-out/*
 !graphify-out/GRAPH_REPORT.md
+
+# test coverage output
+.coverage
+.coverage.*
+htmlcov/
+frontend/coverage/
