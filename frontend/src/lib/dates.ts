@@ -1,4 +1,4 @@
-import { addDays, format, parseISO } from 'date-fns'
+import { addDays, format, parseISO, startOfDay } from 'date-fns'
 
 /**
  * The API returns UTC instants with an explicit offset ("...+00:00").
@@ -31,14 +31,17 @@ export function eventEnd(e: EventTimes): Date {
   return end > start ? end : addDays(start, 1)
 }
 
-/** Local calendar days ("yyyy-MM-dd") an event appears on. */
+/**
+ * Local calendar days ("yyyy-MM-dd") an event appears on: every day it
+ * overlaps. Ends are exclusive, so an event ending at midnight stays off the
+ * next day; a zero-length event still shows on its start day.
+ */
 export function eventDayKeys(e: EventTimes): string[] {
   const start = eventStart(e)
-  if (!e.all_day) return [format(start, 'yyyy-MM-dd')]
-  const keys: string[] = []
   const end = eventEnd(e)
-  for (let d = start; d < end; d = addDays(d, 1)) keys.push(format(d, 'yyyy-MM-dd'))
-  return keys
+  const keys: string[] = []
+  for (let d = startOfDay(start); d < end; d = addDays(d, 1)) keys.push(format(d, 'yyyy-MM-dd'))
+  return keys.length ? keys : [format(start, 'yyyy-MM-dd')]
 }
 
 /** "yyyy-MM-dd" from a date input -> API value for an all-day start. */

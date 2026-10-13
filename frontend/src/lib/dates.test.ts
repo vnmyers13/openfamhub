@@ -33,6 +33,17 @@ describe('timed events', () => {
     expect(eventDayKeys(e)).toEqual(['2026-10-07'])
   })
 
+  it('show on every local day they overlap (#9)', () => {
+    // 22:00 on the 7th to 02:00 on the 8th, Detroit time.
+    const e = { start_dt: '2026-10-08T02:00:00+00:00', end_dt: '2026-10-08T06:00:00+00:00', all_day: false }
+    expect(eventDayKeys(e)).toEqual(['2026-10-07', '2026-10-08'])
+  })
+
+  it('span several days when they run that long', () => {
+    // Fri 18:00 to Sun 10:00 local.
+    const e = { start_dt: '2026-10-09T22:00:00+00:00', end_dt: '2026-10-11T14:00:00+00:00', all_day: false }
+    expect(eventDayKeys(e)).toEqual(['2026-10-09', '2026-10-10', '2026-10-11'])
+  })
 
   it('do not spill onto the next day when they end exactly at midnight', () => {
     // 22:00 to 00:00 local.
