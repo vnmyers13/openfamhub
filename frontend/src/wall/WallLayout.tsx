@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { getWallSession, onWallUnauthorized, pairWall } from '../api/wall'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getWallSession, onWallUnauthorized, pairWall, type WallSession } from '../api/wall'
+import { isAsleep } from '../lib/sleep'
 import WallClock from './WallClock'
 import WallSevenDayStrip from './WallSevenDayStrip'
 import WallMemberList from './WallMemberList'
-import WallPhotoPlaceholder from './WallPhotoPlaceholder'
+import WallSlideshow from './WallSlideshow'
+import { useWallWebSocket } from './useWallWebSocket'
 
 const DEFAULT_IDLE_MS = 300_000
+const SLEEP_CHECK_MS = 30_000
 
 type PairState = 'checking' | 'paired' | 'unpaired'
 
@@ -16,7 +19,7 @@ type PairState = 'checking' | 'paired' | 'unpaired'
  */
 export default function WallLayout() {
   const [state, setState] = useState<PairState>('checking')
-  const [idleMs, setIdleMs] = useState(DEFAULT_IDLE_MS)
+  const [session, setSession] = useState<WallSession | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -29,9 +32,9 @@ export default function WallLayout() {
           // Keep the token out of history and screenshots.
           window.history.replaceState(null, '', '/wall')
         }
-        const session = await getWallSession()
+        const first = await getWallSession()
         if (cancelled) return
-        if (session.idle_timeout_seconds > 0) setIdleMs(session.idle_timeout_seconds * 1000)
+        setSession(first)
         setState('paired')
       } catch {
         if (!cancelled) setState('unpaired')
@@ -50,8 +53,9 @@ export default function WallLayout() {
   useEffect(() => {
     if (state !== 'paired') return
     return onWallUnauthorized(() => {
-      queryClient.removeQueries({ queryKey: ['wall-events'] })
-      queryClient.removeQueries({ queryKey: ['wall-members'] })
+      for (const key of ['wall-events', 'wall-members', 'wall-media', 'wall-session']) {
+        queryClient.removeQueries({ queryKey: [key] })
+      }
       setState('unpaired')
     })
   }, [state, queryClient])
@@ -68,17 +72,43 @@ export default function WallLayout() {
       </div>
     )
   }
-  return <WallBoard idleMs={idleMs} />
+  return <WallBoard initialSession={session as WallSession} />
 }
 
-function WallBoard({ idleMs }: { idleMs: number }) {
-  const [isIdle, setIsIdle] = useState(false)
-  const idleRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+/** The current time, refreshed every `ms` (for schedule checks). */
+function useNow(ms: number): Date {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), ms)
+    return () => clearInterval(id)
+  }, [ms])
+  return now
+}
 
-  // Any touch or mouse movement wakes the board and restarts the countdown.
+function WallBoard({ initialSession }: { initialSession: WallSession }) {
+  useWallWebSocket() // one live-update socket for the whole board
+  // Kept fresh by settings_updated pushes (and a slow poll as a backstop).
+  const { data: session = initialSession } = useQuery({
+    queryKey: ['wall-session'],
+    queryFn: getWallSession,
+    initialData: initialSession,
+    refetchInterval: 15 * 60 * 1000,
+  })
+  const idleMs = session.idle_timeout_seconds > 0 ? session.idle_timeout_seconds * 1000 : DEFAULT_IDLE_MS
+
+  const [isIdle, setIsIdle] = useState(false)
+  const [wokenUntil, setWokenUntil] = useState(0)
+  const idleRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const now = useNow(SLEEP_CHECK_MS)
+  const scheduled = isAsleep(now, session.sleep, session.timezone)
+  const asleep = scheduled && now.getTime() >= wokenUntil
+
+  // Any touch or mouse movement wakes the board and restarts the countdown;
+  // during the sleep schedule it lights the screen for one idle period.
   useEffect(() => {
     const restart = () => {
       setIsIdle(false)
+      setWokenUntil(Date.now() + idleMs)
       if (idleRef.current) clearTimeout(idleRef.current)
       idleRef.current = setTimeout(() => setIsIdle(true), idleMs)
     }
@@ -92,18 +122,22 @@ function WallBoard({ idleMs }: { idleMs: number }) {
     }
   }, [idleMs])
 
+  if (asleep) {
+    // Scheduled sleep: a dark screen until someone touches it.
+    return <div className="fixed inset-0 z-50 cursor-none bg-black" data-testid="wall-asleep" />
+  }
+
   if (isIdle) {
     return (
       // A tap anywhere wakes the board (the window "click" listener above).
       <div className="fixed inset-0 z-50 cursor-pointer">
-        <WallPhotoPlaceholder fullscreen />
-        <div className="absolute bottom-8 right-8">
+        <WallSlideshow />
+        <div className="absolute bottom-8 right-8 z-[60] drop-shadow-lg">
           <WallClock />
         </div>
       </div>
     )
   }
-
   return (
     <div className="fixed inset-0 grid overflow-hidden bg-slate-900"
       style={{

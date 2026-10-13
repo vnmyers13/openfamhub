@@ -53,6 +53,15 @@ describe('useWallWebSocket (#11)', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['wall-events'] })
   })
 
+  it('refreshes media and settings when the server says they changed', () => {
+    const { invalidate } = setup()
+    act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'media_updated' }) }))
+    act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'settings_updated' }) }))
+    act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'something_else' }) }))
+    act(() => open()[0].onmessage?.({ data: 'not json' }))
+    expect(invalidate.mock.calls).toEqual([[{ queryKey: ['wall-media'] }], [{ queryKey: ['wall-session'] }]])
+  })
+
   it('reconnects after the server drops the connection', async () => {
     setup()
     await act(async () => {

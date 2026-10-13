@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { apiClient } from './client'
 import type { CalendarEvent } from './calendar'
+import type { SleepSchedule } from '../lib/sleep'
 
 export interface WallMember {
   id: string
@@ -41,9 +42,36 @@ export async function pairWall(token: string) {
   await apiClient.post('/wall/pair', { token })
 }
 
+export interface WallSession {
+  device: string
+  family_name: string | null
+  idle_timeout_seconds: number
+  timezone: string
+  sleep: SleepSchedule
+}
+
 export async function getWallSession() {
   const res = await apiClient.get('/wall/session')
-  return res.data as { device: string; family_name: string | null; idle_timeout_seconds: number }
+  return res.data as WallSession
+}
+
+export interface WallMediaItem {
+  id: string
+  kind: 'photo' | 'video'
+  width: number | null
+  height: number | null
+  duration_s: number | null
+  wall_url: string
+  thumb_url: string
+}
+
+/** The slideshow's media (ready items only), refreshed on media_updated pushes. */
+export function useWallMedia() {
+  return useQuery({
+    queryKey: ['wall-media'],
+    queryFn: async () => (await apiClient.get('/wall/media')).data as WallMediaItem[],
+    refetchInterval: 15 * 60 * 1000,
+  })
 }
 
 export function useWallEvents(start: Date, end: Date) {

@@ -4,7 +4,6 @@ import { useWallEvents } from '../api/wall'
 import { cn } from '../lib/utils'
 import { eventDayKeys, eventStart } from '../lib/dates'
 import { useToday } from '../hooks/useToday'
-import { useWallWebSocket } from './useWallWebSocket'
 
 interface CalendarEvent {
   id: string
@@ -20,8 +19,6 @@ interface CalendarEvent {
 }
 
 export default function WallSevenDayStrip() {
-  useWallWebSocket()
-
   // Rolls over at midnight, so the range, the query and the highlight move on.
   const today = useToday()
   const days = useMemo(
