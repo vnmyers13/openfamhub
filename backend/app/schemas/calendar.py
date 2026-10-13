@@ -38,8 +38,10 @@ class CreateCalendarSourceRequest(BaseModel):
     @field_validator("provider")
     @classmethod
     def valid_provider(cls, v: str) -> str:
-        if v not in ("internal", "ical"):
-            raise ValueError('provider must be "internal" or "ical"')
+        # The family's single internal source is created on demand by the
+        # server and is protected from deletion; clients can only add feeds.
+        if v != "ical":
+            raise ValueError('provider must be "ical"')
         return v
 
 
