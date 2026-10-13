@@ -11,7 +11,8 @@ export function apiError(status: number, detail: string) {
 
 /**
  * Replace apiClient's verbs with canned replies keyed "METHOD /path".
- * A reply may be a value or a function of the request body (throw apiError to
+ * A reply may be a value or a function of the request body or, for GET, the
+ * query params (throw apiError to
  * fail). Unmocked calls fail with 404. Spies are restored after each test
  * (restoreMocks in vitest.config.ts). Returns the list of calls made.
  */
@@ -20,7 +21,8 @@ export function mockApi(routes: Record<string, Reply>): ApiCall[] {
   const calls: ApiCall[] = []
   for (const method of ['get', 'post', 'patch', 'delete'] as const) {
     vi.spyOn(apiClient, method).mockImplementation((async (url: string, bodyOrConfig?: unknown) => {
-      const body = method === 'post' || method === 'patch' ? bodyOrConfig : undefined
+      // POST/PATCH: the request body. GET/DELETE: the query params, so replies can vary by them.
+      const body = method === 'post' || method === 'patch' ? bodyOrConfig : (bodyOrConfig as { params?: unknown } | undefined)?.params
       const key = `${method.toUpperCase()} ${url}`
       calls.push({ method: method.toUpperCase(), url, body })
       if (!(key in all)) throw apiError(404, `unmocked ${key}`)

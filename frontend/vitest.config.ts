@@ -15,7 +15,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx', 'src/vite-env.d.ts'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/**/fixtures.ts', 'src/test/**', 'src/main.tsx', 'src/vite-env.d.ts'],
       reporter: ['text', 'html'],
       // CI fails below these. Raise them as coverage grows; don't lower them to pass.
       thresholds: { statements: 85, branches: 75, functions: 80, lines: 85 },

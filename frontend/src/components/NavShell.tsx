@@ -9,6 +9,7 @@ import BuildInfoBadge from './BuildInfoBadge'
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: '🏠' },
   { to: '/calendar', label: 'Calendar', icon: '📅' },
+  { to: '/chores', label: 'Chores', icon: '✅' },
   { to: '/photos', label: 'Photos', icon: '🖼️' },
 ]
 
