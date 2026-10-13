@@ -1,9 +1,13 @@
 """Recurring iCal expansion (review backlog #4)."""
+from datetime import datetime, timezone
+
 import httpx
 
 from app.integrations.ical_feed import fetch_and_parse
 
 PUBLIC_IP = "93.184.216.34"
+# Fixed clock: the sample events (October 2026) must stay inside the storage window.
+NOW = datetime(2026, 10, 12, tzinfo=timezone.utc)
 
 
 def _ics(*event_lines: str) -> bytes:
@@ -16,7 +20,7 @@ def _ics(*event_lines: str) -> bytes:
 
 async def _parse(content: bytes) -> list[dict]:
     transport = httpx.MockTransport(lambda request: httpx.Response(200, content=content))
-    return await fetch_and_parse(f"http://{PUBLIC_IP}/calendar.ics", transport=transport)
+    return await fetch_and_parse(f"http://{PUBLIC_IP}/calendar.ics", transport=transport, now=NOW)
 
 
 def _starts(events: list[dict]) -> list[str]:

@@ -1,5 +1,6 @@
-from datetime import datetime, date, timedelta, timezone
-from typing import Any
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Iterable
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 from dateutil.rrule import rrulestr
@@ -11,84 +12,211 @@ MAX_REDIRECTS = 5
 # Real family/school feeds are well under 1 MB; refuse anything absurd.
 MAX_ICS_BYTES = 10_000_000
 
+# Only events overlapping [now - WINDOW_PAST, now + WINDOW_FUTURE] are stored.
+WINDOW_PAST = timedelta(days=90)
+WINDOW_FUTURE = timedelta(days=365)
 
-def _to_utc(dt: datetime | date) -> datetime:
-    if isinstance(dt, date) and not isinstance(dt, datetime):
-        return datetime(dt.year, dt.month, dt.day, tzinfo=timezone.utc)
+UTC = timezone.utc
+
+
+# ---- time helpers ---------------------------------------------------------
+#
+# Feeds carry three kinds of time:
+#   * dates (VALUE=DATE): all-day, stored as 00:00Z of that date;
+#   * zoned times (TZID=... or a trailing Z): real instants;
+#   * floating times (neither): wall-clock time "wherever you are", which for
+#     a family calendar means the family's timezone.
+# icalendar 5 hands back pytz zones. pytz needs localize()/normalize(), so
+# rrule arithmetic on them keeps the DTSTART offset and drifts an hour at DST
+# changes. Zoned times are therefore converted to zoneinfo before expanding.
+
+def _family_zone(name: str | None) -> ZoneInfo:
+    try:
+        return ZoneInfo(name or "UTC")
+    except (ZoneInfoNotFoundError, ValueError):
+        return ZoneInfo("UTC")
+
+
+def _is_date(value: Any) -> bool:
+    return isinstance(value, date) and not isinstance(value, datetime)
+
+
+def _zoned(dt: datetime, family_tz: ZoneInfo) -> datetime:
+    """A timed value as an aware datetime whose tzinfo does DST correctly."""
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=family_tz)  # floating
+    name = getattr(dt.tzinfo, "zone", None) or getattr(dt.tzinfo, "key", None)
+    if name and name != "UTC":
+        try:
+            return dt.replace(tzinfo=None).replace(tzinfo=ZoneInfo(name))
+        except (ZoneInfoNotFoundError, ValueError):
+            pass
+    return dt.astimezone(UTC)
 
 
-def _expand_recurrence(
-    vevent: Any,
-    uid: str,
-    dtstart_raw: datetime | date,
-    start: datetime,
-    end: datetime,
-    is_all_day: bool,
-) -> list[dict]:
-    """Expand an RRULE into the occurrences *after* the first one.
+def _instant(value: date | datetime, family_tz: ZoneInfo) -> datetime:
+    """Any DTSTART/DTEND/EXDATE/RECURRENCE-ID value as an aware UTC datetime."""
+    if _is_date(value):
+        return datetime(value.year, value.month, value.day, tzinfo=UTC)
+    return _zoned(value, family_tz).astimezone(UTC)
 
-    The caller already emits the first occurrence (DTSTART) under the series
-    UID, so it is skipped here. Every occurrence keeps the series duration and
-    its ``all_day`` flag.
-    """
-    rrule_val = vevent.get("RRULE")
+
+def _date_values(prop: Any) -> Iterable[date | datetime]:
+    """Values of a possibly-repeated, possibly-comma-separated date property."""
+    if prop is None:
+        return []
+    props = prop if isinstance(prop, list) else [prop]
+    out = []
+    for p in props:
+        out.extend(v.dt for v in getattr(p, "dts", []))
+    return out
+
+
+def _times(component: Any, family_tz: ZoneInfo, default: timedelta | None = None):
+    """(start_utc, end_utc, all_day, raw_dtstart) for a VEVENT, or None."""
+    dtstart = component.get("DTSTART")
+    if dtstart is None:
+        return None
+    raw = dtstart.dt
+    all_day = _is_date(raw)
+    start = _instant(raw, family_tz)
+    dtend = component.get("DTEND")
+    duration = component.get("DURATION")
+    if dtend is not None:
+        end = _instant(dtend.dt, family_tz)
+    elif duration is not None:
+        end = start + duration.dt
+    elif default is not None:
+        end = start + default
+    else:
+        end = start + (timedelta(days=1) if all_day else timedelta(hours=1))
+    return start, end, all_day, raw
+
+
+def _occurrence_starts(component: Any, raw: date | datetime, all_day: bool, family_tz: ZoneInfo,
+                       after: datetime, before: datetime) -> list[datetime]:
+    """UTC starts of the RRULE occurrences with after <= start <= before."""
+    rrule_val = component.get("RRULE")
     if not rrule_val:
         return []
-
     try:
         rule_str = rrule_val.to_ical().decode()
     except Exception:
         return []
 
-    # dateutil needs a datetime. An all-day DTSTART is expanded as a naive
-    # midnight so each occurrence lands on its calendar date; a timed DTSTART
-    # keeps its own zone so local-time recurrences survive DST changes.
-    if is_all_day:
-        candidates = [
-            datetime(dtstart_raw.year, dtstart_raw.month, dtstart_raw.day),
-            # A UTC UNTIL needs an aware DTSTART; all-day dates are UTC midnights.
-            start,
-        ]
+    if all_day:
+        # Naive midnight keeps each occurrence on its date; an aware UTC start
+        # is needed when the rule's UNTIL is a UTC timestamp.
+        candidates = [datetime(raw.year, raw.month, raw.day),
+                      datetime(raw.year, raw.month, raw.day, tzinfo=UTC)]
     else:
-        candidates = [dtstart_raw]
+        zoned = _zoned(raw, family_tz)
+        # Aware first; a floating UNTIL needs a naive start in the same zone.
+        candidates = [zoned, zoned.replace(tzinfo=None)]
 
-    rule = None
     for rule_start in candidates:
         try:
             rule = rrulestr(rule_str, dtstart=rule_start)
-            break
         except Exception:
             continue
-    if rule is None:
-        return []
+        zone = UTC if all_day else _zoned(raw, family_tz).tzinfo
+        if rule_start.tzinfo is None:
+            lo = after.astimezone(zone).replace(tzinfo=None)
+            hi = before.astimezone(zone).replace(tzinfo=None)
+            local = rule.between(lo, hi, inc=True)
+            return [d.replace(tzinfo=zone).astimezone(UTC) for d in local]
+        return [d.astimezone(UTC) for d in rule.between(after, before, inc=True)]
+    return []
 
-    until_limit = datetime.now(timezone.utc) + timedelta(days=365)
-    duration = end - start
-    title = str(vevent.get("SUMMARY", "(no title)"))
-    location = str(vevent.get("LOCATION", "")) or None
-    description = str(vevent.get("DESCRIPTION", "")) or None
 
-    occurrences = []
-    for occ_dt in rule:
-        occ_start = _to_utc(occ_dt)
-        if occ_start > until_limit:
-            break
-        if occ_start == start:
-            continue  # the base event already covers DTSTART
+def _cancelled(component: Any) -> bool:
+    return str(component.get("STATUS", "")).upper() == "CANCELLED"
 
-        occurrences.append({
-            "external_uid": f"{uid}_{occ_start.isoformat()}",
-            "title": title,
-            "start_dt": occ_start,
-            "end_dt": occ_start + duration,
-            "all_day": is_all_day,
-            "location": location,
-            "description": description,
-        })
-    return occurrences
+
+def _event(component: Any, uid: str, start: datetime, end: datetime, all_day: bool) -> dict:
+    return {
+        "external_uid": uid,
+        "title": str(component.get("SUMMARY", "(no title)")),
+        "start_dt": start,
+        "end_dt": end,
+        "all_day": all_day,
+        "location": str(component.get("LOCATION", "")) or None,
+        "description": str(component.get("DESCRIPTION", "")) or None,
+    }
+
+
+def _instance_uid(uid: str, series_start: datetime | None, start: datetime) -> str:
+    # The DTSTART occurrence keeps the series UID; the others get a suffix.
+    return uid if start == series_start else f"{uid}_{start.isoformat()}"
+
+
+def parse_ics(content: bytes, *, family_tz: str | None = "UTC", now: datetime | None = None) -> list[dict]:
+    """Parse an ICS payload into event dicts inside the storage window.
+
+    - Recurring events expand within the window only; EXDATEs are removed,
+      RDATEs added, and RECURRENCE-ID overrides replace (or, if CANCELLED,
+      drop) the instance they name, keeping that instance's external_uid.
+    - Floating times are read in ``family_tz``.
+    """
+    zone = _family_zone(family_tz)
+    now = now or datetime.now(UTC)
+    window_start, window_end = now - WINDOW_PAST, now + WINDOW_FUTURE
+    in_window = lambda s, e: e > window_start and s < window_end  # noqa: E731
+
+    calendar = ICalendar.from_ical(content)
+    masters: dict[str, Any] = {}
+    overrides: dict[str, dict[datetime, Any]] = {}
+    for component in calendar.walk("VEVENT"):
+        if component.get("DTSTART") is None:
+            continue
+        uid = str(component.get("UID", "")) or f"no-uid-{_instant(component['DTSTART'].dt, zone).isoformat()}"
+        rid = component.get("RECURRENCE-ID")
+        if rid is not None:
+            overrides.setdefault(uid, {})[_instant(rid.dt, zone)] = component
+        elif uid not in masters:
+            masters[uid] = component
+
+    events: dict[str, dict] = {}
+
+    for uid, component in masters.items():
+        if _cancelled(component):
+            continue
+        start, end, all_day, raw = _times(component, zone)
+        duration = end - start
+        replaced = overrides.get(uid, {})
+
+        if not component.get("RRULE") and not component.get("RDATE"):
+            if start not in replaced and in_window(start, end):
+                events[uid] = _event(component, uid, start, end, all_day)
+            continue
+
+        starts = set(_occurrence_starts(component, raw, all_day, zone, window_start - duration, window_end))
+        starts.add(start)  # DTSTART is always an instance
+        starts |= {_instant(v, zone) for v in _date_values(component.get("RDATE"))}
+        starts -= {_instant(v, zone) for v in _date_values(component.get("EXDATE"))}
+        for occ in sorted(starts):
+            if occ in replaced or not in_window(occ, occ + duration):
+                continue
+            key = _instance_uid(uid, start, occ)
+            events[key] = _event(component, key, occ, occ + duration, all_day)
+
+    for uid, by_rid in overrides.items():
+        master = masters.get(uid)
+        series_start = _times(master, zone)[0] if master is not None else None
+        default = None
+        if master is not None:
+            m_start, m_end, _, _ = _times(master, zone)
+            default = m_end - m_start
+        for rid_start, component in by_rid.items():
+            if _cancelled(component) or (master is not None and _cancelled(master)):
+                continue
+            start, end, all_day, _ = _times(component, zone, default)
+            if not in_window(start, end):
+                continue
+            key = _instance_uid(uid, series_start, rid_start)
+            events[key] = _event(component, key, start, end, all_day)
+
+    return list(events.values())
 
 
 def normalize_ics_url(url: str) -> str:
@@ -144,51 +272,12 @@ async def fetch_ics_bytes(
     raise ValueError(f"ICS fetch exceeded {MAX_REDIRECTS} redirects")
 
 
-async def fetch_and_parse(url: str, *, transport=None) -> list[dict]:
+async def fetch_and_parse(
+    url: str,
+    *,
+    transport=None,
+    family_tz: str | None = "UTC",
+    now: datetime | None = None,
+) -> list[dict]:
     content = await fetch_ics_bytes(url, transport=transport)
-
-    calendar = ICalendar.from_ical(content)
-
-    events = []
-    for component in calendar.walk():
-        if component.name != "VEVENT":
-            continue
-
-        uid = str(component.get("UID", ""))
-        dtstart_raw = component.get("DTSTART")
-        dtend_raw = component.get("DTEND")
-
-        if dtstart_raw is None:
-            continue
-
-        start_dt = dtstart_raw.dt
-        is_all_day = isinstance(start_dt, date) and not isinstance(start_dt, datetime)
-        start = _to_utc(start_dt)
-
-        if dtend_raw is not None:
-            end = _to_utc(dtend_raw.dt)
-        else:
-            duration = component.get("DURATION")
-            if duration:
-                end = start + duration.dt
-            elif is_all_day:
-                end = start + timedelta(days=1)
-            else:
-                end = start + timedelta(hours=1)
-
-        event_uid = uid or f"no-uid-{start.isoformat()}"
-        base = {
-            "external_uid": event_uid,
-            "title": str(component.get("SUMMARY", "(no title)")),
-            "start_dt": start,
-            "end_dt": end,
-            "all_day": is_all_day,
-            "location": str(component.get("LOCATION", "")) or None,
-            "description": str(component.get("DESCRIPTION", "")) or None,
-        }
-        events.append(base)
-
-        recurrences = _expand_recurrence(component, event_uid, start_dt, start, end, is_all_day)
-        events.extend(recurrences)
-
-    return events
+    return parse_ics(content, family_tz=family_tz, now=now)

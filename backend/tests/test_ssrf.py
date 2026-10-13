@@ -1,5 +1,6 @@
 """SSRF guards for server-side ICS fetching (review backlog #1)."""
 import socket
+from datetime import datetime, timezone
 
 import httpx
 import pytest
@@ -8,6 +9,8 @@ from app.core.url_safety import assert_public_http_url
 from app.integrations.ical_feed import fetch_and_parse
 
 PUBLIC_IP = "93.184.216.34"
+# Fixed clock: the sample events (October 2026) must stay inside the storage window.
+NOW = datetime(2026, 10, 12, tzinfo=timezone.utc)
 
 VALID_ICS = (
     "BEGIN:VCALENDAR\r\n"
@@ -124,7 +127,7 @@ class TestFetchAndParse:
             return httpx.Response(302, headers={"location": f"http://{PUBLIC_IP}/real.ics"})
 
         events = await fetch_and_parse(
-            f"http://{PUBLIC_IP}/start.ics", transport=httpx.MockTransport(handler)
+            f"http://{PUBLIC_IP}/start.ics", transport=httpx.MockTransport(handler), now=NOW
         )
         assert [e["external_uid"] for e in events] == ["abc"]
 
@@ -135,7 +138,7 @@ class TestFetchAndParse:
             return httpx.Response(302, headers={"location": "/real.ics"})
 
         events = await fetch_and_parse(
-            f"http://{PUBLIC_IP}/start.ics", transport=httpx.MockTransport(handler)
+            f"http://{PUBLIC_IP}/start.ics", transport=httpx.MockTransport(handler), now=NOW
         )
         assert len(events) == 1
 
@@ -147,7 +150,7 @@ class TestFetchAndParse:
 
         with pytest.raises(ValueError):
             await fetch_and_parse(
-                f"http://{PUBLIC_IP}/start.ics", transport=httpx.MockTransport(handler)
+                f"http://{PUBLIC_IP}/start.ics", transport=httpx.MockTransport(handler), now=NOW
             )
 
     async def test_stops_after_too_many_redirects(self):
@@ -156,7 +159,7 @@ class TestFetchAndParse:
 
         with pytest.raises(ValueError):
             await fetch_and_parse(
-                f"http://{PUBLIC_IP}/start.ics", transport=httpx.MockTransport(handler)
+                f"http://{PUBLIC_IP}/start.ics", transport=httpx.MockTransport(handler), now=NOW
             )
 
     async def test_reports_non_200(self):
@@ -165,7 +168,7 @@ class TestFetchAndParse:
 
         with pytest.raises(ValueError):
             await fetch_and_parse(
-                f"http://{PUBLIC_IP}/missing.ics", transport=httpx.MockTransport(handler)
+                f"http://{PUBLIC_IP}/missing.ics", transport=httpx.MockTransport(handler), now=NOW
             )
 
     async def test_all_day_event_without_end_lasts_one_day(self):
@@ -173,7 +176,7 @@ class TestFetchAndParse:
             return httpx.Response(200, content=ALL_DAY_WITHOUT_END_ICS)
 
         events = await fetch_and_parse(
-            f"http://{PUBLIC_IP}/calendar.ics", transport=httpx.MockTransport(handler)
+            f"http://{PUBLIC_IP}/calendar.ics", transport=httpx.MockTransport(handler), now=NOW
         )
 
         assert len(events) == 1
@@ -187,7 +190,7 @@ class TestFetchAndParse:
             return httpx.Response(200, content=TIMED_WITHOUT_END_ICS)
 
         events = await fetch_and_parse(
-            f"http://{PUBLIC_IP}/calendar.ics", transport=httpx.MockTransport(handler)
+            f"http://{PUBLIC_IP}/calendar.ics", transport=httpx.MockTransport(handler), now=NOW
         )
 
         assert len(events) == 1
@@ -218,7 +221,7 @@ class TestDnsRebinding:
             return httpx.Response(200, content=VALID_ICS)
 
         events = await fetch_and_parse(
-            "http://calendar.example.com/cal.ics", transport=httpx.MockTransport(handler)
+            "http://calendar.example.com/cal.ics", transport=httpx.MockTransport(handler), now=NOW
         )
         assert [e["external_uid"] for e in events] == ["abc"]
         # Pinned to the approved IP, original name kept for virtual hosting.
@@ -234,7 +237,7 @@ class TestDnsRebinding:
             return httpx.Response(200, content=VALID_ICS)
 
         await fetch_and_parse(
-            "https://calendar.example.com/cal.ics", transport=httpx.MockTransport(handler)
+            "https://calendar.example.com/cal.ics", transport=httpx.MockTransport(handler), now=NOW
         )
         assert seen == [("https", PUBLIC_IP, "calendar.example.com")]
 
@@ -256,7 +259,7 @@ class TestDnsRebinding:
                 return httpx.Response(302, headers={"location": "http://b.example.com/real.ics"})
             return httpx.Response(200, content=VALID_ICS)
 
-        await fetch_and_parse("http://a.example.com/start.ics", transport=httpx.MockTransport(handler))
+        await fetch_and_parse("http://a.example.com/start.ics", transport=httpx.MockTransport(handler), now=NOW)
         assert seen == [(PUBLIC_IP, "a.example.com"), (other_public, "b.example.com")]
 
 
@@ -268,4 +271,4 @@ class TestResponseLimits:
             return httpx.Response(200, content=b"X" * 500)
 
         with pytest.raises(ValueError, match="larger than"):
-            await fetch_and_parse(f"http://{PUBLIC_IP}/big.ics", transport=httpx.MockTransport(handler))
+            await fetch_and_parse(f"http://{PUBLIC_IP}/big.ics", transport=httpx.MockTransport(handler), now=NOW)
