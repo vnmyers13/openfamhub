@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { useAuthStore, type User } from '../stores/auth'
 import { apiError, mockApi } from '../test/api'
@@ -10,7 +10,7 @@ const photo = (id: string) => ({ id, kind: 'photo', status: 'ready', error: null
   duration_s: null, uploaded_by: 'kid', created_at: null, wall_url: `/api/media/${id}/wall`, thumb_url: `/api/media/${id}/thumb` })
 
 function setup(role = 'member', extra: Record<string, unknown> = {}) {
-  useAuthStore.getState().setUser({ id: 'kid', display_name: 'Kid', role } as User)
+  useAuthStore.getState().setUser({ id: 'kid', display_name: 'Kid', role, color_hex: '#059669', avatar_type: 'emoji', avatar_value: '🦊' } as User)
   return mockApi({
     'GET /users/me/preferences': PREFS,
     'PUT /users/me/preferences': (body: unknown) => body,
@@ -29,7 +29,7 @@ describe('MySettings', () => {
     renderApp(<MySettings />)
     const input = await screen.findByDisplayValue('2016-05-01')
     fireEvent.change(input, { target: { value: '2016-05-02' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(within(screen.getByRole('region', { name: 'Birthday' })).getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Saved')).toBeTruthy()
     expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ birthday: '2016-05-02' })
   })
@@ -38,7 +38,7 @@ describe('MySettings', () => {
     setup('member', { 'PATCH /users/kid': () => { throw apiError(422, 'birthday must be a past date') } })
     renderApp(<MySettings />)
     fireEvent.change(await screen.findByDisplayValue('2016-05-01'), { target: { value: '2099-01-01' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(within(screen.getByRole('region', { name: 'Birthday' })).getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('birthday must be a past date')).toBeTruthy()
   })
 
@@ -69,5 +69,39 @@ describe('MySettings', () => {
     renderApp(<MySettings />)
     fireEvent.click(await screen.findByRole('radio', { name: 'Across the top' }))
     expect(await screen.findByText('bad preferences')).toBeTruthy()
+  })
+
+  it('changes my own name, color and avatar, and the app shows them at once', async () => {
+    const calls = setup()
+    renderApp(<MySettings />)
+    const profile = await screen.findByRole('region', { name: 'Profile' })
+    const save = within(profile).getByRole('button', { name: 'Save' }) as HTMLButtonElement
+    expect(save.disabled).toBe(true)  // nothing changed yet
+    fireEvent.change(within(profile).getByLabelText('My name'), { target: { value: ' Sam ' } })
+    fireEvent.change(within(profile).getByLabelText('My color'), { target: { value: '#dc2626' } })
+    fireEvent.click(within(profile).getByRole('radio', { name: 'Avatar 🚀' }))
+    fireEvent.click(save)
+    expect(await within(profile).findByText('Saved')).toBeTruthy()
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ display_name: 'Sam', color_hex: '#dc2626', avatar: '🚀' })
+    expect(useAuthStore.getState().user).toMatchObject({ display_name: 'Sam', color_hex: '#dc2626', avatar_value: '🚀' })
+  })
+
+  it('starts unchanged for someone with no color or avatar yet', async () => {
+    useAuthStore.getState().setUser({ id: 'kid', display_name: 'Kid', role: 'member' } as User)
+    mockApi({ 'GET /users/me/preferences': PREFS, 'GET /users/kid': { birthday: null }, 'GET /media': [] })
+    renderApp(<MySettings />)
+    const profile = await screen.findByRole('region', { name: 'Profile' })
+    expect((within(profile).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(within(profile).queryByRole('radio', { checked: true })).toBeNull()
+  })
+
+  it("explains a name that's taken", async () => {
+    setup('member', { 'PATCH /users/kid': () => { throw apiError(409, 'Someone in the family is already called "Mom"') } })
+    renderApp(<MySettings />)
+    const profile = await screen.findByRole('region', { name: 'Profile' })
+    fireEvent.change(within(profile).getByLabelText('My name'), { target: { value: 'Mom' } })
+    fireEvent.click(within(profile).getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Someone in the family is already called "Mom"')).toBeTruthy()
+    expect(useAuthStore.getState().user?.display_name).toBe('Kid')
   })
 })

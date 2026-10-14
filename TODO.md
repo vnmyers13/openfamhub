@@ -257,7 +257,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [x] **Navigation layout:** let each person choose the menu across the top or down the side (requested 2026-10-13). Save it per user, keep the phone layout as it is, and test that the choice survives a reload.
 - Tests first (done: `test_books_announcements.py`, `test_weather_dashboard.py`, `Dashboard.test.tsx`, `CustomizeDashboard.test.tsx`, `BooksPage.test.tsx`, `MySettings.test.tsx`, `NavShell.test.tsx`): cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes; birthday age crosses the year boundary; layout persistence; filter scoping.
 
-- [ ] Members can't change their own name, color or avatar outside Admin › Users; add them to My settings.
+- [x] Members can't change their own name, color or avatar outside Admin › Users; add them to My settings. Done: a **Me** section at the top of My settings (`PATCH /users/{id}` already allowed your own profile; `test_users_api.py`, `MySettings.test.tsx`). The avatar list is shared in `lib/avatars.ts`.
 - [ ] Weather and announcements panels on the wall come with Phase 10's wall panels.
 
 ### Phase 9 — Offline sync ✅ (code complete at 1.28)

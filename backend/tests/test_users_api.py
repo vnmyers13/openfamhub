@@ -55,6 +55,22 @@ async def test_members_cannot_change_their_role_or_others(client, admin):
     assert (await client.patch(f"/api/users/{admin['id']}", json={"color_hex": "#000000"}, headers=_h(kid))).status_code == 403
 
 
+async def test_members_change_their_own_name_color_and_avatar(client, admin):
+    """My settings › Me: no admin and no password needed for your own profile."""
+    kid = await _member(client, admin, name="Kid")
+    res = await client.patch(
+        f"/api/users/{kid['id']}",
+        json={"display_name": " Sam ", "color_hex": "#DC2626", "avatar": "🚀"},
+        headers=_h(kid),
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert (body["display_name"], body["color_hex"], body["avatar_value"]) == ("Sam", "#DC2626", "🚀")
+    assert body["role"] == "member"
+    taken = await client.patch(f"/api/users/{kid['id']}", json={"display_name": "Mom"}, headers=_h(kid))
+    assert taken.status_code == 409
+
+
 async def test_unknown_member_is_404(client, admin):
     assert (await client.patch("/api/users/nope", json={"color_hex": "#000000"}, headers=_h(admin))).status_code == 404
     assert (await client.delete("/api/users/nope", headers=_h(admin))).status_code == 404

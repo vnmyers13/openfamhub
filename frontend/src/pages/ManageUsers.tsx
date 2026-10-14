@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient, errorDetail } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import Avatar from '../components/Avatar'
+import { AVATARS } from '../lib/avatars'
 
 interface User {
   id: string
@@ -21,7 +22,6 @@ interface User {
   birthday?: string | null
 }
 
-const AVATARS = ['🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐵', '🦄', '🐙', '🐢', '🦖', '🐝', '🌟', '🚀', '⚽', '🎸']
 const ROLES = [
   { value: 'admin', label: 'Admin (parents)' },
   { value: 'member', label: 'Member' },

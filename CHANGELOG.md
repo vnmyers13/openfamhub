@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Added
+- **Change your own name, color and avatar** under **My settings › Me**, without an admin. The new look shows straight away across the app; a name someone else in the family already has is refused.
+
 ---
 
 ## [1.28] - 2026-10-14 — Phases 6–9
