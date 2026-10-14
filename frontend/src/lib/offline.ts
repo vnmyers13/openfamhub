@@ -166,7 +166,18 @@ export async function discard(write: QueuedWrite): Promise<void> {
 export async function keepMine(write: QueuedWrite): Promise<void> {
   const body = { ...(write.body ?? {}) }
   delete body.base
-  await putWrite({ ...write, body, conflict: undefined, error: undefined })
+  await requeue(write, body)
+}
+
+/**
+ * A decided conflict is a new request, so it gets a new id and with it a new
+ * Idempotency-Key: the server remembers its answer to the old key (the 409)
+ * and would otherwise give it back on every replay. It keeps its place in
+ * the queue (createdAt).
+ */
+async function requeue(write: QueuedWrite, body: Record<string, unknown>): Promise<void> {
+  await removeWrite(write.id)
+  await putWrite({ ...write, id: newId(), body, conflict: undefined, error: undefined })
   await refreshPending()
 }
 
@@ -187,6 +198,5 @@ export function mergedChanges(write: QueuedWrite): Record<string, unknown> {
 export async function merge(write: QueuedWrite): Promise<void> {
   const changes = mergedChanges(write)
   if (Object.keys(changes).length === 0) return discard(write)
-  await putWrite({ ...write, body: changes, conflict: undefined, error: undefined })
-  await refreshPending()
+  await requeue(write, changes)
 }

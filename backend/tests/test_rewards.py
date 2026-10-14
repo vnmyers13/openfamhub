@@ -158,6 +158,26 @@ class TestRedeem:
         assert await ledger_sum(setup_db, kid["id"]) == 10
         assert (await client.get("/api/rewards/redemptions", headers=_h(kid))).json() == []
 
+    async def test_two_devices_at_once_cant_overspend(self, client, admin, kids, setup_db, monkeypatch):
+        """The first balance read can be stale when two redeems race; the spend is re-checked after it's written."""
+        kid, _ = kids
+        await give_points(client, admin, kid["id"], 40)
+        reward = await make_reward(client, admin)
+        await redeem(client, kid, reward["id"])  # 40 - 30 = 10 left
+        real = svc.points_balance
+        reads = []
+
+        async def stale_first_read(db, family_id, user_id):
+            reads.append(user_id)
+            return 40 if len(reads) == 1 else await real(db, family_id, user_id)  # as if the other redeem hadn't landed
+
+        monkeypatch.setattr(svc, "points_balance", stale_first_read)
+        res = await client.post(f"/api/rewards/catalog/{reward['id']}/redeem", headers=_h(kid))
+        assert res.status_code == 409 and "points" in res.json()["detail"]
+        monkeypatch.setattr(svc, "points_balance", real)
+        assert await ledger_sum(setup_db, kid["id"]) == 10
+        assert len((await client.get("/api/rewards/redemptions", headers=_h(kid))).json()) == 1
+
     async def test_a_request_holds_the_points_until_approved(self, client, admin, kids, setup_db):
         kid, _ = kids
         await give_points(client, admin, kid["id"], 50)

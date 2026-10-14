@@ -3,6 +3,10 @@
 ### Added
 - **Change your own name, color and avatar** under **My settings › Me**, without an admin. The new look shows straight away across the app; a name someone else in the family already has is refused.
 
+### Fixed
+- **Offline conflicts:** choosing "Keep mine" or "Merge" now goes through. Before, the resolved change was re-sent with the same Idempotency-Key, so the server answered with the remembered 409 every time and the change stayed stuck.
+- **Rewards:** two redeems at the same moment (say, from two devices) can no longer spend more points than someone has; the later one is refused.
+
 ### Developers
 - Frontend work needs Node 24 (or 22.22+); Node 20 can't run the tests (jsdom 30, Vitest 5). `frontend/.nvmrc` pins 24 and `package.json` declares `engines`. The web image builds on `node:24-alpine`.
 

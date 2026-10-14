@@ -153,9 +153,19 @@ async def redeem(reward_id: str, db: AsyncSession = Depends(get_db), user: User 
                      requested_at=now, decided_at=None if reward.needs_approval else now)
     db.add(red)
     await db.flush()
-    db.add(PointsEntry(family_id=user.family_id, user_id=user.id, delta=-reward.point_cost,
-                       reason=f"Reward: {reward.name}", source_type="reward", source_id=red.id, created_at=now))
+    spend = PointsEntry(family_id=user.family_id, user_id=user.id, delta=-reward.point_cost,
+                        reason=f"Reward: {reward.name}", source_type="reward", source_id=red.id, created_at=now)
+    db.add(spend)
     await db.flush()
+    # Re-check with the spend written: two redeems at once (two devices) can
+    # both pass the first check. The later one takes its spend back out.
+    balance = await svc.points_balance(db, user.family_id, user.id)
+    if balance < 0:
+        await db.delete(spend)
+        await db.delete(red)
+        await db.flush()
+        raise HTTPException(status_code=409,
+                            detail=f"Not enough points: you have {balance + reward.point_cost}, this costs {reward.point_cost}")
     changed(db)
     return to_redemption(red)
 

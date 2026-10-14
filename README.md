@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.33-blue)
+![Version](https://img.shields.io/badge/version-1.34-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -98,6 +98,8 @@ In **Admin › Calendars › Add ICS Feed**, paste a calendar's ICS (or `webcal:
 - **Google Calendar**: Settings › *your calendar* › Integrate calendar › *Secret address in iCal format*.
 - **iCloud**: Calendar app › Share Calendar › Public Calendar, then copy the link.
 - **School and sports apps** (TeamSnap and others): look for "Subscribe" or "Export to calendar".
+
+To change a feed later, press **Edit** on it: rename it, recolor it, change how often it syncs, pause it, or paste a new link. A new link is checked first and only saved if it works; its events then replace the old link's.
 
 ## Stack
 

@@ -75,6 +75,20 @@ class TestConflicts:
         res = await client.patch(f"/api/todos/{todo['id']}", json={"done": True}, headers=_h(kid))
         assert res.status_code == 200 and res.json()["done"] is True
 
+    async def test_keep_mine_needs_a_new_key_because_the_409_is_remembered(self, client, admin, kid):
+        """The app's offline queue sends a decided conflict with a new Idempotency-Key."""
+        todo = (await client.post("/api/todos", json={"title": "Buy a card"}, headers=_h(kid))).json()
+        await client.patch(f"/api/todos/{todo['id']}", json={"title": "Buy a birthday card"}, headers=_h(admin))
+        stale = {"done": True, "base": {"title": "Buy a card", "done": False}}
+        first = await client.patch(f"/api/todos/{todo['id']}", json=stale, headers={**_h(kid), "Idempotency-Key": "w1"})
+        assert first.status_code == 409
+        same_key = await client.patch(f"/api/todos/{todo['id']}", json={"done": True},
+                                      headers={**_h(kid), "Idempotency-Key": "w1"})
+        assert same_key.status_code == 409 and same_key.headers.get("idempotent-replay") == "true"
+        new_key = await client.patch(f"/api/todos/{todo['id']}", json={"done": True},
+                                     headers={**_h(kid), "Idempotency-Key": "w2"})
+        assert new_key.status_code == 200 and new_key.json()["done"] is True
+
     async def test_a_matching_base_applies(self, client, admin, kid):
         todo = (await client.post("/api/todos", json={"title": "Call Gran"}, headers=_h(kid))).json()
         res = await client.patch(f"/api/todos/{todo['id']}", headers=_h(kid),

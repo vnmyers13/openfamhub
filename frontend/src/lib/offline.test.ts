@@ -120,15 +120,58 @@ describe('offline writes', () => {
     const { putWrite } = await import('./idb')
     await putWrite(write)
     await merge(write)
-    expect((await allWrites())[0]).toMatchObject({ body: { checked: true }, conflict: undefined })
-    await keepMine(write)
-    expect((await allWrites())[0].body).toEqual({ checked: true, quantity: '1 gal' })
-    await discard(write)
+    const [merged] = await allWrites()
+    expect(merged).toMatchObject({ body: { checked: true }, conflict: undefined, createdAt: 1 })
+    expect(merged.id).not.toBe('w1')  // a new request, so a new Idempotency-Key
+    await keepMine({ ...write, id: merged.id })
+    const [mine] = await allWrites()
+    expect(mine.body).toEqual({ checked: true, quantity: '1 gal' })
+    await discard(mine)
     expect(await allWrites()).toEqual([])
     // Nothing left to merge → dropped.
     await putWrite({ ...write, local: { quantity: '1 gal' } })
     await merge({ ...write, local: { quantity: '1 gal' } })
     expect(await allWrites()).toEqual([])
+  })
+
+  it('keep mine and merge go through even though the server remembers the first answer per key', async () => {
+    // Like IdempotencyMiddleware: the same key gets the same answer back, refusals included.
+    const answers = new Map<string, () => unknown>()
+    let landed = 0
+    let changedByThem = true
+    const server = (body: unknown, config?: unknown) => {
+      const key = (config as { headers: Record<string, string> }).headers['Idempotency-Key']
+      if (!answers.has(key)) {
+        const stale = changedByThem && (body as { base?: unknown }).base !== undefined
+        answers.set(key, stale
+          ? () => { throw apiError(409, 'Someone else changed this while you were offline') }
+          : () => { landed += 1; return { id: 's1', checked: true } })
+      }
+      return answers.get(key)!()
+    }
+    mockApi({ 'PATCH /meals/shopping/s1': server })
+    goOffline()
+    await offlineWrite(tick('s1', 'Milk'))
+    goOnline()
+    await replay()
+    const [conflicted] = await allWrites()
+    expect(conflicted.conflict).toBeDefined()
+    await keepMine(conflicted)
+    await replay()
+    expect(await allWrites()).toEqual([])
+    expect(landed).toBe(1)
+
+    // Merge, the same way.
+    goOffline()
+    await offlineWrite(tick('s1', 'Milk'))
+    goOnline()
+    await replay()
+    const [again] = await allWrites()
+    await merge({ ...again, conflict: { message: 'changed', fields: ['quantity'], current: { name: 'Milk', quantity: '2 gal', checked: false } } })
+    changedByThem = false
+    await replay()
+    expect(await allWrites()).toEqual([])
+    expect(landed).toBe(2)
   })
 })
 
