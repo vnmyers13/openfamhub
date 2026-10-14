@@ -27,7 +27,7 @@ from app.services.calendar import get_events_in_range
 from app.services import media as media_service
 from app.schemas.media import WallMediaResponse
 from app.routers.media import serve_file
-from app.routers.family import sleep_schedule, world_clocks
+from app.routers.family import sleep_schedule, wall_dashboard, world_clocks
 from app.routers.routines import todays_runs
 from app.schemas.chores import RoutineRun
 from app.schemas.family import SleepSchedule
@@ -188,6 +188,7 @@ async def session(
         "sleep": (sleep_schedule(family) if family else SleepSchedule()).model_dump(),
         # Extra clocks under the main one (Phase 10), set in Admin › Settings.
         "clocks": [c.model_dump() for c in world_clocks(family)] if family else [],
+        "dashboard": wall_dashboard(family).model_dump() if family else {"pages": []},
     }
 
 

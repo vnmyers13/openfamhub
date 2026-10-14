@@ -137,4 +137,26 @@ describe('Dashboard', () => {
     // Members can't pin or remove someone else's post.
     expect(screen.queryByRole('button', { name: 'Unpin' })).toBeNull()
   })
+
+  it('lets a member customize the shared family wall dashboard', async () => {
+    signIn('kid', 'member')
+    const calls = homeApi({
+      'GET /family/wall-dashboard': { pages: [{ name: 'Kitchen', duration_seconds: 30, widgets: [{ key: 'events', size: 'wide' }] }] },
+      'PUT /family/wall-dashboard': (body: unknown) => body,
+    })
+    renderApp(<Dashboard />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Customize' }))
+    expect(screen.queryByRole('heading', { name: 'Family wall dashboard' })).toBeNull()
+    expect(calls.some((c) => c.url === '/family/wall-dashboard')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit family wall' }))
+    expect(await screen.findByRole('heading', { name: 'Family wall dashboard' })).toBeTruthy()
+    expect(await screen.findByDisplayValue('Kitchen')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Wall page duration'), { target: { value: '60' } })
+
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT' && c.url === '/family/wall-dashboard')).toBe(true))
+    expect(calls.find((c) => c.method === 'PUT' && c.url === '/family/wall-dashboard')?.body).toEqual({
+      pages: [{ name: 'Kitchen', duration_seconds: 60, widgets: [{ key: 'events', size: 'wide' }] }],
+    })
+  })
 })

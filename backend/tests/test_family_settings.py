@@ -1,6 +1,8 @@
 """Phase 3b: family settings (name, timezone, wall sleep schedule)."""
 import pytest
+from sqlalchemy import select
 
+from app.models.family import Family
 from tests.test_phase2 import SETUP, _cookie, _h, _member
 
 
@@ -127,3 +129,65 @@ class TestExtraClocks:
         kid = await _member(client, admin)
         res = await client.patch("/api/family", json={"clocks": [{"label": "x", "timezone": "Europe/London"}]}, headers=_h(kid))
         assert res.status_code == 403
+
+
+def wall_dashboard_body():
+    return {
+        "pages": [
+            {
+                "name": "Kitchen",
+                "duration_seconds": 45,
+                "widgets": [
+                    {"key": "events", "size": "wide"},
+                    {"key": "weather", "size": "normal"},
+                ],
+            }
+        ]
+    }
+
+
+async def test_any_signed_in_user_can_save_wall_dashboard(client, admin):
+    kid = await _member(client, admin)
+    body = wall_dashboard_body()
+
+    res = await client.put("/api/family/wall-dashboard", json=body, headers=_h(kid))
+
+    assert res.status_code == 200, res.text
+    assert res.json() == body
+    assert (await client.get("/api/family/wall-dashboard", headers=_h(admin))).json() == body
+
+
+@pytest.mark.parametrize("body", [
+    {"pages": [{"name": "Kitchen", "widgets": [{"key": "nope", "size": "normal"}]}]},
+    {"pages": [{"name": "Kitchen", "widgets": [{"key": "events", "size": "huge"}]}]},
+    {"pages": [{"name": "   ", "widgets": []}]},
+    {"pages": [{"name": "Kitchen", "duration_seconds": 4, "widgets": []}]},
+])
+async def test_wall_dashboard_rejects_bad_values(client, admin, body):
+    assert (await client.put("/api/family/wall-dashboard", json=body, headers=_h(admin))).status_code == 422
+
+
+async def test_wall_dashboard_falls_back_when_stored_json_is_invalid(client, admin, setup_db):
+    family = (await setup_db.execute(select(Family))).scalar_one()
+    family.settings_json = {"wall_dashboard": {"pages": [{"name": "Broken", "widgets": [{"key": "bad"}]}]}}
+    await setup_db.flush()
+
+    res = await client.get("/api/family/wall-dashboard", headers=_h(admin))
+
+    assert res.status_code == 200
+    assert [p["name"] for p in res.json()["pages"]] == ["Today", "Family", "Notes"]
+    assert res.json()["pages"][0]["widgets"][0] == {"key": "events", "size": "wide"}
+
+
+async def test_changing_wall_dashboard_notifies_walls(client, admin, setup_db):
+    setup_db.info.pop("pending_events", None)
+
+    res = await client.put("/api/family/wall-dashboard", json=wall_dashboard_body(), headers=_h(admin))
+
+    assert res.status_code == 200, res.text
+    assert ("settings_updated", {}) in setup_db.info.get("pending_events", [])
+
+
+async def test_anonymous_cannot_read_or_save_wall_dashboard(client):
+    assert (await client.get("/api/family/wall-dashboard")).status_code in (401, 403)
+    assert (await client.put("/api/family/wall-dashboard", json=wall_dashboard_body())).status_code in (401, 403)

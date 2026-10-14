@@ -9,6 +9,9 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    // fake-indexeddb replaces a process-wide IndexedDB factory in offline tests.
+    // Run files serially so one file cannot replace it during another's replay.
+    fileParallelism: false,
     include: ['src/**/*.test.{ts,tsx}'],
     restoreMocks: true,
     setupFiles: ['./src/test/setup.ts'],

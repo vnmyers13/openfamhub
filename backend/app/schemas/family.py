@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional
+from typing import List, Literal, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -90,3 +90,59 @@ class FamilySettingsUpdate(BaseModel):
         except (ZoneInfoNotFoundError, ValueError):
             raise ValueError("unknown timezone; use an IANA name such as America/Detroit")
         return v
+
+
+WallDashboardWidgetKey = Literal[
+    "events", "chores", "routines", "meals", "weather", "announcements", "progress", "birthdays"
+]
+
+
+class WallDashboardWidget(BaseModel):
+    key: WallDashboardWidgetKey
+    size: Literal["normal", "wide"] = "normal"
+
+
+class WallDashboardPage(BaseModel):
+    name: str
+    duration_seconds: int = Field(default=30, ge=5, le=300)
+    widgets: list[WallDashboardWidget] = Field(default_factory=list, max_length=8)
+
+    @field_validator("name")
+    @classmethod
+    def name_length(cls, v: str) -> str:
+        v = v.strip()
+        if not 1 <= len(v) <= 40:
+            raise ValueError("name must be 1-40 characters")
+        return v
+
+
+class WallDashboardConfig(BaseModel):
+    pages: list[WallDashboardPage] = Field(default_factory=list, max_length=6)
+
+
+DEFAULT_WALL_DASHBOARD = WallDashboardConfig(
+    pages=[
+        WallDashboardPage(
+            name="Today",
+            widgets=[
+                WallDashboardWidget(key="events", size="wide"),
+                WallDashboardWidget(key="weather"),
+                WallDashboardWidget(key="meals"),
+            ],
+        ),
+        WallDashboardPage(
+            name="Family",
+            widgets=[
+                WallDashboardWidget(key="routines", size="wide"),
+                WallDashboardWidget(key="progress", size="wide"),
+            ],
+        ),
+        WallDashboardPage(
+            name="Notes",
+            widgets=[
+                WallDashboardWidget(key="announcements", size="wide"),
+                WallDashboardWidget(key="birthdays"),
+            ],
+        ),
+    ]
+)

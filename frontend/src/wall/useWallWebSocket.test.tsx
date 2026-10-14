@@ -53,16 +53,19 @@ describe('useWallWebSocket (#11)', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['wall-events'] })
   })
 
-  it('refreshes media and settings when the server says they changed', () => {
+  it('refreshes every wall card affected by a server update', () => {
     const { invalidate } = setup()
     act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'media_updated' }) }))
     act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'settings_updated' }) }))
     act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'chores_updated' }) }))
+    act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'meals_updated' }) }))
+    act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'announcements_updated' }) }))
     act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'rewards_updated' }) }))
     act(() => open()[0].onmessage?.({ data: JSON.stringify({ type: 'something_else' }) }))
     act(() => open()[0].onmessage?.({ data: 'not json' }))
-    expect(invalidate.mock.calls).toEqual([[{ queryKey: ['wall-media'] }], [{ queryKey: ['wall-session'] }],
-      [{ queryKey: ['wall-routines'] }], [{ queryKey: ['wall-progress'] }], [{ queryKey: ['wall-progress'] }]])
+    expect(invalidate.mock.calls).toEqual([[{ queryKey: ['wall-media'] }], [{ queryKey: ['wall-session'] }], [{ queryKey: ['wall-weather'] }],
+      [{ queryKey: ['wall-routines'] }], [{ queryKey: ['wall-progress'] }], [{ queryKey: ['wall-chores'] }],
+      [{ queryKey: ['wall-meals'] }], [{ queryKey: ['wall-announcements'] }], [{ queryKey: ['wall-progress'] }]])
   })
 
   it('reconnects after the server drops the connection', async () => {

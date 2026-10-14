@@ -7,8 +7,10 @@ const RECONNECT_MS = 10_000
 const REFRESH: Record<string, string[]> = {
   calendar_updated: ['wall-events'],
   media_updated: ['wall-media'],
-  settings_updated: ['wall-session'],
-  chores_updated: ['wall-routines', 'wall-progress'],
+  settings_updated: ['wall-session', 'wall-weather'],
+  chores_updated: ['wall-routines', 'wall-progress', 'wall-chores'],
+  meals_updated: ['wall-meals'],
+  announcements_updated: ['wall-announcements'],
   rewards_updated: ['wall-progress'],
 }
 

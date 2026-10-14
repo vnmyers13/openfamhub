@@ -135,6 +135,7 @@ On the idle screen `WallSlideshow` shows the family's ready media full screen, i
   - Calendar scope: everyone or just me.
   - Wallpaper: a gradient or a media id.
   - Up to 6 dashboard pages, each a list of widget keys and sizes. An empty list means the default page.
+- **Family wall dashboard** (`/api/family/wall-dashboard`, `families.settings_json["wall_dashboard"]`): shared by the whole family and editable by any signed-in user. It stores wall pages, card order, card size and page duration; `/api/wall/session` returns it to paired wall displays, which render it read-only through paired-device endpoints for events, chores, routines, meals, weather, announcements, progress and birthdays.
 
 ## Reading photos (OCR)
 

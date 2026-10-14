@@ -4,9 +4,35 @@ import type { WorldClock } from './family'
 import { apiClient } from './client'
 import type { CalendarEvent } from './calendar'
 import type { SleepSchedule } from '../lib/sleep'
-import type { RoutineRun } from './chores'
+import type { ChoreInstance, RoutineRun } from './chores'
 import type { ProgressRow } from './rewards'
-import type { UpcomingBirthday } from './home'
+import type { Announcement, UpcomingBirthday, Weather } from './home'
+
+export const WALL_DASHBOARD_WIDGETS = [
+  { key: 'events', label: "Today's events" },
+  { key: 'chores', label: 'Chores' },
+  { key: 'routines', label: 'Routines' },
+  { key: 'meals', label: "Today's meals" },
+  { key: 'weather', label: 'Weather' },
+  { key: 'announcements', label: 'Announcements' },
+  { key: 'progress', label: 'Family progress' },
+  { key: 'birthdays', label: 'Birthdays' },
+] as const
+
+export type WallDashboardWidgetKey = (typeof WALL_DASHBOARD_WIDGETS)[number]['key']
+export interface WallDashboardWidget { key: WallDashboardWidgetKey; size: 'normal' | 'wide' }
+export interface WallDashboardPage { name: string; duration_seconds: number; widgets: WallDashboardWidget[] }
+export interface WallDashboardConfig { pages: WallDashboardPage[] }
+
+export const DEFAULT_WALL_DASHBOARD: WallDashboardConfig = {
+  pages: [
+    { name: 'Today', duration_seconds: 30, widgets: [{ key: 'events', size: 'wide' }, { key: 'weather', size: 'normal' }, { key: 'meals', size: 'normal' }] },
+    { name: 'Family', duration_seconds: 30, widgets: [{ key: 'routines', size: 'wide' }, { key: 'progress', size: 'wide' }] },
+    { name: 'Notes', duration_seconds: 30, widgets: [{ key: 'announcements', size: 'wide' }, { key: 'birthdays', size: 'normal' }] },
+  ],
+}
+
+export const wallDashboardWidgetLabel = (key: WallDashboardWidgetKey) => WALL_DASHBOARD_WIDGETS.find((w) => w.key === key)?.label ?? key
 
 export interface WallDevice {
   id: string
@@ -47,6 +73,7 @@ export interface WallSession {
   timezone: string
   sleep: SleepSchedule
   clocks?: WorldClock[]
+  dashboard: WallDashboardConfig
 }
 
 export async function getWallSession() {
@@ -83,6 +110,41 @@ export function useWallEvents(start: Date, end: Date) {
       return res.data as CalendarEvent[]
     },
     refetchInterval: 15 * 60 * 1000, // backstop in case the WebSocket drops
+  })
+}
+
+export function useWallChores() {
+  return useQuery({
+    queryKey: ['wall-chores'],
+    queryFn: async () => (await apiClient.get('/wall/chores')).data as ChoreInstance[],
+    refetchInterval: 5 * 60 * 1000,
+  })
+}
+
+export interface WallMeal { day: string; slot: string; title: string; recipe_id: string | null; note: string | null }
+export interface WallMeals { week_start: string; days: string[]; entries: WallMeal[] }
+
+export function useWallMeals() {
+  return useQuery({
+    queryKey: ['wall-meals'],
+    queryFn: async () => (await apiClient.get('/wall/meals')).data as WallMeals,
+    refetchInterval: 15 * 60 * 1000,
+  })
+}
+
+export function useWallAnnouncements() {
+  return useQuery({
+    queryKey: ['wall-announcements'],
+    queryFn: async () => (await apiClient.get('/wall/announcements')).data as Announcement[],
+    refetchInterval: 5 * 60 * 1000,
+  })
+}
+
+export function useWallWeather() {
+  return useQuery({
+    queryKey: ['wall-weather'],
+    queryFn: async () => (await apiClient.get('/wall/weather')).data as Weather,
+    refetchInterval: 15 * 60 * 1000,
   })
 }
 
@@ -129,6 +191,27 @@ export function useRevokeWallDevice() {
       await apiClient.delete(`/wall/devices/${id}`)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wall-devices'] }),
+  })
+}
+
+export function useFamilyWallDashboardConfig() {
+  return useQuery({
+    queryKey: ['family-wall-dashboard'],
+    queryFn: async () => ({ ...DEFAULT_WALL_DASHBOARD, ...((await apiClient.get('/family/wall-dashboard')).data as WallDashboardConfig) }),
+  })
+}
+
+export function useSaveFamilyWallDashboardConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (config: WallDashboardConfig) => (await apiClient.put('/family/wall-dashboard', config)).data as WallDashboardConfig,
+    onMutate: (config) => {
+      const before = qc.getQueryData<WallDashboardConfig>(['family-wall-dashboard'])
+      qc.setQueryData(['family-wall-dashboard'], config)
+      return { before }
+    },
+    onError: (_err, _config, ctx) => { if (ctx?.before) qc.setQueryData(['family-wall-dashboard'], ctx.before) },
+    onSuccess: (saved) => qc.setQueryData(['family-wall-dashboard'], saved),
   })
 }
 

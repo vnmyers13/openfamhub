@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDashboardSummary, type DashboardSummary } from '../api/home'
 import { DEFAULT_PREFS, usePreferences, useSavePreferences, type DashboardPage, type Preferences } from '../api/prefs'
+import { DEFAULT_WALL_DASHBOARD, useFamilyWallDashboardConfig, useSaveFamilyWallDashboardConfig } from '../api/wall'
 import { effectivePages, WALLPAPERS, type WidgetKey } from '../lib/dashboard'
 import { useAuthStore } from '../stores/auth'
 import CustomizeDashboard from './dashboard/CustomizeDashboard'
+import WallDashboardEditor from './dashboard/WallDashboardEditor'
 import {
   Announcements, Birthdays, FamilyStars, MealsToday, MyDay, SyncStatus, TodaysEvents, WeatherCard,
 } from './dashboard/widgets'
@@ -33,6 +35,13 @@ function Greeting() {
   )
 }
 
+function WallDashboardCustomizer() {
+  const { data: config = DEFAULT_WALL_DASHBOARD } = useFamilyWallDashboardConfig()
+  const save = useSaveFamilyWallDashboardConfig()
+  const [current, setCurrent] = useState(0)
+  return <WallDashboardEditor config={config} current={current} onSelect={setCurrent} onChange={(next) => save.mutate(next)} saving={save.isPending} />
+}
+
 /** Home: the person's own dashboard pages (or one default page), on their wallpaper. */
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
@@ -42,6 +51,7 @@ export default function Dashboard() {
   const { data: summary } = useDashboardSummary(prefs.calendar_scope)
   const [pageIndex, setPageIndex] = useState(0)
   const [customizing, setCustomizing] = useState(false)
+  const [editingWall, setEditingWall] = useState(false)
   const pages = effectivePages(prefs.pages, isAdmin)
   const current = Math.min(pageIndex, pages.length - 1)
   const page = pages[current]
@@ -74,12 +84,18 @@ export default function Dashboard() {
               </div>
             )}
             <button className="rounded bg-slate-800/80 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700"
-              onClick={() => setCustomizing((c) => !c)} aria-expanded={customizing}>{customizing ? 'Done' : 'Customize'}</button>
+              onClick={() => { setCustomizing((c) => !c); setEditingWall(false) }} aria-expanded={customizing}>{customizing ? 'Done' : 'Customize'}</button>
           </div>
         </div>
         {customizing && (
-          <CustomizeDashboard pages={pages} current={current} isAdmin={isAdmin} onSelect={setPageIndex}
-            onChange={savePages} saving={save.isPending} />
+          <div className="space-y-4">
+            <CustomizeDashboard pages={pages} current={current} isAdmin={isAdmin} onSelect={setPageIndex}
+              onChange={savePages} saving={save.isPending} />
+            {editingWall ? <WallDashboardCustomizer /> : (
+              <button className="rounded bg-slate-700 px-3 py-2 text-sm text-slate-100 hover:bg-slate-600"
+                onClick={() => setEditingWall(true)}>Edit family wall</button>
+            )}
+          </div>
         )}
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {page.widgets.map((w) => (
