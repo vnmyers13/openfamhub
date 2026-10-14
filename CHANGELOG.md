@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+### Phase 8: Family info and your own layout (builds 1.20–1.24)
+
+#### Added
+- **Books** (`/books`): everyone's reading lists and a family library. Finishing a book earns its reader 50 points, once per book.
+- **Announcements** on the dashboard: post, pin and remove.
+- **Weather** from Open-Meteo (no API key, cached 10 minutes). Pick your town under Admin › Settings.
+- **Birthdays**: they show on the calendar, the dashboard and the wall, with the age the person is turning. Admins set them under Users, and members set their own in My settings.
+- **Home** gets a one-call summary: today's events, "My day", today's meals, birthdays and announcements.
+- **Your own layout**, saved to your account and the same on every device:
+  - Dashboard pages built from templates, with cards you add, remove, drag into place and make wide.
+  - A gradient or a family photo as the Home wallpaper.
+  - The menu across the top or down the side.
+  - "Everyone" or "Just me" on the calendar and Home.
+  - All of it under **My settings** (tap your avatar).
+- On phones the bottom bar shows four items and the rest are under **More**.
+- Migration 011: `books`, `announcements`, `users.birthday`.
+
 ### Phase 7: Meals (builds 1.17–1.19)
 
 #### Added

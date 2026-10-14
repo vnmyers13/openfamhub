@@ -23,7 +23,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | CI + release process | Trivy scan, issues closed from TODO.md, Triage report, release names past 0.99 | code complete at 1.01 |
 | Phase 6 | Rewards: catalog with approval, badges and streaks, weekly allowance in cents, family progress widget (code complete at 1.12) | |
 | Phase 7 | Meals: recipes with import, catalog and cook mode; weekly plan; shopping list from the plan; pantry; event import (code complete at 1.19) | |
-| Phase 8 | Books, announcements, weather, birthdays, dashboard summary | |
+| Phase 8 | Books, announcements, weather, birthdays, dashboard summary and customization, top/side menu (code complete at 1.24) | |
 | Phase 9 | Offline sync | |
 | Phase 10 | OCR, wall panels | |
 | Phase 11 | Notifications and reminders | |
@@ -242,17 +242,20 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first: import parsing for both formats; plan overwrite semantics; regenerate is idempotent; reset does not delete completed purchases; pantry flags and expiry; URL → event parsing. Done: `test_meals.py`, `test_smart_import.py`, `MealsPage.test.tsx`, `CalendarPage.test.tsx`, `lib/meals.test.ts`, `lib/dates.test.ts`.
 - [ ] Scale a recipe's ingredients by servings (quantities are free text today).
 
-### Phase 8 — Books, announcements, weather
+### Phase 8 — Books, announcements, weather ✅ (code complete at 1.24)
 - [x] **Before starting:** triaged 2026-10-13: nothing new; every open issue is a P3 Debian package (see Open issues).
-- [ ] Books: personal lists, shared family library, status transitions, 50-point award on completion (writes to the Phase 6 ledger).
-- [ ] Announcements: free text with pin/unpin.
-- [ ] Weather: Open-Meteo, no API key, cached ~10 minutes server-side. WMO code → emoji mapping. Location is a family setting.
-- [ ] Shared family library: implement `POST/PATCH/DELETE /books/shared…`. v0.29's UI calls these, but its backend only has `GET /books/shared`.
-- [ ] Dashboard: one `GET /api/dashboard/summary` (today's events, chore stats, points, allowance, this week's meals). v0.29's dashboard calls four `/api/dashboard/*` routes that don't exist.
-- [ ] **Birthdays:** per-member birthday with the next age shown; dashboard/wall card and all-day calendar entries.
-- [ ] **Dashboard customization:** widget grid (drag/resize), multiple pages, page templates, wallpaper, and a personal vs family filter for dashboard and calendar.
-- [ ] **Navigation layout:** let each person choose the menu across the top or down the side (requested 2026-10-13). Save it per user, keep the phone layout as it is, and test that the choice survives a reload.
-- Tests first: cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes; birthday age crosses the year boundary; layout persistence; filter scoping.
+- [x] Books: personal lists, shared family library, status transitions, 50-point award on completion (writes to the Phase 6 ledger). Once per book and reader, ever.
+- [x] Announcements: free text with pin/unpin. On the dashboard; the author or an admin edits, pins or removes.
+- [x] Weather: Open-Meteo, no API key, cached ~10 minutes server-side. WMO code → emoji mapping. Location is a family setting (picked by searching a town under Admin › Settings).
+- [x] Shared family library: implement `POST/PATCH/DELETE /books/shared…`. Done as library books (owner_id null) on `/api/books`. v0.29's UI calls these, but its backend only has `GET /books/shared`.
+- [x] Dashboard: one `GET /api/dashboard/summary` (today's events, chore stats, points, allowance, this week's meals). v0.29's dashboard calls four `/api/dashboard/*` routes that don't exist.
+- [x] **Birthdays:** per-member birthday with the next age shown; dashboard/wall card and all-day calendar entries. Calendar entries are computed (read-only), not stored.
+- [x] **Dashboard customization:** widget grid (drag/resize), multiple pages, page templates, wallpaper, and a personal vs family filter for dashboard and calendar. Resize is normal or wide (two columns); saved per person in `/api/users/me/preferences`.
+- [x] **Navigation layout:** let each person choose the menu across the top or down the side (requested 2026-10-13). Save it per user, keep the phone layout as it is, and test that the choice survives a reload.
+- Tests first (done: `test_books_announcements.py`, `test_weather_dashboard.py`, `Dashboard.test.tsx`, `CustomizeDashboard.test.tsx`, `BooksPage.test.tsx`, `MySettings.test.tsx`, `NavShell.test.tsx`): cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes; birthday age crosses the year boundary; layout persistence; filter scoping.
+
+- [ ] Members can't change their own name, color or avatar outside Admin › Users; add them to My settings.
+- [ ] Weather and announcements panels on the wall come with Phase 10's wall panels.
 
 ### Phase 9 — Offline sync
 - [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.

@@ -121,6 +121,19 @@ On the idle screen `WallSlideshow` shows the family's ready media full screen, i
 - **Routines** (`routines`): a name, start time (family timezone), repeat and assignee, with ordered steps that are chore templates (`routine_id`, `position`, `minutes`). Steps follow the routine's schedule, get daily instances and are completed like chores. Saving a routine's steps keeps their list order; removed steps retire with their history. `GET /api/routines/today` and the paired-display `GET /api/wall/routines` return today's runs.
 - **To-dos** (`todos`): one-off tasks with an optional assignee and due date; no repeat, no points.
 
+## Books, announcements, weather, birthdays and Home
+
+- **Books** (`/api/books`): a book is on someone's list (`owner_id`) or in the family library (`owner_id` null). Moving a library book to reading or finished makes you its `reader_id`. Finishing credits the reader 50 points, as a ledger row (`source_type="book"`) keyed by book and reader, so it pays once ever.
+- **Announcements** (`/api/announcements`): pinned first, then newest.
+- **Weather** (`/api/weather`, `services/weather.py`): Open-Meteo forecast and geocoding at fixed hosts, cached 10 minutes in-process per place, units and timezone. The location is `families.settings_json["weather"]`. Failures return `error` instead of failing.
+- **Birthdays** (`users.birthday`): `services/birthdays.py` computes the next birthday and age (29 Feb → 28 Feb in other years). It adds read-only all-day entries (`source_id="birthdays"`, with an `external_uid`) to `get_events_in_range`, so they show on the calendar and the wall. `/api/wall/birthdays` lists the next 14 days.
+- **Home** (`/api/dashboard/summary`): today's events, chore counts, my points and allowance, the week's meals, birthdays in the next 30 days and recent announcements. `?scope=mine` (also on `/calendar/events`) keeps only events I added, plus my birthday.
+- **Preferences** (`/api/users/me/preferences`, `users.settings_json["prefs"]`):
+  - Menu position: side or top. Phones always get the bottom bar, with "More".
+  - Calendar scope: everyone or just me.
+  - Wallpaper: a gradient or a media id.
+  - Up to 6 dashboard pages, each a list of widget keys and sizes. An empty list means the default page.
+
 ## Meals
 
 All under `/api/meals` (`routers/meals.py`, rules in `services/meals.py`). Viewers can read but not change anything.
@@ -147,7 +160,7 @@ All under `/api/rewards` (`routers/rewards.py`, rules in `services/rewards.py`).
 
 ## Realtime
 
-Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_updated" | "chores_updated" | "rewards_updated" | "meals_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Each wall opens one socket (`wall/useWallWebSocket.ts`, which reconnects after a drop and stops cleanly on unmount) and refetches the matching data; walls also poll every 15 minutes.
+Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_updated" | "chores_updated" | "rewards_updated" | "meals_updated" | "books_updated" | "announcements_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Each wall opens one socket (`wall/useWallWebSocket.ts`, which reconnects after a drop and stops cleanly on unmount) and refetches the matching data; walls also poll every 15 minutes.
 
 ## Frontend layout (`frontend/src`)
 
@@ -156,7 +169,7 @@ App.tsx            boot: setup status → /auth/me; routes (wall is outside the 
 api/               axios client (401 → /login, except /auth/* and /wall/*; 403 password_required → one shared password prompt + retry), React Query hooks; wall.ts onWallUnauthorized
 lib/               dates.ts (time convention above), permissions.ts and choreActions.ts (client mirrors of the API's rules), sleep.ts, shuffle.ts, timezones.ts, repeat.ts, routine.ts
 hooks/             useToday (local midnight, rolls over)
-pages/             Dashboard, CalendarPage, chores/ (Today, To-dos, Routines, Manage, History), rewards/ (Rewards, Requests, Badges, Allowance, Manage), meals/ (This week, Recipes, Shopping list, Pantry), PhotosPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays, admin/FamilySettings
+pages/             Dashboard, CalendarPage, chores/ (Today, To-dos, Routines, Manage, History), rewards/ (Rewards, Requests, Badges, Allowance, Manage), meals/ (This week, Recipes, Shopping list, Pantry), books/, dashboard/ (cards, Customize), MySettings, PhotosPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays, admin/FamilySettings
 wall/              WallLayout (pairing gate, revocation → pairing screen, live session, sleep schedule, idle screen), WallSlideshow, WallRoutines, clock, 7-day strip, useWallWebSocket, member list
 components/        NavShell (sidebar / mobile bottom nav, "Unlock admin", Help & About), RequireAdmin, PasswordPrompt, Avatar, BuildInfoBadge
 test/setup.ts      Vitest setup; tests are *.test.ts[x] next to the code
