@@ -22,7 +22,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Phase 5 | Chores, to-dos, routines (code complete at 0.94) | |
 | CI + release process | Trivy scan, issues closed from TODO.md, Triage report, release names past 0.99 | code complete at 1.01 |
 | Phase 6 | Rewards: catalog with approval, badges and streaks, weekly allowance in cents, family progress widget (code complete at 1.12) | |
-| Phase 7 | Meals | |
+| Phase 7 | Meals: recipes with import, catalog and cook mode; weekly plan; shopping list from the plan; pantry; event import (code complete at 1.19) | |
 | Phase 8 | Books, announcements, weather, birthdays, dashboard summary | |
 | Phase 9 | Offline sync | |
 | Phase 10 | OCR, wall panels | |
@@ -229,17 +229,18 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first: ledger balances match the sum of entries; allowance re-run for the same week is a no-op; approve/reject adjusts the ledger exactly once; streak rollover at week boundaries; progress widget totals match the ledger. Done: `test_rewards.py` (42), `RewardsPage.test.tsx`, `FamilyProgress.test.tsx`, `lib/money.test.ts`, `lib/badges.test.ts`.
 - [ ] Notify an admin when a reward request is waiting (needs Phase 11's notifications).
 
-### Phase 7 — Meals and recipes
+### Phase 7 — Meals and recipes ✅ (code complete at 1.19)
 - [x] **Before starting:** triaged 2026-10-13 (report for build 1.08): no P0/P1 open; the 44 open issues are P3 Debian packages (see Open issues).
-- [ ] `recipes` with dietary tags, plus text and JSON-LD import.
-- [ ] 7-day meal-plan grid with bulk update.
-- [ ] Shopping list tracking which recipe each item came from, regenerate, weekly reset job.
-- [ ] Every meals endpoint requires auth and family scope. v0.29's GETs for dietary tags, recipes, plans and the shopping list have **no auth**, and its weekly reset job is never registered.
-- [ ] Recipe URL import guards against SSRF: http(s) only; block private, loopback and link-local addresses after DNS resolution; size and time limits.
-- [ ] **Pantry management:** track on-hand ingredients with low-stock and expiry flags; expiry reminders come from Phase 11.
-- [ ] **Recipe library extras:** seed/featured catalog, step-by-step mode, per-recipe video links.
-- [ ] **Smart Import:** URL → event (JSON-LD) alongside URL → recipe; photo → recipe lands in Phase 10 with the OCR work.
-- Tests first: import parsing for both formats; plan overwrite semantics; regenerate is idempotent; reset does not delete completed purchases; pantry flags and expiry; URL → event parsing.
+- [x] `recipes` with dietary tags, plus text and JSON-LD import. Tags are free lowercase words (JSON-LD `suitableForDiet` maps to e.g. `gluten-free`); an import is a draft the user reviews before saving.
+- [x] 7-day meal-plan grid with bulk update. Four slots a day; `PUT /api/meals/plan/week/{monday}` replaces the whole week.
+- [x] Shopping list tracking which recipe each item came from, regenerate, weekly reset job. Regenerating never touches bought or hand-added items; the hourly reset archives purchases at the family's Monday.
+- [x] Every meals endpoint requires auth and family scope. v0.29's GETs for dietary tags, recipes, plans and the shopping list have **no auth**, and its weekly reset job is never registered.
+- [x] Recipe URL import guards against SSRF: http(s) only; block private, loopback and link-local addresses after DNS resolution; size and time limits. `core/safe_fetch.py` (shared with iCal): checked and pinned on every hop, 3 MB, 20 s.
+- [x] **Pantry management:** track on-hand ingredients with low-stock and expiry flags; expiry reminders come from Phase 11. Low or expired items go on the shopping list with one button, and list lines hint when the pantry covers them.
+- [x] **Recipe library extras:** seed/featured catalog, step-by-step mode, per-recipe video links. 8 built-in recipes (`backend/app/data/recipe_catalog.json`).
+- [x] **Smart Import:** URL → event (JSON-LD) alongside URL → recipe; photo → recipe lands in Phase 10 with the OCR work. "Fill from a link" in the calendar's New Event form.
+- Tests first: import parsing for both formats; plan overwrite semantics; regenerate is idempotent; reset does not delete completed purchases; pantry flags and expiry; URL → event parsing. Done: `test_meals.py`, `test_smart_import.py`, `MealsPage.test.tsx`, `CalendarPage.test.tsx`, `lib/meals.test.ts`, `lib/dates.test.ts`.
+- [ ] Scale a recipe's ingredients by servings (quantities are free text today).
 
 ### Phase 8 — Books, announcements, weather
 - [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.

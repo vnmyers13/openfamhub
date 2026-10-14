@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+### Phase 7: Meals (builds 1.17–1.19)
+
+#### Added
+- **Meals page** (`/meals`):
+  - **This week:** a weekly plan with breakfast, lunch, dinner and snack. Pick a recipe or type something.
+  - **Recipes:** search and tag filters, a "Cook step by step" mode, and video links.
+  - **Shopping list:** built from the plan, with each line labelled with its recipe.
+  - **Pantry:** low-stock and use-by flags.
+- **Recipe import** from a link or pasted text, using the page's schema.org data. You review the recipe before it's saved. There are also 8 built-in recipe ideas to start from.
+- **Fill from a link** in the calendar's New Event form, for school, club and ticket pages.
+- The shopping list resets itself each Monday: bought items move to a purchase history, and unbought lines from past weeks' meals go away. Items you added yourself stay.
+- Migration 010: `recipes`, `meal_plan_entries`, `shopping_items`, `pantry_items`.
+
+#### Security
+- Every meals endpoint needs a signed-in family member (v0.29's didn't). Links are fetched through `core/safe_fetch.py`, the SSRF-safe fetcher now shared with calendar feeds.
+
 ### Phase 6: Rewards (builds 1.10–1.12)
 
 #### Added

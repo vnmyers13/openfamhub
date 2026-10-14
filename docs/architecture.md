@@ -121,6 +121,18 @@ On the idle screen `WallSlideshow` shows the family's ready media full screen, i
 - **Routines** (`routines`): a name, start time (family timezone), repeat and assignee, with ordered steps that are chore templates (`routine_id`, `position`, `minutes`). Steps follow the routine's schedule, get daily instances and are completed like chores. Saving a routine's steps keeps their list order; removed steps retire with their history. `GET /api/routines/today` and the paired-display `GET /api/wall/routines` return today's runs.
 - **To-dos** (`todos`): one-off tasks with an optional assignee and due date; no repeat, no points.
 
+## Meals
+
+All under `/api/meals` (`routers/meals.py`, rules in `services/meals.py`). Viewers can read but not change anything.
+
+- **Recipes** (`recipes`): title, tags (lowercase words), servings, times, ingredient and step lines, and source and video links (http(s) only). Deleting is a soft delete, and planned meals keep their title. `GET /catalog` lists the built-in ideas (`app/data/recipe_catalog.json`); `POST /catalog/{key}` copies one in, once.
+- **Plan** (`meal_plan_entries`): one row per family, day (family-local `Date`) and slot (`breakfast|lunch|dinner|snack`), holding a recipe or just a title. `PUT /plan/{day}/{slot}` sets one slot; `PUT /plan/week/{monday}` replaces a whole week.
+- **Shopping list** (`shopping_items`): `source` is `manual`, `plan` or `pantry`.
+  - `POST /shopping/from-plan` makes the week's `plan` lines match the planned recipes. It's idempotent, keyed by recipe and line, and never touches checked or manual items.
+  - `jobs/shopping_reset.py` runs hourly. At the family's Monday it archives items bought before this week (`archived_at`; they stay as `GET /shopping/history`) and drops unbought `plan` lines from past weeks.
+- **Pantry** (`pantry_items`): low means `quantity <= low_at`; expired or expiring soon (within 3 days) are computed against the family's today. `POST /pantry/restock` puts low or expired items on the list once. Shopping lines show `in_pantry` when a usable pantry item's name appears in them.
+- **Smart Import** (`/api/import/recipe`, `/api/import/event`, `integrations/smart_import.py`): a link or pasted text becomes a draft; nothing is saved. schema.org JSON-LD is read first (including `@graph`, `HowToSection` and ISO durations); recipes fall back to a plain-text parser. Event times without an offset are the family's local time; all-day events get an exclusive end. Links are fetched by `core/safe_fetch.fetch_public`, which checks the address and pins the connection on every hop and caps the response at 3 MB and 20 s. Calendar feeds use the same fetcher.
+
 ## Rewards, badges and allowance
 
 All under `/api/rewards` (`routers/rewards.py`, rules in `services/rewards.py`). Viewers can look but not spend; admin endpoints need the password gate.
@@ -135,7 +147,7 @@ All under `/api/rewards` (`routers/rewards.py`, rules in `services/rewards.py`).
 
 ## Realtime
 
-Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_updated" | "chores_updated" | "rewards_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Each wall opens one socket (`wall/useWallWebSocket.ts`, which reconnects after a drop and stops cleanly on unmount) and refetches the matching data; walls also poll every 15 minutes.
+Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_updated" | "chores_updated" | "rewards_updated" | "meals_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Each wall opens one socket (`wall/useWallWebSocket.ts`, which reconnects after a drop and stops cleanly on unmount) and refetches the matching data; walls also poll every 15 minutes.
 
 ## Frontend layout (`frontend/src`)
 
@@ -144,7 +156,7 @@ App.tsx            boot: setup status → /auth/me; routes (wall is outside the 
 api/               axios client (401 → /login, except /auth/* and /wall/*; 403 password_required → one shared password prompt + retry), React Query hooks; wall.ts onWallUnauthorized
 lib/               dates.ts (time convention above), permissions.ts and choreActions.ts (client mirrors of the API's rules), sleep.ts, shuffle.ts, timezones.ts, repeat.ts, routine.ts
 hooks/             useToday (local midnight, rolls over)
-pages/             Dashboard, CalendarPage, chores/ (Today, To-dos, Routines, Manage, History), rewards/ (Rewards, Requests, Badges, Allowance, Manage), PhotosPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays, admin/FamilySettings
+pages/             Dashboard, CalendarPage, chores/ (Today, To-dos, Routines, Manage, History), rewards/ (Rewards, Requests, Badges, Allowance, Manage), meals/ (This week, Recipes, Shopping list, Pantry), PhotosPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays, admin/FamilySettings
 wall/              WallLayout (pairing gate, revocation → pairing screen, live session, sleep schedule, idle screen), WallSlideshow, WallRoutines, clock, 7-day strip, useWallWebSocket, member list
 components/        NavShell (sidebar / mobile bottom nav, "Unlock admin", Help & About), RequireAdmin, PasswordPrompt, Avatar, BuildInfoBadge
 test/setup.ts      Vitest setup; tests are *.test.ts[x] next to the code

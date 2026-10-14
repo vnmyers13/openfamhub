@@ -45,7 +45,7 @@ docker-compose.yml  build-from-source stack; image names match published ones
 ## Gotchas
 - **Time:** every datetime column is `UTCDateTime`. Always pass aware datetimes, or naive values meaning UTC. The API returns `+00:00`. All-day events are `00:00Z` dates with an exclusive end. Frontend code must use `src/lib/dates.ts`.
 - **Range queries** use overlap, not start-in-range.
-- **Schema:** startup runs Alembic (`app/core/migrate.py`; pre-0.30 databases are stamped first). Add a migration for every model change (next: 010), and import new models in `models/__init__.py` and `alembic/env.py`.
+- **Schema:** startup runs Alembic (`app/core/migrate.py`; pre-0.30 databases are stamped first). Add a migration for every model change (next: 011), and import new models in `models/__init__.py` and `alembic/env.py`.
 - **Auth:** every user token's `jti` is a `sessions` row (revoked on logout, password change and removal). Sessions record `auth_method` (pin|password); admin endpoints need a password session or `/auth/elevate` within 15 min, otherwise 403 `password_required`. Failed sign-ins lock out per person (`login_throttle`). Wall displays use a `wall_token` cookie scoped to `/api/wall` (SHA-256 stored). The axios 401 handler skips `/auth/*` and `/wall/*`.
 - **Live updates:** never call `event_bus.emit` from request or job code; use `queue_event(db, ...)` so the notice is published after commit (`get_db` / `publish_queued`).
 - **iCal parsing:** `integrations/ical_feed.parse_ics(content, family_tz, now)` is pure; test it directly with a fixed `now`. Every occurrence is a UTC instant; zoned times go through zoneinfo (icalendar returns pytz zones, which drift at DST under rrule).
