@@ -7,6 +7,7 @@ from app.jobs.calendar_sync import register_sync_jobs
 from app.jobs.chore_generator import register_chore_job
 from app.jobs.allowance import register_allowance_job
 from app.jobs.shopping_reset import register_shopping_reset_job
+from app.jobs.reminders import register_reminder_job
 
 # Cron jobs (the daily backup at BACKUP_TIME) run in the configured TIMEZONE,
 # not the container's UTC clock.
@@ -19,6 +20,7 @@ async def start_scheduler():
     register_chore_job(scheduler)
     register_allowance_job(scheduler)
     register_shopping_reset_job(scheduler)
+    register_reminder_job(scheduler)
     scheduler.start()
 
 

@@ -6,6 +6,17 @@ export interface DashboardWidget { key: WidgetKey; size: 'normal' | 'wide' }
 export interface DashboardPage { name: string; widgets: DashboardWidget[] }
 export type Wallpaper = 'none' | 'dusk' | 'ocean' | 'forest' | 'sunrise' | 'photo'
 
+/** Which reminders a person gets on their devices (Phase 11; backend jobs/reminders.py). */
+export interface NotificationPrefs {
+  events: 'off' | 'mine' | 'all'
+  event_minutes: 5 | 10 | 15 | 30 | 60
+  daily: boolean
+  daily_time: string  // HH:MM, family timezone
+  rewards: boolean  // admins
+}
+
+export const DEFAULT_NOTIFICATIONS: NotificationPrefs = { events: 'off', event_minutes: 15, daily: true, daily_time: '07:00', rewards: true }
+
 /** One person's layout choices, saved on the server so they follow them to every device. */
 export interface Preferences {
   nav: 'side' | 'top'
@@ -13,9 +24,12 @@ export interface Preferences {
   wallpaper: Wallpaper
   wallpaper_media_id: string | null
   pages: DashboardPage[]
+  notifications: NotificationPrefs
 }
 
-export const DEFAULT_PREFS: Preferences = { nav: 'side', calendar_scope: 'family', wallpaper: 'none', wallpaper_media_id: null, pages: [] }
+export const DEFAULT_PREFS: Preferences = {
+  nav: 'side', calendar_scope: 'family', wallpaper: 'none', wallpaper_media_id: null, pages: [], notifications: DEFAULT_NOTIFICATIONS,
+}
 
 export function usePreferences() {
   return useQuery({

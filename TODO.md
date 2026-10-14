@@ -234,7 +234,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [x] Allowance is stored as integer cents (v0.29 uses strings), with a unique (`user_id`, `week_start`) key. A missed Monday is caught up on the next run (up to 8 weeks). Admins record cash payouts as negative adjustments.
 - [x] **Family progress widget:** per-member stars/points on the dashboard and wall, fed by the ledger. It replaces the wall's plain member list.
 - Tests first: ledger balances match the sum of entries; allowance re-run for the same week is a no-op; approve/reject adjusts the ledger exactly once; streak rollover at week boundaries; progress widget totals match the ledger. Done: `test_rewards.py` (42), `RewardsPage.test.tsx`, `FamilyProgress.test.tsx`, `lib/money.test.ts`, `lib/badges.test.ts`.
-- [ ] Notify an admin when a reward request is waiting (needs Phase 11's notifications).
+- [x] Notify an admin when a reward request is waiting (needs Phase 11's notifications). Done in Phase 11: admins get a push for each request waiting for a yes (`jobs/reminders.py`).
 
 ### Phase 7 — Meals and recipes ✅ (code complete at 1.19)
 - [x] **Before starting:** triaged 2026-10-13 (report for build 1.08): no P0/P1 open; the 44 open issues are P3 Debian packages (see Open issues).
@@ -287,12 +287,14 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device. OCR done: `ocrLines.test.ts`, `ocrRecipe.test.ts`, `ocr.test.ts`, `ocr.real.test.ts` (real engine on `src/test/fixtures/ocr-*.png`), `ScanList.test.tsx`; also checked in headless Chromium loading only from `/ocr/`.
 
 ### Phase 11 — Notifications and reminders
-- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
-- [ ] Reminder engine on the existing scheduler: events, chores, to-dos, birthdays, pantry expiry, allowance payouts.
-- [ ] Channels: Web Push (PWA), ntfy, and SMTP email, with per-user preferences.
-- [ ] Quiet hours aware of the Phase 3b sleep schedule.
+- [x] **Before starting:** triaged 2026-10-14: no P0/P1; the 44 open issues are P3 Debian packages.
+- [x] Reminder engine on the existing scheduler: events, chores, to-dos, birthdays, pantry expiry, allowance payouts. Decided 2026-10-14: first version = events, chores and to-dos, reward requests. Done: `jobs/reminders.py` every minute; per-person choices in My settings › Notifications (events off/mine/all and how long before, daily list and time, reward requests); each sent once (`notifications_sent`); `test_reminders.py`.
+- [ ] More reminders: birthdays (the day before), pantry use-by dates, allowance paid.
+- [x] Channels: Web Push (PWA), ntfy, and SMTP email, with per-user preferences. Decided 2026-10-14: Web Push first. Done: VAPID keys made by the server, subscriptions per device, RFC 8291/8292 sending with the SSRF guard (`services/push.py`, `test_push.py`), service worker handler (`public/push-sw.js`), My settings › Notifications.
+- [ ] ntfy and SMTP email channels (each person picks theirs).
+- [x] Quiet hours aware of the Phase 3b sleep schedule. Done: nothing is sent during the wall's sleep schedule; daily lists and waiting requests go out when it ends, event reminders inside it are skipped.
 - [ ] Optional wellness reminders per user (hydration, mindfulness).
-- Tests first: a reminder fires exactly once; quiet hours suppress delivery; per-user channel preference; timezone/DST correctness.
+- Tests first: a reminder fires exactly once; quiet hours suppress delivery; per-user channel preference; timezone/DST correctness. Done: `test_push.py`, `test_reminders.py` (once each, quiet hours incl. across the November DST change, per-person choices, family-timezone daily time), `lib/push.test.ts`, `lib/pushSw.test.ts`, `MySettings.test.tsx`.
 
 ### Phase 12 — Home Assistant, AI, and notes
 - [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.

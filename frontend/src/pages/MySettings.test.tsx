@@ -1,9 +1,18 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore, type User } from '../stores/auth'
 import { apiError, mockApi } from '../test/api'
 import { renderApp } from '../test/render'
+import { DEFAULT_NOTIFICATIONS } from '../api/prefs'
 import MySettings from './MySettings'
+
+const push = vi.hoisted(() => ({ state: 'off' as string, turnOnPush: vi.fn(), turnOffPush: vi.fn(), sendTestPush: vi.fn() }))
+vi.mock('../lib/push', () => ({
+  pushState: async () => push.state,
+  turnOnPush: async () => { await push.turnOnPush(); push.state = 'on' },
+  turnOffPush: async () => { await push.turnOffPush(); push.state = 'off' },
+  sendTestPush: () => push.sendTestPush(),
+}))
 
 const PREFS = { nav: 'side', calendar_scope: 'family', wallpaper: 'none', wallpaper_media_id: null, pages: [] }
 const photo = (id: string) => ({ id, kind: 'photo', status: 'ready', error: null, original_name: `${id}.jpg`, width: 1, height: 1,
@@ -53,7 +62,7 @@ describe('MySettings', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Use photo m1.jpg' }))
     await waitFor(() => expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(4))
     expect(calls.filter((c) => c.method === 'PUT').at(-1)?.body).toEqual(
-      { ...PREFS, nav: 'top', calendar_scope: 'mine', wallpaper: 'photo', wallpaper_media_id: 'm1' })
+      { ...PREFS, nav: 'top', calendar_scope: 'mine', wallpaper: 'photo', wallpaper_media_id: 'm1', notifications: DEFAULT_NOTIFICATIONS })
     expect(screen.queryByRole('button', { name: 'Use photo v1.jpg' })).toBeNull()
   })
 
@@ -104,4 +113,66 @@ describe('MySettings', () => {
     expect(await screen.findByText('Someone in the family is already called "Mom"')).toBeTruthy()
     expect(useAuthStore.getState().user?.display_name).toBe('Kid')
   })
+
+  describe('Notifications', () => {
+    afterEach(() => { push.state = 'off'; vi.clearAllMocks() })
+
+    it('turns them on for this device and sends a test', async () => {
+      push.sendTestPush.mockResolvedValue(1)
+      setup()
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      fireEvent.click(await within(section).findByRole('button', { name: 'Turn on for this device' }))
+      expect(await within(section).findByText('On for this device.')).toBeTruthy()
+      expect(push.turnOnPush).toHaveBeenCalled()
+      fireEvent.click(within(section).getByRole('button', { name: 'Send a test' }))
+      expect(await within(section).findByText('Sent. It should show up in a moment.')).toBeTruthy()
+      fireEvent.click(within(section).getByRole('button', { name: 'Turn off' }))
+      expect(await within(section).findByRole('button', { name: 'Turn on for this device' })).toBeTruthy()
+    })
+
+    it('tells iPhone users to add the app to the Home Screen first', async () => {
+      push.state = 'install-first'
+      setup()
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      expect(await within(section).findByText(/Add to Home Screen/)).toBeTruthy()
+      expect(within(section).queryByRole('button', { name: 'Turn on for this device' })).toBeNull()
+    })
+
+    it("says why notifications couldn't be turned on", async () => {
+      push.turnOnPush.mockRejectedValueOnce(new Error('Allow notifications for OpenFamHub in this browser'))
+      setup()
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      fireEvent.click(await within(section).findByRole('button', { name: 'Turn on for this device' }))
+      expect(await within(section).findByText(/Allow notifications for OpenFamHub/)).toBeTruthy()
+    })
+
+    it('saves which reminders I get', async () => {
+      const calls = setup('admin')
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      fireEvent.change(within(section).getByLabelText('Before events'), { target: { value: 'mine' } })
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ events: 'mine', event_minutes: 15 }))
+      fireEvent.change(within(section).getByLabelText('How long before'), { target: { value: '30' } })
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ event_minutes: 30 }))
+      fireEvent.click(within(section).getByLabelText('A morning list of my chores and to-dos'))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ daily: false }))
+      fireEvent.click(within(section).getByLabelText('Reward requests waiting for a yes'))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ rewards: false }))
+    })
+
+    it('members have no reward-request choice', async () => {
+      setup('member')
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      expect(within(section).queryByLabelText('Reward requests waiting for a yes')).toBeNull()
+    })
+  })
 })
+
+function lastPrefs(calls: { method: string; url: string; body: unknown }[]) {
+  return calls.filter((c) => c.method === 'PUT' && c.url === '/users/me/preferences').at(-1)?.body as
+    { notifications?: Record<string, unknown> } | undefined
+}

@@ -1,22 +1,25 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.50-blue)
+![Version](https://img.shields.io/badge/version-1.51-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
 
 ## Features
 
-- **Shared family calendar**: month, week, day and agenda views, with color-coded sources and filters.
-- **Calendar subscriptions**: import Google, iCloud, school and sports calendars through their ICS or `webcal://` links. Feeds re-sync on a schedule, and you can trigger a sync from the settings page.
-- **Family members**: tap-your-avatar sign-in with a PIN; admin, member and read-only viewer roles; admin changes need a password, and admin pages are hidden from everyone else.
-- **Wall display**: a full-screen kiosk view (`/wall`) with a clock, a 7-day strip that rolls over at midnight, and the family list. Each display is paired once with a revocable device link and stays signed in after that.
-- **Live updates**: wall displays refresh as soon as events change, over a WebSocket.
-- **Installable app (PWA)**: works on iOS and Android phones and can show cached data offline.
-- **Chores, routines and to-dos**: repeating chores assigned to someone or up for grabs, points for finishing them (an append-only ledger rewards will spend), morning and bedtime routines with a countdown on the wall, and a shared to-do list.
-- **Photo and video slideshow**: family members add photos and videos; the wall shows them full screen when nobody is using it. Location data is removed on upload.
-- **Sleep schedule**: wall screens go dark overnight (in the family's timezone) and wake on touch.
-- **Backups**: a daily SQLite snapshot with configurable retention, plus `backup-offhost.sh` to copy snapshots and photos to a NAS.
+- **Shared family calendar**: month, week, day and agenda views, with color-coded sources and filters, birthdays, and "everyone" or "just me".
+- **Calendar subscriptions**: Google, iCloud, school and sports calendars through their ICS or `webcal://` links, re-synced on a schedule. Admins can rename, recolor, pause or change a feed's link.
+- **Family members**: tap-your-avatar sign-in with a PIN; admin, member and read-only viewer roles; admin changes need a password. Everyone can change their own name, color and avatar.
+- **Wall display**: a full-screen kiosk (`/wall`) on a Raspberry Pi or tablet, paired once with a revocable link. It shows the family's own dashboard pages (events, chores, routines, meals, weather, announcements, progress, birthdays, a clock), turning every so often under a header with the time and any extra clocks. Kids can tick off routine steps on it. See [Setting up a wall display](#setting-up-a-wall-display-raspberry-pi).
+- **Chores, routines and to-dos**: repeating chores assigned to someone or up for grabs, points for finishing them, morning and bedtime routines with a countdown, and a shared to-do list.
+- **Rewards**: spend points on rewards (instantly, or with a parent's yes), badges and streaks, and a weekly allowance.
+- **Meals**: a weekly meal plan, recipes (import from a link, paste, or a photo of the recipe), a shopping list built from the plan (or scanned from a photo of a paper list), and a pantry.
+- **Notifications**: reminders on your phone before events, a morning list of your chores and to-dos, and reward requests for parents (Web Push; see [Notifications](#notifications)).
+- **Books, announcements and weather** on Home and the wall.
+- **Works offline**: the app (a PWA, installable on iOS and Android) opens without a connection, and chores, to-dos, the shopping list and the meal plan can be changed offline and sync later.
+- **Photo and video slideshow**: the wall shows family photos and videos when nobody is using it. Location data is removed on upload.
+- **Sleep schedule**: wall screens go dark overnight (in the family's timezone) and wake on touch; no notifications are sent then.
+- **Live updates** over a WebSocket, and **backups**: a daily SQLite snapshot plus `backup-offhost.sh` to copy snapshots and photos to a NAS.
 
 ## Quick start (single machine)
 
@@ -80,7 +83,7 @@ Database migrations run automatically when the API starts, and `.env` settings a
 | Deploying, upgrading, backups | [docs/deployment.md](docs/deployment.md) |
 | CI: tests, publish, deploy, Trivy scan and issue sync on `master` | [docs/ci.md](docs/ci.md) |
 | Releasing: phases, issues and TODO.md, release names | [docs/releasing.md](docs/releasing.md) |
-| Release notes (latest: [Release 1.01](docs/releases/v1.01.md)) and change log | [docs/releases/](docs/releases/), [CHANGELOG.md](CHANGELOG.md) |
+| Release notes (latest: [Release 1.41](docs/releases/v1.41.md)) and change log | [docs/releases/](docs/releases/), [CHANGELOG.md](CHANGELOG.md) |
 | How it works (components, data, auth, time zones) | [docs/architecture.md](docs/architecture.md) |
 | Developing and testing | [GETTING_STARTED.md](GETTING_STARTED.md) |
 | Raspberry Pi wall display | [docs/wall-screen-setup.md](docs/wall-screen-setup.md) |
@@ -90,6 +93,34 @@ Database migrations run automatically when the API starts, and `.env` settings a
 | Older idea list (superseded by TODO.md) | [FUTURE_ENHANCEMENTS.md](FUTURE_ENHANCEMENTS.md) |
 | Version history | [CHANGELOG.md](CHANGELOG.md) |
 | Notes for AI coding agents | [AGENTS.md](AGENTS.md) |
+
+## Setting up a wall display (Raspberry Pi)
+
+Any Raspberry Pi with HDMI (a Pi 4 or 5 is smoothest) and a screen, ideally a touch screen, makes a wall display. The short version (the full guide, with troubleshooting, is [docs/wall-screen-setup.md](docs/wall-screen-setup.md)):
+
+1. **Install Raspberry Pi OS (64-bit) with desktop** using [Raspberry Pi Imager](https://www.raspberrypi.com/software/). Set Wi-Fi, a user and SSH in the Imager's settings.
+2. **Create a pairing link.** On a phone or computer, sign in as an admin, open **Admin › Wall displays**, enter a name ("Kitchen") and press **Create pairing link**. The link is shown once, so copy it.
+3. **Run the kiosk setup on the Pi** with that link. It installs Chromium, opens the wall full screen at every boot, hides the cursor and keeps the screen from blanking:
+   ```bash
+   scp scripts/setup-wall-pi.sh <user>@<pi-address>:
+   ssh <user>@<pi-address>
+   chmod +x setup-wall-pi.sh
+   sudo ./setup-wall-pi.sh "https://openfamhub.example/wall?token=..."
+   sudo reboot
+   ```
+   It works on Bookworm (Wayland) and Bullseye, and is safe to run again (for example with a new link).
+4. **LAN mode only** (`https://openfamhub.local` with Caddy's own certificate): make the Pi trust Caddy's root certificate first ([docs/cert-trust.md](docs/cert-trust.md)), or Chromium shows a certificate warning. Skip this behind a reverse proxy with a real certificate.
+5. **Arrange what it shows** from any phone: **Home › Customize › Edit family wall** sets the pages, their cards and how long each stays up. Every wall follows the same layout. The time, the sleep schedule and **Other clocks on the wall** are in **Admin › Settings**.
+
+To retire a display, press **Unpair** under **Admin › Wall displays**; it goes back to the pairing screen at its next refresh.
+
+## Notifications
+
+Each person turns notifications on in **My settings › Notifications** on each phone or computer they want them on, and chooses which reminders they get: before calendar events (off until chosen: events they added, or all family events, 5 to 60 minutes before), a morning list of their chores and to-dos, and, for admins, reward requests waiting for a yes. Nothing is sent during the wall's sleep hours.
+
+- They use Web Push, so there's no account to set up: the server makes its own keys. The server must be able to reach the browsers' push services over HTTPS (`fcm.googleapis.com`, `updates.push.services.mozilla.com`, `*.notify.windows.com`, `web.push.apple.com`).
+- The app must be opened over HTTPS (it always is through Caddy).
+- **iPhone and iPad**: iOS 16.4 or later, and only once OpenFamHub is on the Home Screen (Safari › Share › Add to Home Screen) and opened from there.
 
 ## Adding calendar feeds
 

@@ -28,6 +28,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         // OCR files (public/ocr, ~7 MB) load only when someone scans; cached then (swCaching.ts).
         globIgnores: ['**/ocr/**'],
+        // Web Push handlers (Phase 11), served from public/.
+        importScripts: ['push-sw.js'],
         navigateFallbackDenylist: [/^\/api/, /^\/photos/],
         // Workbox tests a RegExp against the full URL (https://host/...), so a
         // /^\/api/ pattern never matched. Match on the pathname instead.

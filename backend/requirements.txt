@@ -12,6 +12,9 @@ httpx==0.28.1
 apscheduler==3.10.4
 python-dateutil==2.9.0
 icalendar==5.0.13
+# Web Push (Phase 11): payload encryption (RFC 8291) and VAPID signing (RFC 8292)
+http-ece==1.2.1
+py-vapid==1.9.4
 Pillow==12.3.0
 pillow-heif==1.8.1
 # Static ffmpeg (amd64 + arm64) for converting uploaded videos

@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from typing import List, Literal, Optional
 
@@ -124,6 +125,26 @@ class DashboardPage(BaseModel):
         return self
 
 
+_HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+class NotificationPrefs(BaseModel):
+    """Which reminders a person gets on their devices (Phase 11)."""
+
+    events: Literal["off", "mine", "all"] = "off"  # events they added, or every timed family event
+    event_minutes: Literal[5, 10, 15, 30, 60] = 15
+    daily: bool = True  # a nudge with today's chores and to-dos
+    daily_time: str = "07:00"  # HH:MM, family timezone
+    rewards: bool = True  # admins: reward requests waiting for a yes
+
+    @field_validator("daily_time")
+    @classmethod
+    def hhmm(cls, v: str) -> str:
+        if not _HHMM.match(v):
+            raise ValueError("times are HH:MM, 24-hour")
+        return v
+
+
 class Preferences(BaseModel):
     """How one person likes the app: where the menu goes, their dashboard
     pages, wallpaper, and whether the calendar shows the family or just them."""
@@ -133,3 +154,4 @@ class Preferences(BaseModel):
     wallpaper: Literal[WALLPAPERS] = "none"  # type: ignore[valid-type]
     wallpaper_media_id: Optional[str] = Field(None, max_length=64)
     pages: List[DashboardPage] = Field(default_factory=list, max_length=6)  # empty = the default page
+    notifications: NotificationPrefs = Field(default_factory=NotificationPrefs)

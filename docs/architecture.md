@@ -20,9 +20,9 @@ models/            SQLAlchemy models: Family, User, Session (unused), CalendarSo
                    SyncLog, WallDevice
 schemas/           Pydantic request/response models
 routers/           auth, users, calendar, integrations (iCal add), wall (pairing + read-only data), ws
-services/          calendar (range query, internal source), users, notifications (stub)
+services/          calendar (range query, internal source), users, push (Web Push sending, Phase 11), …
 integrations/      ical_feed: fetch + parse + expand RRULEs
-jobs/              scheduler, calendar_sync (every 15 min, per-source interval), backup (daily)
+jobs/              scheduler, calendar_sync (every 15 min, per-source interval), backup (daily), reminders (every minute), …
 scripts/           one-off maintenance (fix_event_timezones.py)
 ```
 
@@ -183,6 +183,13 @@ All under `/api/rewards` (`routers/rewards.py`, rules in `services/rewards.py`).
 - **Progress**: `GET /api/rewards/progress` and the paired-display `GET /api/wall/progress` return each non-viewer's balance, points earned since Monday (chores and badges, not spending), streak and badges.
 - **Wall**: `WallRoutines` shows a routine from half an hour before its start until its steps are done or its time is up: the current step (steps run back to back from the start time, `lib/routine.ts`), a live countdown and progress, or "No routine right now" (`lib/routine.routineShowsOnWall`). The current step has a **Done** button: `POST /api/wall/routines/steps/{id}/complete` completes it for the step's assignee if it's one of today's routine steps in the display's family and assigned to someone; otherwise 404/403, and a completed step is returned unchanged.
 
+## Notifications (Web Push)
+
+- **Keys:** the install's VAPID key pair is made on first use and kept in `push_keys` (migration 012). `GET /api/push/key` gives browsers the public half.
+- **Devices:** `POST /api/push/subscriptions` stores what `PushManager.subscribe()` returns (endpoint + keys), one row per endpoint; a shared device belongs to whoever subscribed last. `DELETE` removes it; `POST /api/push/test` sends yourself a test. The app side is `lib/push.ts` (state, turn on/off) and `public/push-sw.js` (imported into the generated service worker: shows the notification, and a tap opens the app at its page, same origin only).
+- **Sending** (`services/push.py`): each payload is encrypted for the device (RFC 8291, `http-ece`, aes128gcm, a fresh key per message) and signed (RFC 8292 VAPID JWT, `py-vapid`; `sub` is the first `ALLOWED_ORIGINS` URL). Endpoints come from browsers, so they get the SSRF treatment: https only, the host must resolve to public addresses, and the POST is pinned to the checked address. 404/410 drop the subscription; other failures keep it.
+- **Reminders** (`jobs/reminders.py`, every minute), per person with a device, by `Preferences.notifications`: events (`off` by default, `mine` = events they added, `all` = every timed family event; 5–60 minutes before, never after the start; all-day events skipped), a daily list of their chores and to-dos at `daily_time` in the family timezone, and reward requests waiting for a yes (admins). `notifications_sent` (unique per person, kind, reference) makes each one go out once; a reminder no device accepted is tried again next minute. Quiet hours are the wall's sleep schedule: nothing is sent; daily lists and waiting requests go out when it ends.
+
 ## Realtime
 
 Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_updated" | "chores_updated" | "rewards_updated" | "meals_updated" | "books_updated" | "announcements_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Each wall opens one socket (`wall/useWallWebSocket.ts`, which reconnects after a drop and stops cleanly on unmount) and refetches the matching data; walls also poll every 15 minutes.
@@ -208,4 +215,5 @@ The PWA (`vite-plugin-pwa`) precaches the app shell and every page chunk for off
 |---|---|---|
 | `calendar_sync_all_due` | every 15 min | Syncs the iCal sources that are due. |
 | `chore_generator` | hourly at :05, and at startup | Creates chore instances a week ahead for each family (in its timezone) and marks earlier open ones missed. Idempotent. |
+| `reminders` | every minute | Sends due reminders by Web Push (see Notifications). Each one once; nothing in quiet hours. |
 | `daily_backup` | `BACKUP_TIME` in `TIMEZONE` | SQLite online backup to `data/backups/homehub_<date>.db`, then prunes copies older than `BACKUP_RETENTION_DAYS`. |

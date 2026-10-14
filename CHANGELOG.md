@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+- **Notifications on your phone** (Phase 11): turn them on in **My settings › Notifications** and choose reminders before events (events you added, or all family events; off until you choose), a morning list of your chores and to-dos, and, for parents, reward requests waiting for a yes. Nothing is sent during the wall's sleep hours. They use Web Push, with no account to set up; on iPhone and iPad, add OpenFamHub to the Home Screen first (iOS 16.4+).
 - **A wall dashboard the family arranges (#87):** the wall shows pages of cards (today's events, chores, routines, meals, weather, announcements, family progress, birthdays) that turn every so often. Anyone signed in can change the pages, cards, sizes and timing from the Dashboard; every wall follows the same layout.
 - **Tick off routine steps on the wall:** the current step has a **Done** button. It counts for whoever the routine is assigned to, so kids can work through their morning routine at the wall without signing in. Undo stays in the app.
 - **The time is always on the wall:** a header bar shows the family's time and date, with any extra clocks, above every page. A **Clock** card puts a big clock on a page too.
@@ -8,6 +9,10 @@
 ### Fixed
 - The wall redrew every card on the page each second to tick its countdown, heavy on a Raspberry Pi; now only the countdown does.
 - The Routines card was blank when no routine was on; it says "No routine right now."
+
+### Developers
+- New Python packages `http-ece` 1.2.1 and `py-vapid` 1.9.4 for Web Push (they need only `cryptography`; `pywebpush` would add `aiohttp` and `requests`). Migration 012. The API needs HTTPS egress to the browsers' push services (see deployment.md).
+- The README has a Raspberry Pi wall setup section and an up-to-date feature list.
 
 ---
 

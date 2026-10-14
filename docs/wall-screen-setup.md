@@ -44,9 +44,11 @@ The wall doesn't use a family member's login. Instead, each display is paired on
 The display then stays signed in indefinitely (its cookie refreshes on every load). To cut a display off, click **Unpair** on the same page: at its next request (a live update or the 15-minute refresh) the display clears the calendar and shows the clock and a short "not paired" message instead of the login page.
 
 ### What the wall shows
-- The clock, the family and the next seven days. After a few minutes without a touch it switches to a slideshow of the family's photos and videos (added on the **Photos** page), with the clock in the corner; a touch brings the calendar back. Videos play muted.
-- During a routine (set up under **Chores › Manage**), the left panel shows its current step with a countdown, starting half an hour before; steps are ticked off in the app.
-- With a sleep schedule (**Admin › Settings**), the screen goes black between the off and on times, in the family's timezone. A touch lights it for a few minutes.
+- **The family wall dashboard**: pages of cards (today's events, chores, routines, today's meals, weather, announcements, family progress, birthdays, a big clock) that take turns, each for its own time. A header bar always shows the time and date in the family's timezone, any **Other clocks on the wall** (Admin › Settings), the page's name and a countdown to the next page.
+- **Changing it**: anyone signed in can arrange it from a phone: **Home › Customize › Edit family wall**. Add or remove pages and cards, make a card wide, and set how long each page stays up. Every wall display follows the same layout and updates straight away.
+- **Routines**: the Routines card shows a routine from half an hour before it starts: the current step with its countdown, and a **Done** button. A tap ticks the step off for whoever the routine is assigned to (kids don't need to sign in); a step done by mistake is undone in the app. Only today's steps of routines assigned to someone can be ticked here.
+- **Slideshow**: after a few minutes without a touch the wall shows the family's photos and videos (added on the **Photos** page) with the clock in the corner; a touch brings the dashboard back. Videos play muted.
+- **Sleep schedule** (**Admin › Settings**): the screen goes black between the off and on times, in the family's timezone. A touch lights it for a few minutes. Phone notifications aren't sent during these hours either.
 
 ### 5. Reboot and Verify
 - Reboot your Raspberry Pi: `sudo reboot`.

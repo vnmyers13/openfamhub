@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient, errorDetail } from '../api/client'
 import { useMedia } from '../api/media'
-import { DEFAULT_PREFS, usePreferences, useSavePreferences, type Preferences } from '../api/prefs'
+import { DEFAULT_NOTIFICATIONS, DEFAULT_PREFS, usePreferences, useSavePreferences, type NotificationPrefs, type Preferences } from '../api/prefs'
+import { pushState, sendTestPush, turnOffPush, turnOnPush, type PushState } from '../lib/push'
 import { WALLPAPERS } from '../lib/dashboard'
 import { AVATARS } from '../lib/avatars'
 import Avatar from '../components/Avatar'
@@ -88,6 +89,98 @@ function Birthday({ userId }: { userId: string }) {
   )
 }
 
+const STATE_TEXT: Record<PushState, string> = {
+  on: 'On for this device.',
+  off: 'Off on this device.',
+  blocked: 'Notifications are blocked for OpenFamHub on this device. Allow them in the browser or phone settings, then come back.',
+  'install-first': 'On an iPhone or iPad, add OpenFamHub to your Home Screen first (Share › Add to Home Screen), open it from there, then turn notifications on here.',
+  unsupported: "This browser can't show notifications from OpenFamHub.",
+}
+
+/**
+ * Reminders on your devices (Phase 11). Turning them on is per device; which
+ * reminders you get is saved with your preferences and applies to all of them.
+ */
+function Notifications({ prefs, isAdmin, onChange }: {
+  prefs: NotificationPrefs; isAdmin: boolean; onChange: (n: NotificationPrefs) => void
+}) {
+  const [state, setState] = useState<PushState | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  useEffect(() => { void pushState().then(setState) }, [])
+  const run = async (fn: () => Promise<string | void>) => {
+    setBusy(true)
+    setMessage(null)
+    try {
+      const text = await fn()
+      if (text) setMessage({ ok: true, text })
+      setState(await pushState())
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error && !('response' in err) ? err.message : errorDetail(err, "Couldn't change notifications") })
+    } finally {
+      setBusy(false)
+    }
+  }
+  const set = (patch: Partial<NotificationPrefs>) => onChange({ ...prefs, ...patch })
+  const select = 'rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white'
+  return (
+    <section className={box} aria-label="Notifications">
+      <h2 className="text-sm font-medium text-gray-300">Notifications</h2>
+      {state && <p className="text-sm text-gray-300">{STATE_TEXT[state]}</p>}
+      <div className="flex flex-wrap gap-2">
+        {state === 'off' && (
+          <button className="rounded bg-primary px-3 py-2 text-sm text-white disabled:opacity-50" disabled={busy}
+            onClick={() => run(async () => { await turnOnPush() })}>Turn on for this device</button>
+        )}
+        {state === 'on' && (
+          <>
+            <button className="rounded border border-gray-700 px-3 py-2 text-sm text-gray-200 disabled:opacity-50" disabled={busy}
+              onClick={() => run(async () => ((await sendTestPush()) > 0 ? 'Sent. It should show up in a moment.' : "It didn't go through. Try turning notifications off and on again."))}>
+              Send a test</button>
+            <button className="rounded border border-gray-700 px-3 py-2 text-sm text-gray-400 disabled:opacity-50" disabled={busy}
+              onClick={() => run(async () => { await turnOffPush() })}>Turn off</button>
+          </>
+        )}
+      </div>
+      {message && <p className={`text-sm ${message.ok ? 'text-green-300' : 'text-red-300'}`} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
+      <div className="space-y-3 border-t border-gray-800 pt-3 text-sm text-gray-300">
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="notify-events">Before events</label>
+          <select id="notify-events" className={select} value={prefs.events}
+            onChange={(e) => set({ events: e.target.value as NotificationPrefs['events'] })}>
+            <option value="off">No reminders</option>
+            <option value="mine">Events I added</option>
+            <option value="all">All family events</option>
+          </select>
+          {prefs.events !== 'off' && (
+            <select className={select} aria-label="How long before" value={prefs.event_minutes}
+              onChange={(e) => set({ event_minutes: Number(e.target.value) as NotificationPrefs['event_minutes'] })}>
+              {[5, 10, 15, 30, 60].map((m) => <option key={m} value={m}>{m === 60 ? '1 hour' : `${m} minutes`} before</option>)}
+            </select>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={prefs.daily} onChange={(e) => set({ daily: e.target.checked })} />
+            A morning list of my chores and to-dos
+          </label>
+          {prefs.daily && (
+            <input type="time" className={select} aria-label="Morning list time" value={prefs.daily_time}
+              onChange={(e) => e.target.value && set({ daily_time: e.target.value })} />
+          )}
+        </div>
+        {isAdmin && (
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={prefs.rewards} onChange={(e) => set({ rewards: e.target.checked })} />
+            Reward requests waiting for a yes
+          </label>
+        )}
+        <p className="text-xs text-gray-500">These choices apply to every device you've turned on. Nothing is sent during the wall's sleep hours.</p>
+      </div>
+    </section>
+  )
+}
+
 /** Your own choices: name, color and avatar, birthday, where the menu goes, whose events you see, and the dashboard wallpaper. */
 export default function MySettings() {
   const user = useAuthStore((s) => s.user)
@@ -103,6 +196,8 @@ export default function MySettings() {
         <h1 className="text-2xl font-bold text-white">My settings</h1>
         {save.isError && <p className="rounded bg-red-900/50 px-3 py-2 text-sm text-red-300" role="alert">{errorDetail(save.error, "Couldn't save that")}</p>}
         <Profile />
+        <Notifications prefs={prefs.notifications ?? DEFAULT_NOTIFICATIONS} isAdmin={user.role === 'admin'}
+          onChange={(notifications) => set({ notifications })} />
         {user.role !== 'viewer' && <Birthday userId={user.id} />}
         <section className={box} aria-label="Menu">
           <h2 className="text-sm font-medium text-gray-300">Menu</h2>
