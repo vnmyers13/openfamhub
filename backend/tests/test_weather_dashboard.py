@@ -137,3 +137,46 @@ class TestDashboard:
         assert [(b["display_name"], b["days_away"], b["turns"]) for b in s["birthdays"]] == [("Kid", 2, 9)]
         assert [a["body"] for a in s["announcements"]] == ["Pizza Friday"]
         assert (await client.get("/api/dashboard/summary")).status_code == 401
+
+
+class TestPreferences:
+    async def test_defaults_then_saved_and_read_back(self, client, admin):
+        kid = await _member(client, admin)
+        res = await client.get("/api/users/me/preferences", headers=_h(kid))
+        assert res.json() == {"nav": "side", "calendar_scope": "family", "wallpaper": "none", "wallpaper_media_id": None, "pages": []}
+        prefs = {"nav": "top", "calendar_scope": "mine", "wallpaper": "ocean", "wallpaper_media_id": None,
+                 "pages": [{"name": "Home", "widgets": [{"key": "events", "size": "wide"}, {"key": "stars", "size": "normal"}]},
+                           {"name": "Food", "widgets": [{"key": "meals", "size": "normal"}]}]}
+        assert (await client.put("/api/users/me/preferences", json=prefs, headers=_h(kid))).status_code == 200
+        assert (await client.get("/api/users/me/preferences", headers=_h(kid))).json() == prefs
+        # Each person has their own.
+        assert (await client.get("/api/users/me/preferences", headers=_h(admin))).json()["nav"] == "side"
+
+    async def test_bad_preferences_are_refused(self, client, admin):
+        bad = [
+            {"nav": "bottom"},
+            {"pages": [{"name": "x", "widgets": [{"key": "nope"}]}]},
+            {"pages": [{"name": "x", "widgets": [{"key": "events"}, {"key": "events"}]}]},
+            {"pages": [{"name": "", "widgets": []}]},
+            {"pages": [{"name": str(i), "widgets": []} for i in range(7)]},
+        ]
+        for body in bad:
+            assert (await client.put("/api/users/me/preferences", json=body, headers=_h(admin))).status_code == 422, body
+        assert (await client.get("/api/users/me/preferences")).status_code == 401
+
+
+class TestJustMe:
+    async def test_the_calendar_and_dashboard_can_show_just_my_events(self, client, admin):
+        kid = await _member(client, admin)
+        day = TODAY.isoformat()
+        nxt = (TODAY + timedelta(days=1)).isoformat()
+        for who, title in ((kid, "Soccer"), (admin, "Book club")):
+            await client.post("/api/calendar/events", headers=_h(who), json={
+                "title": title, "start_dt": f"{day}T00:00:00Z", "end_dt": f"{nxt}T00:00:00Z", "all_day": True})
+        params = {"start": f"{day}T00:00:00Z", "end": f"{nxt}T00:00:00Z"}
+        everyone = (await client.get("/api/calendar/events", params=params, headers=_h(kid))).json()
+        mine = (await client.get("/api/calendar/events", params={**params, "scope": "mine"}, headers=_h(kid))).json()
+        assert sorted(e["title"] for e in everyone) == ["Book club", "Soccer"]
+        assert [e["title"] for e in mine] == ["Soccer"]
+        s = (await client.get("/api/dashboard/summary", params={"scope": "mine"}, headers=_h(kid))).json()
+        assert [e["title"] for e in s["events_today"]] == ["Soccer"]

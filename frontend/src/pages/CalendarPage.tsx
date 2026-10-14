@@ -7,6 +7,7 @@ import { useCalendarEvents, useCalendarSources, useCreateEvent, useDeleteEvent }
 import { useAuthStore } from '../stores/auth'
 import { allDayEndIso, allDayStartIso, eventEnd, eventFormInputs, eventStart, localDateTimeIso } from '../lib/dates'
 import { importEvent } from '../api/meals'
+import { DEFAULT_PREFS, usePreferences, useSavePreferences } from '../api/prefs'
 import { canCreateEvents, canEditEvent } from '../lib/permissions'
 import { errorDetail } from '../api/client'
 
@@ -66,9 +67,14 @@ export default function CalendarPage() {
 
   const dateRange = useMemo(() => getViewRange(view, date), [view, date])
 
+  // "Everyone" or "Just me" is a saved preference, so it sticks across devices.
+  const { data: prefs = DEFAULT_PREFS } = usePreferences()
+  const savePrefs = useSavePreferences()
+  const scope = prefs.calendar_scope
   const { data: events = [] } = useCalendarEvents(
     dateRange.start,
     dateRange.end,
+    scope,
   )
   const { data: sources = [] } = useCalendarSources()
 
@@ -168,6 +174,14 @@ export default function CalendarPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-white">Calendar</h1>
+          <div className="ml-auto mr-3 flex gap-1 rounded-lg bg-gray-900 p-1" role="group" aria-label="Whose events">
+            {(['family', 'mine'] as const).map((s) => (
+              <button key={s} aria-pressed={scope === s} onClick={() => savePrefs.mutate({ ...prefs, calendar_scope: s })}
+                className={`rounded px-3 py-1 text-sm ${scope === s ? 'bg-primary text-white' : 'text-gray-400 hover:text-white'}`}>
+                {s === 'family' ? 'Everyone' : 'Just me'}
+              </button>
+            ))}
+          </div>
           {canCreateEvents(currentUser) && (
             <button
               onClick={() => setShowCreate(true)}

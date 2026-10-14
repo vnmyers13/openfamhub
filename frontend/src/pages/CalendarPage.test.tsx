@@ -207,5 +207,21 @@ describe('CalendarPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '→' }))
     fireEvent.click(screen.getByRole('button', { name: '←' }))
   })
-})
 
+  it('switches between everyone and just me, and remembers it', async () => {
+    signIn('member')
+    const calls = mockApi({
+      'GET /calendar/events': (params: unknown) => ((params as { scope?: string }).scope === 'mine' ? [] : [DINNER]),
+      'GET /calendar/sources': SOURCES,
+      'GET /users/me/preferences': { nav: 'side', calendar_scope: 'family', wallpaper: 'none', wallpaper_media_id: null, pages: [] },
+      'PUT /users/me/preferences': (body: unknown) => body,
+    })
+    renderApp(<CalendarPage />)
+    expect(await screen.findAllByText('Dinner')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Just me' }))
+    await waitFor(() => expect(screen.queryByText('Dinner')).toBeNull())
+    expect(screen.getByRole('button', { name: 'Just me' }).getAttribute('aria-pressed')).toBe('true')
+    expect(calls.find((c) => c.method === 'PUT')?.body).toMatchObject({ calendar_scope: 'mine' })
+    expect(calls.some((c) => c.url === '/calendar/events' && (c.body as { scope?: string }).scope === 'mine')).toBe(true)
+  })
+})

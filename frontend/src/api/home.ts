@@ -64,8 +64,12 @@ function useHomeMutation<V, R = unknown>(fn: (v: V) => Promise<R>, keys: string[
   return useMutation({ mutationFn: fn, onSettled: () => Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey }))) })
 }
 
-export function useDashboardSummary() {
-  return useQuery({ queryKey: ['dashboard'], queryFn: () => get<DashboardSummary>('/dashboard/summary'), refetchInterval: 5 * 60_000 })
+export function useDashboardSummary(scope: 'family' | 'mine' = 'family') {
+  return useQuery({
+    queryKey: ['dashboard', scope],
+    queryFn: () => get<DashboardSummary>('/dashboard/summary', scope === 'mine' ? { scope } : undefined),
+    refetchInterval: 5 * 60_000,
+  })
 }
 
 export function useWeather() {

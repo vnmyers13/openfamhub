@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -20,6 +20,7 @@ from app.schemas.calendar import (
     SyncLogResponse,
 )
 from app.services.calendar import (
+    only_mine,
     event_to_response,
     get_events_in_range,
     get_or_create_internal_source,
@@ -59,12 +60,14 @@ def _check_can_edit(user: User, event: CalendarEvent, provider: str) -> None:
 async def list_events(
     start: str = Query(..., description="ISO8601 start datetime"),
     end: str = Query(..., description="ISO8601 end datetime"),
+    scope: Literal["family", "mine"] = "family",
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     start_dt = _parse_dt(start, "start")
     end_dt = _parse_dt(end, "end")
-    return await get_events_in_range(db, current_user.family_id, start_dt, end_dt)
+    events = await get_events_in_range(db, current_user.family_id, start_dt, end_dt)
+    return only_mine(events, current_user.id) if scope == "mine" else events
 
 
 @router.post("/events", response_model=CalendarEventResponse, status_code=201)

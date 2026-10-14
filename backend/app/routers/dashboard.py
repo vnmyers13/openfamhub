@@ -4,6 +4,7 @@ birthdays and recent announcements. (v0.29's dashboard called four
 /api/dashboard/* routes that didn't exist.) Weather is separate (/api/weather)
 so a slow forecast can't hold the rest up."""
 from datetime import datetime, time, timedelta, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -18,17 +19,20 @@ from app.routers.announcements import recent, to_announcement
 from app.schemas.family_info import ChoreCounts, DashboardSummary, MealToday, UpcomingBirthday
 from app.schemas.meals import SLOTS
 from app.services import birthdays, rewards
-from app.services.calendar import get_events_in_range
+from app.services.calendar import get_events_in_range, only_mine
 
 router = APIRouter()
 
 
 @router.get("/summary", response_model=DashboardSummary)
-async def summary(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def summary(scope: Literal["family", "mine"] = "family", db: AsyncSession = Depends(get_db),
+                  user: User = Depends(get_current_user)):
     zone = await rewards.family_zone(db, user.family_id)
     today = rewards.local_today(zone)
     day_start = datetime.combine(today, time(0), zone).astimezone(timezone.utc)
     events = await get_events_in_range(db, user.family_id, day_start, day_start + timedelta(days=1))
+    if scope == "mine":
+        events = only_mine(events, user.id)
 
     rows = (await db.execute(
         select(ChoreInstance.status, func.coalesce(ChoreInstance.assigned_to, ChoreInstance.claimed_by), func.count())

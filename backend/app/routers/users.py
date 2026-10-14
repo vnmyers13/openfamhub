@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.security import PASSWORD_REQUIRED, Auth, get_auth, get_current_user, require_role
 from app.models.user import User
 from app.schemas.users import (
+    Preferences,
     CreateUserRequest,
     SetPinRequest,
     UpdateUserRequest,
@@ -50,6 +51,26 @@ async def create_user(
         return await users_service.create_user(db, data, current_user.family_id)
     except users_service.DuplicateNameError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+# /me/preferences is registered before /{user_id} routes.
+@router.get("/me/preferences", response_model=Preferences)
+async def get_preferences(user: User = Depends(get_current_user)):
+    """Your own layout choices (defaults until you change something)."""
+    try:
+        return Preferences(**((user.settings_json or {}).get("prefs") or {}))
+    except ValueError:
+        return Preferences()
+
+
+@router.put("/me/preferences", response_model=Preferences)
+async def set_preferences(data: Preferences, db: AsyncSession = Depends(get_db),
+                          user: User = Depends(get_current_user)):
+    """Viewers can arrange their own screen too; this changes nothing shared."""
+    # Reassign the dict so SQLAlchemy sees the JSON column change.
+    user.settings_json = {**(user.settings_json or {}), "prefs": data.model_dump()}
+    await db.flush()
+    return data
 
 
 @router.get("/{user_id}", response_model=UserResponse)

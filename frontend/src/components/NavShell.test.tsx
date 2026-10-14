@@ -22,6 +22,7 @@ function renderShell() {
         <Routes>
           <Route element={<NavShell />}>
             <Route path="/dashboard" element={<div>home page</div>} />
+            <Route path="*" element={<div>other page</div>} />
           </Route>
           <Route path="/login" element={<div>login page</div>} />
         </Routes>
@@ -71,5 +72,30 @@ describe('NavShell', () => {
     signIn('member')
     renderShell()
     expect(await screen.findByText('OpenFamHub 0.77')).toBeTruthy()
+  })
+
+  it('puts the menu across the top when that is the saved choice', async () => {
+    mockApi({ 'GET /users/me/preferences': { nav: 'top', calendar_scope: 'family', wallpaper: 'none', wallpaper_media_id: null, pages: [] } })
+    signIn('admin')
+    const { container } = renderShell()
+    expect(await screen.findByText('Admin ▾')).toBeTruthy()
+    expect(container.querySelector('header nav[aria-label="Main"]')).toBeTruthy()
+    expect(container.querySelector('aside')).toBeNull()
+  })
+
+  it('keeps the sidebar by default, and the phone bar puts the rest under More', async () => {
+    mockApi({})
+    signIn('member')
+    const { container } = renderShell()
+    expect(container.querySelector('aside nav[aria-label="Main"]')).toBeTruthy()
+    const mobile = container.querySelector('nav[aria-label="Mobile"]') as HTMLElement
+    expect(mobile.querySelectorAll('a')).toHaveLength(4)
+    fireEvent.click(screen.getByRole('button', { name: /More/ }))
+    const menu = screen.getByRole('menu', { name: 'More' })
+    expect(menu.textContent).toContain('Books')
+    expect(menu.textContent).toContain('My settings')
+    expect(menu.textContent).not.toContain('Wall displays')
+    fireEvent.click(screen.getAllByRole('menuitem')[0])
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
   })
 })

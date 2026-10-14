@@ -1,7 +1,7 @@
 from datetime import date
-from typing import Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas import validators as v
 
@@ -100,3 +100,36 @@ class UserResponse(BaseModel):
     created_at: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+# ---- personal preferences (Phase 8) --------------------------------------------
+WIDGET_KEYS = ("events", "weather", "my-day", "meals", "stars", "announcements", "birthdays", "sync")
+WALLPAPERS = ("none", "dusk", "ocean", "forest", "sunrise", "photo")
+
+
+class DashboardWidget(BaseModel):
+    key: Literal[WIDGET_KEYS]  # type: ignore[valid-type]
+    size: Literal["normal", "wide"] = "normal"
+
+
+class DashboardPage(BaseModel):
+    name: str = Field(..., min_length=1, max_length=40)
+    widgets: List[DashboardWidget] = Field(default_factory=list, max_length=len(WIDGET_KEYS))
+
+    @model_validator(mode="after")
+    def no_repeats(self):
+        keys = [w.key for w in self.widgets]
+        if len(keys) != len(set(keys)):
+            raise ValueError("a widget can appear once per page")
+        return self
+
+
+class Preferences(BaseModel):
+    """How one person likes the app: where the menu goes, their dashboard
+    pages, wallpaper, and whether the calendar shows the family or just them."""
+
+    nav: Literal["side", "top"] = "side"
+    calendar_scope: Literal["family", "mine"] = "family"
+    wallpaper: Literal[WALLPAPERS] = "none"  # type: ignore[valid-type]
+    wallpaper_media_id: Optional[str] = Field(None, max_length=64)
+    pages: List[DashboardPage] = Field(default_factory=list, max_length=6)  # empty = the default page

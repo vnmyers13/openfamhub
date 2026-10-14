@@ -85,6 +85,11 @@ async def get_events_in_range(
     return sorted(events + extra, key=lambda e: e.start_dt) if extra else events
 
 
+def only_mine(events: list[CalendarEventResponse], user_id: str) -> list[CalendarEventResponse]:
+    """The "just me" view: events I added, and my own birthday."""
+    return [e for e in events if e.created_by == user_id or e.id.startswith(f"birthday-{user_id}-")]
+
+
 async def get_source_logs(db: AsyncSession, source_id: str, limit: int = 20) -> list[SyncLog]:
     result = await db.execute(
         select(SyncLog)

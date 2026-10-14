@@ -52,12 +52,13 @@ export interface SyncLogEntry {
   error: string | null
 }
 
-export function useCalendarEvents(start: Date, end: Date) {
+/** Events overlapping [start, end); scope "mine" keeps only events I added (and my birthday). */
+export function useCalendarEvents(start: Date, end: Date, scope: 'family' | 'mine' = 'family') {
   return useQuery({
-    queryKey: ['calendar-events', start.toISOString(), end.toISOString()],
+    queryKey: ['calendar-events', start.toISOString(), end.toISOString(), scope],
     queryFn: async () => {
       const res = await apiClient.get('/calendar/events', {
-        params: { start: start.toISOString(), end: end.toISOString() },
+        params: { start: start.toISOString(), end: end.toISOString(), ...(scope === 'mine' ? { scope } : {}) },
       })
       return res.data as CalendarEvent[]
     },
