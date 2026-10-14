@@ -24,7 +24,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Phase 6 | Rewards: catalog with approval, badges and streaks, weekly allowance in cents, family progress widget (code complete at 1.12) | |
 | Phase 7 | Meals: recipes with import, catalog and cook mode; weekly plan; shopping list from the plan; pantry; event import (code complete at 1.19) | |
 | Phase 8 | Books, announcements, weather, birthdays, dashboard summary and customization, top/side menu (code complete at 1.24) | |
-| Phase 9 | Offline sync | |
+| Phase 9 | Offline sync: queued writes for chores, to-dos and shopping, idempotent replay, conflict choices, offline banner (code complete at 1.28) | |
 | Phase 10 | OCR, wall panels | |
 | Phase 11 | Notifications and reminders | |
 | Phase 12 | Home Assistant, AI, notes | |
@@ -258,14 +258,15 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [ ] Members can't change their own name, color or avatar outside Admin › Users; add them to My settings.
 - [ ] Weather and announcements panels on the wall come with Phase 10's wall panels.
 
-### Phase 9 — Offline sync
-- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
+### Phase 9 — Offline sync ✅ (code complete at 1.28)
+- [x] **Before starting:** triaged 2026-10-13: no new P0/P1; every open issue is P3.
 - [x] Add the frontend test runner and its first tests. Done early, in the review backlog (#15).
-- [ ] IndexedDB write queue in `frontend/src/lib/idb.ts`.
-- [ ] Sync orchestrator replaying the queue on reconnect and on tab visibility.
-- [ ] Conflict resolution modal: 409 detection, keep-local / keep-server / merge.
-- [ ] Offline banner and sync indicator.
-- Tests first: queue survives a reload; replay is all-or-nothing per operation; a 409 surfaces the conflict modal rather than silently overwriting; a failed replay leaves the item queued.
+- [x] IndexedDB write queue in `frontend/src/lib/idb.ts`. Covers ticking and claiming chores, ticking and adding shopping items, and adding and ticking to-dos; each write's id is its Idempotency-Key (backend `core/idempotency.py`).
+- [x] Sync orchestrator replaying the queue on reconnect and on tab visibility (`lib/offline.ts`, `hooks/useOfflineSync.ts`; also every minute while anything waits).
+- [x] Conflict resolution modal: 409 detection, keep-local / keep-server / merge. Edits carry `base` (the item as last seen); `core/conflicts.check_base` answers 409 if it changed.
+- [x] Offline banner and sync indicator (`OfflineStatus.tsx`). The service worker keeps the last copy of sign-in and those lists so the app opens offline; logout clears it.
+- Tests first: queue survives a reload; replay is all-or-nothing per operation; a 409 surfaces the conflict modal rather than silently overwriting; a failed replay leaves the item queued. Done: `lib/offline.test.ts`, `OfflineStatus.test.tsx`, `lib/swCaching.test.ts`, `test_offline.py`.
+- [ ] Offline support for more writes (meal plan, pantry, announcements) if the family wants it; each needs a `base` check on its PATCH.
 - Note: the v0.29 version of this is broken — its `useOfflineMutations` hook is never called and its replay `fetch` sends no credentials, so every replay 401s. Design against the tests above, not against that code.
 
 ### Phase 10 — OCR and wall panels

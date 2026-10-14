@@ -134,6 +134,20 @@ On the idle screen `WallSlideshow` shows the family's ready media full screen, i
   - Wallpaper: a gradient or a media id.
   - Up to 6 dashboard pages, each a list of widget keys and sizes. An empty list means the default page.
 
+## Offline
+
+- **Reads:** the service worker (`lib/swCaching.ts`) caches reads network-first: the calendar, users, and for offline use `auth/me`, chores, to-dos, the shopping list and the dashboard summary. Logout clears these caches.
+- **Writes:** `lib/offline.offlineWrite` sends the write now, or, if there's no reply, puts it in IndexedDB (`lib/idb.ts`, store `writes`) and the screen updates optimistically. Used for chore actions, adding and ticking shopping items, and adding and editing to-dos.
+- **Replay:** `replay()` runs oldest first, one write at a time, with the cookie and `Idempotency-Key: <write id>`. `useOfflineSync` triggers it on start, on `online`, on tab-visible, and every minute while anything is waiting. A write is removed only after a 2xx.
+  - 409: the write is kept with the conflict.
+  - Another 4xx: kept with the reason.
+  - 401: kept, and the app asks to sign in again.
+  - No reply or 5xx: the replay stops and everything stays queued.
+- **Server side:**
+  - `core/idempotency.IdempotencyMiddleware` stores the first reply for each (key, cookie, method, path) for 24 h, in process.
+  - Edits may carry `base`, the item as last seen. `core/conflicts.check_base` answers 409 with `{message, fields, current}` if it changed.
+- **Resolving a conflict** (`OfflineStatus`): keep mine resends without `base`; keep theirs drops the write; merge resends only my fields that the other person didn't change.
+
 ## Meals
 
 All under `/api/meals` (`routers/meals.py`, rules in `services/meals.py`). Viewers can read but not change anything.

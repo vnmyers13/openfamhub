@@ -20,7 +20,7 @@ Read these before changing code:
 
 - **Issues:** every open Forgejo issue appears in TODO.md with a priority (**P0**–**P3**); TODO.md decides the order of work. Each phase's first TODO item is the issues check: before any other work in a phase, get the Triage report, schedule what it lists (open P0/P1 items come first) and tick that item. When you finish an item, tick its TODO line, which names the issue as `#N` or its link; CI closes the issue once the build deploys. Claude sessions can't reach Forgejo, so ask Vern to paste the pinned **Triage report** issue (CI refreshes it on every build).
 
-- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 392 backend tests in 27 files and 252 frontend tests in 43 files (build 1.24); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
+- **Tests first.** Each TODO phase lists its test targets; write them before the code, in the same change. Baseline is 398 backend tests in 28 files and 273 frontend tests in 47 files (build 1.28); coverage is 96% backend (CI fails below 93%) and 94% frontend statements (thresholds in `vitest.config.ts`). Don't lower a threshold to make a change pass. Run `cd backend && source .venv/bin/activate && pytest -v --cov`, then `cd frontend && npm run test:coverage && npm run lint && npm run build`.
 - **Time:**
   - Every datetime column is `UTCDateTime` (`backend/app/core/types.py`).
   - The API returns `+00:00` values.
@@ -36,6 +36,7 @@ Read these before changing code:
 - **Chores and points:** due dates are plain family-local `Date`s (`services/chores.family_today`), never UTC dates. The `points_ledger` is append-only and unique per (source_type, source_id): credit and reverse with new rows, never update or delete. Routine steps are chore templates with `routine_id`.
 - **Rewards:** spending, refunds, badge bonuses and admin adjustments are all `points_ledger` rows keyed by their source. A redemption leaves `pending` only once (conditional update). Allowance is integer cents in its own append-only `allowance_ledger`, unique per (user, week). Streaks come from `services/rewards.streak_days` (shared with `/chores/stats`).
 - **Preferences:** per-person choices (menu position, dashboard pages, wallpaper, calendar scope) live in `users.settings_json["prefs"]` via `/api/users/me/preferences`, never in browser storage; save changes as updaters on the latest cached prefs (see `Dashboard.tsx`).
+- **Offline writes:** a write that should work offline goes through `lib/offline.offlineWrite` (with `networkMode: 'always'` on its mutation); an edit passes `base` (snapshot taken *before* the optimistic update) so the server's `check_base` can answer 409. Service-worker `urlPattern` functions in `lib/swCaching.ts` must be self-contained (they're copied into sw.js as text).
 - **Fetching URLs:** anything that fetches a user-supplied link goes through `core/safe_fetch.fetch_public` (SSRF guard and pinned connection on every hop, size and time caps). Never call httpx on a user URL directly.
 - **Media:** family photos and videos live under `data/photos/media/<family>/<id>/` and are served only by `/api/media` (family members) and `/api/wall/media` (paired displays). Never add a public static route to them. Only processed renditions are stored (no EXIF/metadata). ffmpeg comes from `imageio-ffmpeg`; conversions run in the background, one at a time.
 - **Single API worker:** the scheduler, event bus, WebSocket hub and rate limiter are all in-process. Add jobs to the existing scheduler (`backend/app/jobs/scheduler.py`, which runs in `TIMEZONE`); never start a second scheduler.
@@ -74,7 +75,7 @@ When porting a feature, re-implement it rather than copying the file. TODO.md ha
 | 6 | Port rewards (append-only points ledger, idempotent weekly allowance in cents, catalog, badges/streaks) + progress widget | Done, 1.12 |
 | 7 | Port meals and recipes (auth on every endpoint, SSRF-safe URL import, plan, pantry, shopping list, recipe catalog) | Done, 1.19 |
 | 8 | Port books (+ shared-library writes), announcements, birthdays, weather, dashboard summary + customization | Done, 1.24 |
-| 9 | Offline sync (IndexedDB queue, conflict modal) | Open |
+| 9 | Offline sync (IndexedDB queue, conflict modal) | Done, 1.28 |
 | 10 | OCR shopping-list scan, wall cycling panels via read-only wall endpoints | Open; needs 7 |
 | 11 | Notifications and reminders (events, chores, to-dos, birthdays, pantry; Web Push/ntfy/SMTP; quiet hours, wellness) | Open; needs 5, 7–8 |
 | 12 | Home Assistant local integration, local-first AI voice agent, notes board | Open |

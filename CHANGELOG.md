@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+### Phase 9: Offline (builds 1.26–1.28)
+
+#### Added
+- **Works offline:** ticking and claiming chores, ticking and adding shopping items, and adding and ticking to-dos all work without a connection. The change shows at once and syncs when you're back, even if you closed the app in between.
+- **Offline banner and sync indicator:** "You're offline", "2 changes waiting", "Syncing…".
+- **Conflict choices:** if someone changed the same item while you were offline, you choose: keep mine, keep theirs, or merge (each person's change where they don't overlap).
+- **Opens offline:** the app starts without a connection and shows the last copy of your chores, to-dos, shopping list and Home.
+- **No duplicates:** replayed changes are never applied twice, even if the first reply was lost (Idempotency-Key).
+
+#### Developers
+- `npm install` after pulling: adds `fake-indexeddb` (dev only).
+
 ### Recipes (build 1.25)
 - Scale a recipe: change the servings (or pick ½×, 2×, 3× when it doesn't say) and the amounts at the start of each ingredient line follow, written as kitchen fractions.
 
