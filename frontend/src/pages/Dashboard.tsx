@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useDashboardSummary, type DashboardSummary } from '../api/home'
 import { DEFAULT_PREFS, usePreferences, useSavePreferences, type DashboardPage, type Preferences } from '../api/prefs'
+import { DEFAULT_WALL_DASHBOARD, useFamilyWallDashboardConfig, useSaveFamilyWallDashboardConfig } from '../api/wall'
 import { effectivePages, WALLPAPERS, type WidgetKey } from '../lib/dashboard'
 import { useAuthStore } from '../stores/auth'
 import CustomizeDashboard from './dashboard/CustomizeDashboard'
+import WallDashboardEditor from './dashboard/WallDashboardEditor'
 import {
   Announcements, Birthdays, FamilyStars, MealsToday, MyDay, SyncStatus, TodaysEvents, WeatherCard,
 } from './dashboard/widgets'
@@ -31,6 +33,13 @@ function Greeting() {
       Good {period}, {user?.display_name ?? 'there'}!
     </h1>
   )
+}
+
+function WallDashboardCustomizer() {
+  const { data: config = DEFAULT_WALL_DASHBOARD } = useFamilyWallDashboardConfig()
+  const save = useSaveFamilyWallDashboardConfig()
+  const [current, setCurrent] = useState(0)
+  return <WallDashboardEditor config={config} current={current} onSelect={setCurrent} onChange={(next) => save.mutate(next)} saving={save.isPending} />
 }
 
 /** Home: the person's own dashboard pages (or one default page), on their wallpaper. */
@@ -78,8 +87,11 @@ export default function Dashboard() {
           </div>
         </div>
         {customizing && (
-          <CustomizeDashboard pages={pages} current={current} isAdmin={isAdmin} onSelect={setPageIndex}
-            onChange={savePages} saving={save.isPending} />
+          <div className="space-y-4">
+            <CustomizeDashboard pages={pages} current={current} isAdmin={isAdmin} onSelect={setPageIndex}
+              onChange={savePages} saving={save.isPending} />
+            <WallDashboardCustomizer />
+          </div>
         )}
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {page.widgets.map((w) => (
