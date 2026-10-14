@@ -98,8 +98,8 @@ async def test_wall_meals_and_announcements_are_family_scoped(client, admin):
     meals = (await client.get("/api/wall/meals", headers=wall)).json()
     announcements = (await client.get("/api/wall/announcements", headers=wall)).json()
 
-    assert meals["today"] == TODAY.isoformat()
-    assert [(m["slot"], m["title"]) for m in meals["meals_today"]] == [("dinner", "Tacos")]
+    assert TODAY.isoformat() in meals["days"]
+    assert [(m["day"], m["slot"], m["title"]) for m in meals["entries"]] == [(TODAY.isoformat(), "dinner", "Tacos")]
     assert [a["body"] for a in announcements] == ["Pizza Friday"]
 
 

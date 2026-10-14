@@ -1,6 +1,8 @@
 """Phase 3b: family settings (name, timezone, wall sleep schedule)."""
 import pytest
+from sqlalchemy import select
 
+from app.models.family import Family
 from tests.test_phase2 import SETUP, _cookie, _h, _member
 
 

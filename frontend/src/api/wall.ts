@@ -6,7 +6,7 @@ import type { CalendarEvent } from './calendar'
 import type { SleepSchedule } from '../lib/sleep'
 import type { ChoreInstance, RoutineRun } from './chores'
 import type { ProgressRow } from './rewards'
-import type { Announcement, MealSlot, UpcomingBirthday, Weather } from './home'
+import type { Announcement, UpcomingBirthday, Weather } from './home'
 
 export const WALL_DASHBOARD_WIDGETS = [
   { key: 'events', label: "Today's events" },
@@ -121,7 +121,8 @@ export function useWallChores() {
   })
 }
 
-export interface WallMeals { today: string; meals_today: MealSlot[]; meals_week: MealSlot[] }
+export interface WallMeal { day: string; slot: string; title: string; recipe_id: string | null; note: string | null }
+export interface WallMeals { week_start: string; days: string[]; entries: WallMeal[] }
 
 export function useWallMeals() {
   return useQuery({

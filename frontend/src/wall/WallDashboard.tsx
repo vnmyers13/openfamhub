@@ -41,9 +41,10 @@ function ChoresCard() {
   ))}</ul>}</WallCard>
 }
 
-function MealsCard() {
+function MealsCard({ timeZone }: { timeZone: string }) {
   const { data } = useWallMeals()
-  const meals = data?.meals_today ?? []
+  const { dateKey } = familyDayRange(new Date(), timeZone)
+  const meals = data?.entries.filter((meal) => meal.day === dateKey) ?? []
   return <WallCard title="Today's meals">{meals.length === 0 ? <Empty text="Nothing planned today." /> : <ul className="space-y-2">{meals.map((m) => (
     <li key={m.slot} className="flex justify-between gap-4 rounded bg-slate-700/60 px-3 py-2 text-lg"><span className="text-slate-400 capitalize">{m.slot}</span><span className="truncate text-white">{m.title}</span></li>
   ))}</ul>}</WallCard>
@@ -87,7 +88,7 @@ function Widget({ widget, timeZone }: { widget: WallDashboardWidgetKey; timeZone
   if (widget === 'events') return <TodayEvents timeZone={timeZone} />
   if (widget === 'chores') return <ChoresCard />
   if (widget === 'routines') return <WallCard title={wallDashboardWidgetLabel(widget)}><WallRoutines timeZone={timeZone} /></WallCard>
-  if (widget === 'meals') return <MealsCard />
+  if (widget === 'meals') return <MealsCard timeZone={timeZone} />
   if (widget === 'weather') return <WeatherCard />
   if (widget === 'announcements') return <AnnouncementsCard />
   if (widget === 'progress') return <ProgressCard />
