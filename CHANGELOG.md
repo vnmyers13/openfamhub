@@ -9,6 +9,9 @@
 - **Edit calendar feeds** in **Admin › Calendars**: rename, recolor, change the sync interval, pause, or paste a new link. A new link (`webcal://` works) is checked before it's saved and its events replace the old ones; one that doesn't work is refused with the reason and nothing changes. Walls repaint with the new name and color straight away.
 - **Change your own name, color and avatar** under **My settings › Me**, without an admin. The new look shows straight away across the app; a name someone else in the family already has is refused.
 
+### Security
+- Frontend dependencies updated for published advisories: axios 1.20.0 (prototype pollution), react-router 7.18.4 (open redirect, XSS), form-data 4.0.6 (CRLF injection) and moment 2.31.0 (path traversal). `npm audit` now finds nothing in what the app ships.
+
 ### Fixed
 - **Wall clock:** the time and date on the wall (and over the slideshow) now follow the family's timezone, like the rest of the wall, instead of the display's own setting. A Pi left on UTC showed the wrong time.
 - **Offline conflicts:** choosing "Keep mine" or "Merge" now goes through. Before, the resolved change was re-sent with the same Idempotency-Key, so the server answered with the remembered 409 every time and the change stayed stuck.
