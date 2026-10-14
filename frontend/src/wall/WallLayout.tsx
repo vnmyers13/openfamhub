@@ -5,6 +5,7 @@ import { isAsleep } from '../lib/sleep'
 import WallClock from './WallClock'
 import WallSevenDayStrip from './WallSevenDayStrip'
 import WallProgress from './WallProgress'
+import WallBirthdays from './WallBirthdays'
 import WallSlideshow from './WallSlideshow'
 import WallRoutines from './WallRoutines'
 import { useWallWebSocket } from './useWallWebSocket'
@@ -54,7 +55,7 @@ export default function WallLayout() {
   useEffect(() => {
     if (state !== 'paired') return
     return onWallUnauthorized(() => {
-      for (const key of ['wall-events', 'wall-progress', 'wall-routines', 'wall-media', 'wall-session']) {
+      for (const key of ['wall-events', 'wall-progress', 'wall-routines', 'wall-birthdays', 'wall-media', 'wall-session']) {
         queryClient.removeQueries({ queryKey: [key] })
       }
       setState('unpaired')
@@ -154,6 +155,7 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
           </h2>
           <WallProgress />
         </div>
+        <WallBirthdays />
         <WallRoutines timeZone={session.timezone} />
       </div>
 

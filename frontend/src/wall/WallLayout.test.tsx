@@ -29,6 +29,7 @@ vi.mock('../api/wall', () => ({
 }))
 vi.mock('./WallSevenDayStrip', () => ({ default: () => <div>seven-day strip</div> }))
 vi.mock('./WallProgress', () => ({ default: () => <div>progress</div> }))
+vi.mock('./WallBirthdays', () => ({ default: () => null }))
 vi.mock('./WallClock', () => ({ default: () => <div>clock</div> }))
 vi.mock('./WallSlideshow', () => ({ default: () => <div>slideshow</div> }))
 vi.mock('./WallRoutines', () => ({ default: () => null }))

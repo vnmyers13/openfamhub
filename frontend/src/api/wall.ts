@@ -5,6 +5,7 @@ import type { CalendarEvent } from './calendar'
 import type { SleepSchedule } from '../lib/sleep'
 import type { RoutineRun } from './chores'
 import type { ProgressRow } from './rewards'
+import type { UpcomingBirthday } from './home'
 
 export interface WallDevice {
   id: string
@@ -80,6 +81,15 @@ export function useWallEvents(start: Date, end: Date) {
       return res.data as CalendarEvent[]
     },
     refetchInterval: 15 * 60 * 1000, // backstop in case the WebSocket drops
+  })
+}
+
+/** Birthdays in the next two weeks, for the wall's birthday card. */
+export function useWallBirthdays() {
+  return useQuery({
+    queryKey: ['wall-birthdays'],
+    queryFn: async () => (await apiClient.get('/wall/birthdays')).data as UpcomingBirthday[],
+    refetchInterval: 60 * 60 * 1000,
   })
 }
 
