@@ -17,20 +17,22 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Release | Contents | Shipped in |
 |---|---|---|
 | Phases 2 + 4 | Security, sign-in model, infra/CI | 0.30 |
-| Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.73 except the prod host (deferred); **not yet confirmed on the test VM** (check `/api/health` or the setup/login/sidebar Help & About build number) |
-| Phase 3 + 3b | iCal correctness (code complete at 0.82); wall essentials: photo/video slideshow, sleep schedule, family settings, off-host backups (code complete at 0.88) | |
-| Phase 5 | Chores, to-dos, routines (code complete at 0.94) | |
-| CI + release process | Trivy scan, issues closed from TODO.md, Triage report, release names past 0.99 | code complete at 1.01 |
-| Phase 6 | Rewards: catalog with approval, badges and streaks, weekly allowance in cents, family progress widget (code complete at 1.12) | |
-| Phase 7 | Meals: recipes with import, catalog and cook mode; weekly plan; shopping list from the plan; pantry; event import (code complete at 1.19) | |
-| Phase 8 | Books, announcements, weather, birthdays, dashboard summary and customization, top/side menu (code complete at 1.24) | |
-| Phase 9 | Offline sync: queued writes for chores, to-dos and shopping, idempotent replay, conflict choices, offline banner (code complete at 1.28) | |
+| Review fixes | Review backlog below (SSRF, wall live updates, per-commit versioning, iCal recurrences, wall/auth UI fixes, test runner, code splitting) | code complete at 0.73 except the prod host (deferred); 1.01, confirmed on test at 1.28 |
+| Phase 3 + 3b | iCal correctness (code complete at 0.82); wall essentials: photo/video slideshow, sleep schedule, family settings, off-host backups (code complete at 0.88) | 1.01, confirmed on test at 1.28 |
+| Phase 5 | Chores, to-dos, routines (code complete at 0.94) | 1.01, confirmed on test at 1.28 |
+| CI + release process | Trivy scan, issues closed from TODO.md, Triage report, release names past 0.99 | 1.01, confirmed on test at 1.28 |
+| Phase 6 | Rewards: catalog with approval, badges and streaks, weekly allowance in cents, family progress widget (code complete at 1.12) | 1.28 |
+| Phase 7 | Meals: recipes with import, catalog and cook mode; weekly plan; shopping list from the plan; pantry; event import (code complete at 1.19) | 1.28 |
+| Phase 8 | Books, announcements, weather, birthdays, dashboard summary and customization, top/side menu (code complete at 1.24) | 1.28 |
+| Phase 9 | Offline sync: queued writes for chores, to-dos and shopping, idempotent replay, conflict choices, offline banner (code complete at 1.28) | 1.28 |
 | Phase 10 | OCR, wall panels | |
 | Phase 11 | Notifications and reminders | |
 | Phase 12 | Home Assistant, AI, notes | |
 | Phase 13 | Two-way calendar sync | |
 
-**Release 1.01 (2026-10-13)** collects Review fixes, Phases 3 + 3b and Phase 5 with the CI and release-process work; notes in [docs/releases/v1.01.md](docs/releases/v1.01.md). Put **1.01** in each row's **Shipped in** once it's checked on `test`.
+**Release 1.01 (2026-10-13)** collects Review fixes, Phases 3 + 3b and Phase 5 with the CI and release-process work; notes in [docs/releases/v1.01.md](docs/releases/v1.01.md). It was never checked on `test` on its own; `test` ran 1.28 when it was confirmed (2026-10-14).
+
+**Release 1.28 (2026-10-14)** collects Phases 6–9, recipe scaling and the 1.08 security fixes; notes in [docs/releases/v1.28.md](docs/releases/v1.28.md). Follow-ups left open in those phases (wall routine check-off, reward notifications, members editing their own profile, more offline writes) are listed under each phase.
 
 The `pre-commit` hook bumps `VERSION` on every commit (see `docs/ci.md`); CI publishes each `master` build and deploys it to `test`. The release steps, including the issue checks, are in [docs/releasing.md](docs/releasing.md).
 

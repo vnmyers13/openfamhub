@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+---
+
+## [1.28] - 2026-10-14 — Phases 6–9
+
+Rewards, meals, family info with your own layout, and offline sync: everything from builds 1.02 to 1.28, grouped by phase. Closes the 24 Trivy issues fixed in 1.08: #17, #18, #19, #26, #27, #28, #29, #30, #31, #32, #33, #34, #35, #36, #37, #38, #39, #41, #42, #43, #44, #45, #46, #47. Release notes and upgrade steps: [docs/releases/v1.28.md](docs/releases/v1.28.md).
+
 ### Phase 9: Offline (builds 1.26–1.28)
 
 #### Added

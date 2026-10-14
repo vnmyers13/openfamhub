@@ -1,9 +1,6 @@
 # OpenFamHub
 
-<<<<<<< HEAD
-![Version](https://img.shields.io/badge/version-1.28-blue)
-=======
->>>>>>> temp-build
+![Version](https://img.shields.io/badge/version-1.29-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
