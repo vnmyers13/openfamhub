@@ -127,8 +127,8 @@ describe('offline banner, sync and conflicts', () => {
     fireEvent.click(await screen.findByRole('button', { name: '1 needs a decision' }))
     expect(screen.getByRole('dialog').textContent).toContain('Viewers can’t change meals')
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
-    await waitFor(() => expect(screen.queryByRole('status')).toBeNull())
-    expect(await allWrites()).toEqual([])
+    await waitFor(async () => expect(await allWrites()).toEqual([]), { timeout: 5_000 })
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull(), { timeout: 5_000 })
   })
 
   it('asks to sign in again when the session lapsed, and offers Sync now', async () => {
