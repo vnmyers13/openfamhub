@@ -8,7 +8,14 @@ from app.core.events import queue_event
 from app.core.security import get_current_user, require_role
 from app.models.family import Family
 from app.models.user import User
-from app.schemas.family import FamilySettings, FamilySettingsUpdate, SleepSchedule, WorldClock
+from app.schemas.family import (
+    DEFAULT_WALL_DASHBOARD,
+    FamilySettings,
+    FamilySettingsUpdate,
+    SleepSchedule,
+    WallDashboardConfig,
+    WorldClock,
+)
 
 router = APIRouter()
 
@@ -36,6 +43,15 @@ def to_settings(family: Family) -> FamilySettings:
     return FamilySettings(name=family.name, timezone=family.timezone, sleep=sleep_schedule(family),
                           clocks=world_clocks(family))
 
+
+def wall_dashboard(family: Family) -> WallDashboardConfig:
+    stored = (family.settings_json or {}).get("wall_dashboard")
+    if stored is None:
+        return DEFAULT_WALL_DASHBOARD.model_copy(deep=True)
+    try:
+        return WallDashboardConfig.model_validate(stored)
+    except ValueError:
+        return DEFAULT_WALL_DASHBOARD.model_copy(deep=True)
 
 async def _family(db: AsyncSession, user: User) -> Family:
     family = await db.get(Family, user.family_id)
@@ -69,3 +85,24 @@ async def update_settings(
     await db.refresh(family)
     queue_event(db, "settings_updated", {})  # walls re-read their session
     return to_settings(family)
+
+
+@router.get("/wall-dashboard", response_model=WallDashboardConfig)
+async def get_wall_dashboard(
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    return wall_dashboard(await _family(db, current_user))
+
+
+@router.put("/wall-dashboard", response_model=WallDashboardConfig)
+async def update_wall_dashboard(
+    data: WallDashboardConfig,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    family = await _family(db, current_user)
+    family.settings_json = {**(family.settings_json or {}), "wall_dashboard": data.model_dump()}
+    await db.flush()
+    await db.refresh(family)
+    queue_event(db, "settings_updated", {})
+    return wall_dashboard(family)
