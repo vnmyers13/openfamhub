@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.database import AsyncSessionLocal, get_db
 from app.core.security import require_role
 from app.models.family import Family
+from app.models.chores import ChoreInstance, ChoreTemplate
 from app.models.user import User
 from app.models.wall_device import WallDevice
 from app.schemas.calendar import CalendarEventResponse
@@ -28,8 +29,9 @@ from app.services import media as media_service
 from app.schemas.media import WallMediaResponse
 from app.routers.media import serve_file
 from app.routers.family import sleep_schedule
-from app.routers.routines import todays_runs
-from app.schemas.chores import RoutineRun
+from app.routers.chores import complete_instance_for_user, to_instance
+from app.routers.routines import today_for, todays_runs
+from app.schemas.chores import ChoreInstanceResponse, RoutineRun
 from app.schemas.family import SleepSchedule
 from app.schemas.rewards import ProgressRow
 from app.services import rewards as rewards_svc
@@ -251,6 +253,39 @@ async def wall_media_file(
 async def wall_routines(db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device)):
     """Today's routines for the wall's countdown (read-only)."""
     return await todays_runs(db, device.family_id)
+
+
+async def complete_routine_step_from_wall(db: AsyncSession, family_id: str, instance_id: str) -> ChoreInstanceResponse:
+    row = (await db.execute(
+        select(ChoreInstance, ChoreTemplate)
+        .join(ChoreTemplate, ChoreTemplate.id == ChoreInstance.template_id)
+        .where(ChoreInstance.id == instance_id)
+    )).one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Routine step not found")
+    inst, template = row
+    if inst.family_id != family_id or template.family_id != family_id or template.routine_id is None:
+        raise HTTPException(status_code=404, detail="Routine step not found")
+    if inst.due_date != await today_for(db, family_id):
+        raise HTTPException(status_code=404, detail="Routine step not found")
+    if not inst.assigned_to:
+        raise HTTPException(status_code=403, detail="This routine step is not assigned to a person")
+    if inst.status == "completed":
+        return to_instance(inst, template)
+    user = await db.get(User, inst.assigned_to)
+    if user is None or user.family_id != family_id or user.is_deleted:
+        raise HTTPException(status_code=404, detail="Routine step not found")
+    return await complete_instance_for_user(db, user, instance_id)
+
+
+@router.post("/routines/steps/{instance_id}/complete", response_model=ChoreInstanceResponse)
+async def complete_wall_routine_step(
+    instance_id: str,
+    db: AsyncSession = Depends(get_db),
+    device: WallDevice = Depends(get_wall_device),
+):
+    """Complete today's assigned routine step from a paired wall display."""
+    return await complete_routine_step_from_wall(db, device.family_id, instance_id)
 
 
 @router.get("/progress", response_model=List[ProgressRow])

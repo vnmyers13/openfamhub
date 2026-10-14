@@ -209,6 +209,10 @@ async def unclaim(instance_id: str, db: AsyncSession = Depends(get_db), user: Us
 @router.post("/instances/{instance_id}/complete", response_model=ChoreInstanceResponse)
 async def complete(instance_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     deny_viewers(user)
+    return await complete_instance_for_user(db, user, instance_id)
+
+
+async def complete_instance_for_user(db: AsyncSession, user: User, instance_id: str) -> ChoreInstanceResponse:
     inst, template = await load_instance(db, user, instance_id)
     allowed = (
         user.role == "admin" or inst.assigned_to == user.id or inst.claimed_by == user.id
