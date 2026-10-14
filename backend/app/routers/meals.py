@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.conflicts import check_base
 from app.core.database import get_db
 from app.core.events import queue_event
 from app.core.security import get_current_user
@@ -293,6 +294,8 @@ async def update_item(item_id: str, data: ShoppingUpdate, db: AsyncSession = Dep
     item = await load_item(db, ShoppingItem, user.family_id, item_id, "Item")
     if item.archived_at is not None:
         raise HTTPException(status_code=409, detail="That item is in the purchase history now")
+    if data.base:
+        check_base({k: v for k, v in data.base.items() if k in ("name", "quantity", "checked")}, to_item(item, [], date.min))
     if data.name is not None:
         item.name = data.name.strip()
     if "quantity" in data.model_fields_set:

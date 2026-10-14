@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import Base, engine
+from app.core.idempotency import IdempotencyMiddleware
 
 # Docker sets DATA_PATH=/data; outside Docker default to <repo>/data.
 _DATA_ROOT = Path(os.environ.get("DATA_PATH", Path(__file__).resolve().parents[2] / "data"))
@@ -55,6 +56,8 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
+# Replayed offline writes carry an Idempotency-Key; repeats get the first answer.
+app.add_middleware(IdempotencyMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins.split(","),

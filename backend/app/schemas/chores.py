@@ -143,6 +143,7 @@ class TodoUpdate(BaseModel):
     assigned_to: Optional[str] = None
     due_date: Optional[date] = None
     done: Optional[bool] = None
+    base: Optional[dict] = None  # offline edits: the to-do as last seen (core.conflicts)
 
 
 class TodoResponse(BaseModel):

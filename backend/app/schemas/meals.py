@@ -183,6 +183,7 @@ class ShoppingUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=256)
     quantity: Optional[str] = Field(None, max_length=64)
     checked: Optional[bool] = None
+    base: Optional[dict] = None  # offline edits: the item as last seen (core.conflicts)
 
 
 class ShoppingResponse(BaseModel):

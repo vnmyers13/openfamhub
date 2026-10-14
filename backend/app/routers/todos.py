@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.conflicts import check_base
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.chores import Todo
@@ -58,7 +59,9 @@ async def update_todo(todo_id: str, data: TodoUpdate, db: AsyncSession = Depends
                       user: User = Depends(get_current_user)):
     deny_viewers(user)
     todo = await load(db, user, todo_id)
+    check_base(data.base, to_response(todo))
     fields = data.model_dump(exclude_unset=True)
+    fields.pop("base", None)
     done = fields.pop("done", None)
     if "assigned_to" in fields:
         await check_member(db, user.family_id, fields["assigned_to"])
