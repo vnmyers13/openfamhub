@@ -51,3 +51,13 @@ def avatar(v: Optional[str]) -> Optional[str]:
     if v is not None and not 1 <= len(v) <= 16:
         raise ValueError("avatar must be 1-16 characters (an emoji)")
     return v
+
+
+def feed_url(v: Optional[str]) -> Optional[str]:
+    """A calendar feed link: http(s), or webcal:// (fetched as https)."""
+    if v is None:
+        return v
+    v = v.strip()
+    if not v.lower().startswith(("http://", "https://", "webcal://")) or len(v) > 2048:
+        raise ValueError("Use an http(s):// or webcal:// link")
+    return v

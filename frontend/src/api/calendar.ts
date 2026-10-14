@@ -144,6 +144,22 @@ export function useSyncSource() {
   })
 }
 
+export type SourceChanges = Partial<Pick<CalendarSource, 'display_name' | 'color_hex' | 'ics_url' | 'sync_interval_hours' | 'enabled'>>
+
+/** Edit a calendar. A new link is checked and synced by the server (400 if it doesn't work). */
+export function useUpdateCalendarSource() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, changes }: { id: string; changes: SourceChanges }) =>
+      (await apiClient.patch(`/calendar/sources/${id}`, changes)).data as CalendarSource,
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ['calendar-sources'] })
+      qc.invalidateQueries({ queryKey: ['calendar-events'] })
+      qc.invalidateQueries({ queryKey: ['source-logs', id] })
+    },
+  })
+}
+
 export function useDeleteCalendarSource() {
   const qc = useQueryClient()
   return useMutation({

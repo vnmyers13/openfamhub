@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { apiError, mockApi } from '../../test/api'
 import { renderApp } from '../../test/render'
@@ -86,5 +86,53 @@ describe('CalendarSettings', () => {
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+
+  it('edits a feed: only what changed is sent, and the form closes', async () => {
+    const calls = mockApi({
+      'GET /calendar/sources': [FAMILY, SCHOOL],
+      'PATCH /calendar/sources/sch': { ...SCHOOL, display_name: 'Soccer', ics_url: 'webcal://example.test/team.ics' },
+    })
+    renderPage()
+    await screen.findByText('School')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit School' }))
+    const form = screen.getByRole('form', { name: 'Edit School' })
+    fireEvent.change(within(form).getByLabelText('Name'), { target: { value: 'Soccer' } })
+    fireEvent.change(within(form).getByLabelText('Link'), { target: { value: 'webcal://example.test/team.ics' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('form', { name: 'Edit School' })).toBeNull())
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ display_name: 'Soccer', ics_url: 'webcal://example.test/team.ics' })
+    expect(await screen.findByText('Saved Soccer')).toBeTruthy()
+  })
+
+  it("keeps the form open with the reason when a new link doesn't work", async () => {
+    mockApi({
+      'GET /calendar/sources': [SCHOOL],
+      'PATCH /calendar/sources/sch': () => { throw apiError(400, 'Could not reach the calendar URL') },
+    })
+    renderPage()
+    await screen.findByText('School')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit School' }))
+    const form = screen.getByRole('form', { name: 'Edit School' })
+    fireEvent.change(within(form).getByLabelText('Link'), { target: { value: 'https://nowhere.test/x.ics' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Save' }))
+    expect(await within(form).findByText('Could not reach the calendar URL')).toBeTruthy()
+    expect((within(form).getByLabelText('Link') as HTMLInputElement).value).toBe('https://nowhere.test/x.ics')
+  })
+
+  it('the family calendar has no link; pausing a feed sends enabled: false; cancel changes nothing', async () => {
+    const calls = mockApi({ 'GET /calendar/sources': [FAMILY, SCHOOL], 'PATCH /calendar/sources/sch': { ...SCHOOL, enabled: false } })
+    renderPage()
+    await screen.findByText('School')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Family Calendar' }))
+    const family = screen.getByRole('form', { name: 'Edit Family Calendar' })
+    expect(within(family).queryByLabelText('Link')).toBeNull()
+    expect((within(family).getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(within(family).getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit School' }))
+    const school = screen.getByRole('form', { name: 'Edit School' })
+    fireEvent.click(within(school).getByLabelText('Keep syncing'))
+    fireEvent.click(within(school).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ enabled: false }))
   })
 })

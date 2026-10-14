@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+- **Edit calendar feeds** in **Admin › Calendars**: rename, recolor, change the sync interval, pause, or paste a new link. A new link (`webcal://` works) is checked before it's saved and its events replace the old ones; one that doesn't work is refused with the reason and nothing changes. Walls repaint with the new name and color straight away.
 - **Change your own name, color and avatar** under **My settings › Me**, without an admin. The new look shows straight away across the app; a name someone else in the family already has is refused.
 
 ### Fixed

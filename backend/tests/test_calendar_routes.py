@@ -1,6 +1,6 @@
 """Calendar source and event routes not covered elsewhere: editing sources,
 sync logs, event edits and their validation."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -33,8 +33,34 @@ async def _feed_source(client, admin):
     return res.json()
 
 
+def feeds(by_url: dict):
+    """A fake fetch_and_parse: each URL serves events with the given uids; any other URL is unreachable."""
+    soon = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(days=7)
+    seen = []
+
+    async def fake_fetch(url, **kwargs):
+        seen.append(url)
+        if url not in by_url:
+            raise ConnectionError("Name or service not known")
+        return [{"external_uid": uid, "title": f"Event {uid}", "all_day": False, "location": None,
+                 "description": None, "start_dt": soon + timedelta(hours=i), "end_dt": soon + timedelta(hours=i + 1)}
+                for i, uid in enumerate(by_url[url])]
+
+    fake_fetch.seen = seen
+    return fake_fetch
+
+
+async def titles(client, who):
+    now = datetime.now(timezone.utc)
+    res = await client.get("/api/calendar/events", headers=_h(who),
+                           params={"start": now.isoformat(), "end": (now + timedelta(days=30)).isoformat()})
+    assert res.status_code == 200, res.text
+    return {e["title"]: e for e in res.json()}
+
+
 class TestSources:
-    async def test_admin_edits_a_source(self, client, admin):
+    async def test_admin_edits_a_source(self, client, admin, monkeypatch):
+        monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", feeds({"https://example.test/n.ics": ["n1"]}))
         src = await _feed_source(client, admin)
         res = await client.patch(
             f"/api/calendar/sources/{src['id']}",
@@ -87,6 +113,71 @@ class TestSources:
         ev = (await _event(client, admin)).json()
         res = await client.post(f"/api/calendar/sources/{ev['source_id']}/sync", headers=_h(admin))
         assert res.status_code == 400
+
+
+class TestEditingFeeds:
+    """Admin › Calendars › Edit: name, color, URL, sync interval and on/off."""
+
+    async def test_a_rename_and_recolor_show_on_existing_events(self, client, admin, monkeypatch):
+        monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", feeds({"https://example.test/s.ics": ["a"]}))
+        src = await _feed_source(client, admin)
+        await client.post(f"/api/calendar/sources/{src['id']}/sync", headers=_h(admin))
+        res = await client.patch(f"/api/calendar/sources/{src['id']}", headers=_h(admin),
+                                 json={"display_name": "Soccer", "color_hex": "#DC2626"})
+        assert res.status_code == 200, res.text
+        assert (await titles(client, admin))["Event a"]["source_color_hex"] == "#DC2626"
+
+    async def test_a_new_url_replaces_the_old_feeds_events(self, client, admin, monkeypatch):
+        fake = feeds({"https://example.test/s.ics": ["a", "b"], "https://example.test/new.ics": ["c"]})
+        monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", fake)
+        src = await _feed_source(client, admin)
+        await client.post(f"/api/calendar/sources/{src['id']}/sync", headers=_h(admin))
+        assert {"Event a", "Event b"} <= set(await titles(client, admin))
+        res = await client.patch(f"/api/calendar/sources/{src['id']}", headers=_h(admin),
+                                 json={"ics_url": "https://example.test/new.ics"})
+        assert res.status_code == 200, res.text
+        assert res.json()["ics_url"] == "https://example.test/new.ics" and res.json()["last_synced_at"]
+        got = set(await titles(client, admin))
+        assert "Event c" in got and not {"Event a", "Event b"} & got
+
+    async def test_a_bad_url_is_refused_and_the_old_one_kept(self, client, admin, monkeypatch):
+        monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", feeds({"https://example.test/s.ics": ["a"]}))
+        src = await _feed_source(client, admin)
+        await client.post(f"/api/calendar/sources/{src['id']}/sync", headers=_h(admin))
+        res = await client.patch(f"/api/calendar/sources/{src['id']}", headers=_h(admin),
+                                 json={"ics_url": "https://nowhere.test/x.ics", "display_name": "Renamed"})
+        assert res.status_code == 400 and res.json()["detail"]
+        kept = [s for s in (await client.get("/api/calendar/sources", headers=_h(admin))).json() if s["id"] == src["id"]][0]
+        assert (kept["ics_url"], kept["display_name"], kept["sync_error"]) == ("https://example.test/s.ics", "School", None)
+        assert "Event a" in await titles(client, admin)
+
+    async def test_webcal_links_are_accepted(self, client, admin, monkeypatch):
+        fake = feeds({"https://example.test/s.ics": ["a"], "webcal://example.test/team.ics": ["t"]})
+        monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", fake)
+        src = await _feed_source(client, admin)
+        res = await client.patch(f"/api/calendar/sources/{src['id']}", headers=_h(admin),
+                                 json={"ics_url": " webcal://example.test/team.ics "})
+        assert res.status_code == 200, res.text
+        assert res.json()["ics_url"] == "webcal://example.test/team.ics" and "Event t" in await titles(client, admin)
+
+    async def test_the_same_url_is_not_fetched_again(self, client, admin, monkeypatch):
+        fake = feeds({"https://example.test/s.ics": ["a"]})
+        monkeypatch.setattr("app.jobs.calendar_sync.fetch_and_parse", fake)
+        src = await _feed_source(client, admin)
+        res = await client.patch(f"/api/calendar/sources/{src['id']}", headers=_h(admin),
+                                 json={"ics_url": "https://example.test/s.ics", "sync_interval_hours": 24})
+        assert res.status_code == 200 and res.json()["sync_interval_hours"] == 24
+        assert fake.seen == []
+
+    async def test_the_family_calendar_has_no_url_and_names_cant_be_blank(self, client, admin):
+        ev = (await _event(client, admin)).json()
+        res = await client.patch(f"/api/calendar/sources/{ev['source_id']}", headers=_h(admin),
+                                 json={"ics_url": "https://example.test/s.ics"})
+        assert res.status_code == 400
+        src = await _feed_source(client, admin)
+        for bad in ({"display_name": "   "}, {"ics_url": "ftp://example.test/s.ics"}, {"sync_interval_hours": 0}):
+            res = await client.patch(f"/api/calendar/sources/{src['id']}", headers=_h(admin), json=bad)
+            assert res.status_code == 422, (bad, res.text)
 
 
 class TestEvents:

@@ -1,7 +1,101 @@
 import { useState } from 'react'
-import { useCalendarSources, useAddIcalSource, useSyncSource, useDeleteCalendarSource, useSourceLogs } from '../../api/calendar'
+import {
+  useCalendarSources, useAddIcalSource, useSyncSource, useDeleteCalendarSource, useSourceLogs, useUpdateCalendarSource,
+  type CalendarSource, type SourceChanges,
+} from '../../api/calendar'
 
 const COLOR_SWATCHES = ['#4F46E5', '#059669', '#DC2626', '#D97706', '#7C3AED', '#DB2777', '#0891B2', '#65A30D']
+
+const INTERVALS = [1, 3, 6, 12, 24]
+const errorText = (err: unknown, fallback: string) =>
+  (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback
+
+/**
+ * Edit one calendar. A changed link is checked by the server like a new feed:
+ * it's saved only if it syncs, and its events replace the old link's.
+ */
+function EditSource({ source, onDone }: { source: CalendarSource; onDone: (savedName: string) => void }) {
+  const [name, setName] = useState(source.display_name)
+  const [color, setColor] = useState(source.color_hex)
+  const [url, setUrl] = useState(source.ics_url ?? '')
+  const [interval, setInterval] = useState(source.sync_interval_hours)
+  const [enabled, setEnabled] = useState(source.enabled)
+  const [error, setError] = useState<string | null>(null)
+  const update = useUpdateCalendarSource()
+  const feed = source.provider === 'ical'
+
+  const changes: SourceChanges = {}
+  if (name.trim() !== source.display_name) changes.display_name = name.trim()
+  if (color.toLowerCase() !== source.color_hex.toLowerCase()) changes.color_hex = color
+  if (feed && url.trim() !== (source.ics_url ?? '')) changes.ics_url = url.trim()
+  if (feed && interval !== source.sync_interval_hours) changes.sync_interval_hours = interval
+  if (feed && enabled !== source.enabled) changes.enabled = enabled
+  const nothing = Object.keys(changes).length === 0
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    try {
+      await update.mutateAsync({ id: source.id, changes })
+      onDone(name.trim())
+    } catch (err) {
+      setError(errorText(err, "Couldn't save the changes"))
+    }
+  }
+  const swatches = COLOR_SWATCHES.includes(source.color_hex) ? COLOR_SWATCHES : [source.color_hex, ...COLOR_SWATCHES]
+  const field = 'w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white'
+
+  return (
+    <form onSubmit={save} aria-label={`Edit ${source.display_name}`} className="mt-3 space-y-3 border-t border-gray-800 pt-3">
+      <div>
+        <label htmlFor={`name-${source.id}`} className="block text-sm text-gray-400 mb-1">Name</label>
+        <input id={`name-${source.id}`} className={field} value={name} maxLength={100} onChange={(e) => setName(e.target.value)} required />
+      </div>
+      <div className="flex gap-2" role="radiogroup" aria-label="Color">
+        {swatches.map((c) => (
+          <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={c} onClick={() => setColor(c)}
+            className={`w-7 h-7 rounded-full border-2 ${color === c ? 'border-white' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+        ))}
+      </div>
+      {feed && (
+        <>
+          <div>
+            <label htmlFor={`url-${source.id}`} className="block text-sm text-gray-400 mb-1">Link</label>
+            <input id={`url-${source.id}`} className={field} value={url} onChange={(e) => setUrl(e.target.value)} required
+              placeholder="https://… or webcal://…" />
+            {changes.ics_url !== undefined && (
+              <p className="mt-1 text-xs text-gray-500">Saving checks the new link and replaces this calendar's events with its events.</p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="text-sm text-gray-400">
+              Sync{' '}
+              <select className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white" value={interval}
+                onChange={(e) => setInterval(Number(e.target.value))} aria-label="Sync interval">
+                {(INTERVALS.includes(interval) ? INTERVALS : [...INTERVALS, interval].sort((a, b) => a - b)).map((h) => (
+                  <option key={h} value={h}>{h === 1 ? 'every hour' : `every ${h} hours`}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-400">
+              <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+              Keep syncing
+            </label>
+            {!enabled && <span className="text-xs text-gray-500">Paused: its events stay, but nothing new comes in.</span>}
+          </div>
+        </>
+      )}
+      {error && <p className="text-sm text-red-300" role="alert">{error}</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={nothing || !name.trim() || update.isPending}
+          className="bg-primary hover:bg-primary-dark text-white px-4 py-1.5 rounded text-sm disabled:opacity-50">
+          {update.isPending ? (changes.ics_url !== undefined ? 'Checking the link…' : 'Saving…') : 'Save'}
+        </button>
+        <button type="button" onClick={() => onDone('')} className="text-gray-400 hover:text-white text-sm px-2">Cancel</button>
+      </div>
+    </form>
+  )
+}
 
 export default function CalendarSettings() {
   const { data: sources = [] } = useCalendarSources()
@@ -10,14 +104,12 @@ export default function CalendarSettings() {
   const [color, setColor] = useState(COLOR_SWATCHES[0])
   const [interval, setInterval] = useState(6)
   const [logSourceId, setLogSourceId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const { mutateAsync: addIcal, isPending: adding } = useAddIcalSource()
   const { mutateAsync: syncSource, isPending: syncing, variables: syncingId } = useSyncSource()
   const { mutateAsync: deleteSource } = useDeleteCalendarSource()
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
-
-  const errorText = (err: unknown, fallback: string) =>
-    (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback
 
   const handleSync = async (id: string, name: string) => {
     setMessage(null)
@@ -81,7 +173,7 @@ export default function CalendarSettings() {
                     <span className={`text-xs px-2 py-0.5 rounded-full ${s.provider === 'internal' ? 'bg-gray-700 text-gray-300' : 'bg-blue-900 text-blue-300'}`}>
                       {s.provider}
                     </span>
-                    {!s.enabled && <span className="text-xs text-red-400">Disabled</span>}
+                    {!s.enabled && <span className="text-xs text-amber-400">Paused</span>}
                   </div>
                   <div className="flex gap-2">
                     {s.provider === 'ical' && (
@@ -93,6 +185,13 @@ export default function CalendarSettings() {
                         {syncing && syncingId === s.id ? 'Syncing...' : 'Sync Now'}
                       </button>
                     )}
+                    <button
+                      onClick={() => setEditingId(editingId === s.id ? null : s.id)}
+                      aria-label={`Edit ${s.display_name}`}
+                      className="text-gray-400 hover:text-white text-sm px-2 py-1"
+                    >
+                      Edit
+                    </button>
                     <button
                       onClick={() => setLogSourceId(logSourceId === s.id ? null : s.id)}
                       className="text-gray-400 hover:text-white text-sm px-2 py-1"
@@ -115,6 +214,16 @@ export default function CalendarSettings() {
                   <p>Sync interval: {s.sync_interval_hours}h</p>
                   {s.ics_url && <p className="truncate">URL: {s.ics_url}</p>}
                 </div>
+
+                {editingId === s.id && (
+                  <EditSource
+                    source={s}
+                    onDone={(saved) => {
+                      setEditingId(null)
+                      if (saved) setMessage({ kind: 'ok', text: `Saved ${saved}` })
+                    }}
+                  />
+                )}
 
                 {/* Sync log drawer */}
                 {logSourceId === s.id && (

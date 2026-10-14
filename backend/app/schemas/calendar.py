@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas import validators
 
@@ -49,13 +49,23 @@ class PatchCalendarSourceRequest(BaseModel):
     display_name: Optional[str] = None
     color_hex: Optional[str] = None
     ics_url: Optional[str] = None
-    sync_interval_hours: Optional[int] = None
+    sync_interval_hours: Optional[int] = Field(None, ge=1, le=168)
     enabled: Optional[bool] = None
 
     @field_validator("color_hex")
     @classmethod
     def check_color(cls, x):
         return validators.hex_color(x)
+
+    @field_validator("display_name")
+    @classmethod
+    def check_name(cls, x):
+        return validators.display_name(x).strip() if x is not None else x
+
+    @field_validator("ics_url")
+    @classmethod
+    def check_url(cls, x):
+        return validators.feed_url(x)
 
 
 class CalendarEventResponse(BaseModel):

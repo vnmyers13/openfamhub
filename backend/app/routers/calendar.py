@@ -27,7 +27,7 @@ from app.services.calendar import (
     get_source_logs,
 )
 from app.jobs.calendar_sync import sync_source as run_source_sync
-from app.core.events import queue_event
+from app.core.events import discard_queued, queue_event
 
 router = APIRouter()
 
@@ -212,24 +212,31 @@ async def update_source(
     source = result.scalar_one_or_none()
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
-    updates = {}
-    if data.display_name is not None:
-        updates["display_name"] = data.display_name
-    if data.color_hex is not None:
-        updates["color_hex"] = data.color_hex
-    if data.ics_url is not None:
-        updates["ics_url"] = data.ics_url
-    if data.sync_interval_hours is not None:
-        updates["sync_interval_hours"] = data.sync_interval_hours
-    if data.enabled is not None:
-        updates["enabled"] = data.enabled
-    if updates:
-        for k, v in updates.items():
-            setattr(source, k, v)
-        await db.flush()
-        # updated_at is set by the database (onupdate), which expires it; load
-        # it now; the response can't lazy-load outside the async context.
-        await db.refresh(source)
+    url_changed = data.ics_url is not None and data.ics_url != source.ics_url
+    if url_changed and source.provider != "ical":
+        raise HTTPException(status_code=400, detail="Only subscribed calendars have a link")
+    updates = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None}
+    if not updates:
+        return source
+    # A new link is treated like adding a calendar: it's saved only if it
+    # syncs, and that sync replaces the old feed's events. On failure nothing
+    # changes (not the link, the other fields, nor the events).
+    savepoint = await db.begin_nested() if url_changed else None
+    for k, v in updates.items():
+        setattr(source, k, float(v) if k == "sync_interval_hours" else v)
+    await db.flush()
+    if savepoint is not None:
+        error = await run_source_sync(source, db)
+        if error:
+            await savepoint.rollback()
+            discard_queued(db)
+            raise HTTPException(status_code=400, detail=error)
+        await savepoint.commit()
+    # updated_at is set by the database (onupdate), which expires it; load
+    # it now; the response can't lazy-load outside the async context.
+    await db.refresh(source)
+    # Walls and other screens repaint with the new name or color.
+    queue_event(db, "calendar_updated", {"source_id": source.id})
     return source
 
 
