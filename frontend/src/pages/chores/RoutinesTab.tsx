@@ -37,7 +37,7 @@ export default function RoutinesTab() {
                       onChange={async () => {
                         setError(null)
                         try {
-                          await act.mutateAsync({ id: s.instance_id, action: checked ? 'undo' : 'complete' })
+                          await act.mutateAsync({ id: s.instance_id, action: checked ? 'undo' : 'complete', title: s.title })
                         } catch (err) {
                           setError(errorDetail(err, "That didn't work"))
                         }

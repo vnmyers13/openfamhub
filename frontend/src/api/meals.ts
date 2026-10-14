@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
+import { offlineWrite } from '../lib/offline'
 
 export type Slot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export const SLOTS: Slot[] = ['breakfast', 'lunch', 'dinner', 'snack']
@@ -133,14 +134,39 @@ export function useShoppingHistory(enabled: boolean) {
   return useQuery({ queryKey: ['shopping-history'], queryFn: () => get<ShoppingItem[]>('/meals/shopping/history'), enabled })
 }
 
+/** Adding and ticking off work offline: queued, shown at once, synced later (lib/offline). */
 export function useAddShopping() {
-  return useMealsMutation(async (body: { name: string; quantity?: string | null }) =>
-    (await apiClient.post('/meals/shopping', body)).data as ShoppingItem)
+  const qc = useQueryClient()
+  return useMutation({
+    networkMode: 'always',
+    mutationFn: (body: { name: string; quantity?: string | null }) =>
+      offlineWrite<ShoppingItem>({ method: 'post', url: '/meals/shopping', body, label: `Add ${body.name} to the list`, refresh: [['shopping']] }),
+    onSuccess: (res, body) => {
+      if (!res.queued) return
+      qc.setQueryData<ShoppingItem[]>(['shopping'], (items = []) => [...items, {
+        id: `pending-${res.write.id}`, name: body.name, quantity: body.quantity ?? null, source: 'manual', recipe_id: null,
+        recipe_title: null, week_start: null, checked: false, checked_at: null, checked_by: null, in_pantry: null,
+      }])
+    },
+    onSettled: (res) => { if (!res?.queued) void qc.invalidateQueries({ queryKey: ['shopping'] }) },
+  })
 }
 
 export function useUpdateShopping() {
-  return useMealsMutation(async ({ id, ...body }: { id: string; checked?: boolean; name?: string; quantity?: string | null }) =>
-    (await apiClient.patch(`/meals/shopping/${id}`, body)).data as ShoppingItem)
+  const qc = useQueryClient()
+  return useMutation({
+    networkMode: 'always',
+    mutationFn: ({ id, ...changes }: { id: string; checked?: boolean; name?: string; quantity?: string | null }) => {
+      const item = qc.getQueryData<ShoppingItem[]>(['shopping'])?.find((i) => i.id === id)
+      const base = item ? { name: item.name, quantity: item.quantity, checked: item.checked } : undefined
+      const label = changes.checked === undefined ? `Change ${item?.name ?? 'an item'}` : `${changes.checked ? 'Tick off' : 'Untick'} ${item?.name ?? 'an item'}`
+      // Snapshot first, then show the change: the snapshot must be what was seen *before* it.
+      qc.setQueryData<ShoppingItem[]>(['shopping'], (items) => items?.map((i) => (i.id === id ? { ...i, ...changes } : i)))
+      return offlineWrite<ShoppingItem>({ method: 'patch', url: `/meals/shopping/${id}`, body: changes, label,
+        refresh: [['shopping']], base, local: changes })
+    },
+    onSettled: (res) => { if (!res?.queued) void qc.invalidateQueries({ queryKey: ['shopping'] }) },
+  })
 }
 
 export function useDeleteShopping() {

@@ -6,6 +6,8 @@ import { DEFAULT_PREFS, usePreferences } from '../api/prefs'
 import Avatar from './Avatar'
 import { cn } from '../lib/utils'
 import BuildInfoBadge from './BuildInfoBadge'
+import OfflineStatus from './OfflineStatus'
+import { useOfflineSync } from '../hooks/useOfflineSync'
 
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: '🏠' },
@@ -39,6 +41,7 @@ export default function NavShell() {
   const { clearUser } = useAuthStore()
   const { data: prefs = DEFAULT_PREFS } = usePreferences()
   const [moreOpen, setMoreOpen] = useState(false)
+  useOfflineSync()
   const isActive = (path: string) => location.pathname === path
   const isAdmin = user?.role === 'admin'
   const top = prefs.nav === 'top'
@@ -50,6 +53,10 @@ export default function NavShell() {
       // ignore logout errors
     }
     clearUser()
+    // The next person on this device shouldn't see this one's cached lists.
+    if (typeof caches !== 'undefined') {
+      for (const name of ['offline-api', 'users-cache', 'events-cache', 'sources-cache']) void caches.delete(name)
+    }
     navigate('/login', { replace: true })
   }
 
@@ -124,6 +131,7 @@ export default function NavShell() {
 
       {/* Main content area */}
       <main className="flex-1 overflow-y-auto">
+        <OfflineStatus />
         {/* Pages are lazy-loaded; keep the nav visible while one loads. */}
         <Suspense fallback={null}>
           <Outlet />

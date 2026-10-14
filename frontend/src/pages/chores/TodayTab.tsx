@@ -60,7 +60,7 @@ export default function TodayTab() {
   const onAction = async (c: ChoreInstance, action: Action) => {
     setError(null)
     try {
-      await act.mutateAsync({ id: c.id, action })
+      await act.mutateAsync({ id: c.id, action, title: c.title })
     } catch (err) {
       setError(errorDetail(err, "That didn't work"))
     }

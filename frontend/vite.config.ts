@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { runtimeCaching } from './src/lib/swCaching'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -30,23 +31,7 @@ export default defineConfig({
         // /^\/api/ pattern never matched. Match on the pathname instead.
         // /api/auth/* is deliberately not cached (a stale "signed in" is worse
         // than an offline error).
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/calendar/events'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'events-cache', networkTimeoutSeconds: 5 },
-          },
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/calendar/sources'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'sources-cache', networkTimeoutSeconds: 5 },
-          },
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/users'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'users-cache', networkTimeoutSeconds: 5 },
-          },
-        ],
+        runtimeCaching,
       },
     }),
   ],

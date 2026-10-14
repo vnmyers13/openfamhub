@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
+import { offlineWrite } from '../lib/offline'
 import type { Repeat } from '../lib/repeat'
 
 export interface Member {
@@ -94,12 +95,23 @@ export function useChoreInstances(scope: 'mine' | 'available' | 'family') {
   return useQuery({ queryKey: ['chore-instances', scope], queryFn: () => get<ChoreInstance[]>('/chores/instances', { scope }) })
 }
 
+const ACTION_LABEL = { claim: 'Claim', unclaim: 'Give back', complete: 'Finish', undo: 'Undo' } as const
+const ACTION_STATUS = { claim: 'claimed', unclaim: 'pending', complete: 'completed', undo: 'pending' } as const
+
+/** Chore taps work offline: queued, shown at once, synced later (lib/offline). */
 export function useChoreAction() {
+  const qc = useQueryClient()
   const invalidate = useInvalidateChores()
   return useMutation({
-    mutationFn: async ({ id, action }: { id: string; action: 'claim' | 'unclaim' | 'complete' | 'undo' }) =>
-      (await apiClient.post(`/chores/instances/${id}/${action}`)).data as ChoreInstance,
-    onSettled: invalidate,
+    networkMode: 'always',
+    mutationFn: ({ id, action, title }: { id: string; action: 'claim' | 'unclaim' | 'complete' | 'undo'; title?: string }) =>
+      offlineWrite<ChoreInstance>({ method: 'post', url: `/chores/instances/${id}/${action}`,
+        label: `${ACTION_LABEL[action]}: ${title ?? 'a chore'}`, refresh: CHORE_KEYS }),
+    onMutate: ({ id, action }) => {
+      qc.setQueriesData<ChoreInstance[]>({ queryKey: ['chore-instances'] },
+        (list) => list?.map((c) => (c.id === id ? { ...c, status: ACTION_STATUS[action] } : c)))
+    },
+    onSettled: (res) => (res?.queued ? undefined : invalidate()),
   })
 }
 
@@ -155,12 +167,28 @@ export function useTodos(includeDone: boolean) {
   return useQuery({ queryKey: ['todos', includeDone], queryFn: () => get<Todo[]>('/todos', { include_done: includeDone }) })
 }
 
+/** Adding and ticking off to-dos work offline: queued, shown at once, synced later (lib/offline). */
 export function useSaveTodo() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...data }: Partial<Todo> & { id?: string }) =>
-      (id ? await apiClient.patch(`/todos/${id}`, data) : await apiClient.post('/todos', data)).data as Todo,
-    onSettled: () => qc.invalidateQueries({ queryKey: ['todos'] }),
+    networkMode: 'always',
+    mutationFn: ({ id, ...data }: Partial<Todo> & { id?: string }) => {
+      if (!id) return offlineWrite<Todo>({ method: 'post', url: '/todos', body: data, label: `Add to-do: ${data.title ?? ''}`, refresh: [['todos']] })
+      const todo = qc.getQueriesData<Todo[]>({ queryKey: ['todos'] }).flatMap(([, list]) => list ?? []).find((t) => t.id === id)
+      const base = todo ? { title: todo.title, notes: todo.notes, assigned_to: todo.assigned_to, due_date: todo.due_date, done: todo.done } : undefined
+      const label = data.done === undefined ? `Change to-do: ${todo?.title ?? ''}` : `${data.done ? 'Tick off' : 'Untick'} to-do: ${todo?.title ?? ''}`
+      // Snapshot first, then show the change: the snapshot must be what was seen *before* it.
+      qc.setQueriesData<Todo[]>({ queryKey: ['todos'] }, (list) => list?.map((t) => (t.id === id ? { ...t, ...data } : t)))
+      return offlineWrite<Todo>({ method: 'patch', url: `/todos/${id}`, body: data, label, refresh: [['todos']], base, local: data })
+    },
+    onSuccess: (res, vars) => {
+      if (!res.queued || vars.id) return
+      qc.setQueriesData<Todo[]>({ queryKey: ['todos'] }, (list) => list && [...list, {
+        id: `pending-${res.write.id}`, title: vars.title ?? '', notes: vars.notes ?? null, assigned_to: vars.assigned_to ?? null,
+        due_date: vars.due_date ?? null, done: false, completed_by: null, created_by: null,
+      }])
+    },
+    onSettled: (res) => { if (!res?.queued) void qc.invalidateQueries({ queryKey: ['todos'] }) },
   })
 }
 
