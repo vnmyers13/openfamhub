@@ -75,11 +75,11 @@ export default function WallDashboardEditor({ config, current, onSelect, onChang
             className="flex items-center gap-2 rounded bg-slate-800 px-3 py-2">
             <span className="cursor-grab text-slate-500" aria-hidden="true">⠿</span>
             <span className="flex-1 text-sm text-white">{wallDashboardWidgetLabel(w.key)}</span>
-            <button className={btn} aria-label={`Move up: ${wallDashboardWidgetLabel(w.key)}`} disabled={i === 0} onClick={() => move(w.key, -1)}>↑</button>
-            <button className={btn} aria-label={`Move down: ${wallDashboardWidgetLabel(w.key)}`} disabled={i === page.widgets.length - 1} onClick={() => move(w.key, 1)}>↓</button>
-            <button className={btn} aria-label={`${w.size === 'wide' ? 'Make normal' : 'Make wide'}: ${wallDashboardWidgetLabel(w.key)}`}
+            <button className={btn} aria-label={`Move wall card up: ${wallDashboardWidgetLabel(w.key)}`} disabled={i === 0} onClick={() => move(w.key, -1)}>↑</button>
+            <button className={btn} aria-label={`Move wall card down: ${wallDashboardWidgetLabel(w.key)}`} disabled={i === page.widgets.length - 1} onClick={() => move(w.key, 1)}>↓</button>
+            <button className={btn} aria-label={`${w.size === 'wide' ? 'Make wall card normal' : 'Make wall card wide'}: ${wallDashboardWidgetLabel(w.key)}`}
               onClick={() => updateWidgets((ws) => ws.map((x) => (x.key === w.key ? { ...x, size: x.size === 'wide' ? 'normal' : 'wide' } : x)))}>{w.size === 'wide' ? 'Wide' : 'Normal'}</button>
-            <button className={btn} aria-label={`Remove: ${wallDashboardWidgetLabel(w.key)}`} onClick={() => updateWidgets((ws) => ws.filter((x) => x.key !== w.key))}>✕</button>
+            <button className={btn} aria-label={`Remove wall card: ${wallDashboardWidgetLabel(w.key)}`} onClick={() => updateWidgets((ws) => ws.filter((x) => x.key !== w.key))}>✕</button>
           </li>
         ))}
       </ol>

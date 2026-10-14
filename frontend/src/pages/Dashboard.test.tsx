@@ -142,11 +142,14 @@ describe('Dashboard', () => {
     signIn('kid', 'member')
     const calls = homeApi({
       'GET /family/wall-dashboard': { pages: [{ name: 'Kitchen', duration_seconds: 30, widgets: [{ key: 'events', size: 'wide' }] }] },
-      'PUT /family/wall-dashboard': (body) => body,
+      'PUT /family/wall-dashboard': (body: unknown) => body,
     })
     renderApp(<Dashboard />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Customize' }))
+    expect(screen.queryByRole('heading', { name: 'Family wall dashboard' })).toBeNull()
+    expect(calls.some((c) => c.url === '/family/wall-dashboard')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit family wall' }))
     expect(await screen.findByRole('heading', { name: 'Family wall dashboard' })).toBeTruthy()
     expect(await screen.findByDisplayValue('Kitchen')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Wall page duration'), { target: { value: '60' } })

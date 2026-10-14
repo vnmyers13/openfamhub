@@ -36,13 +36,13 @@ describe('WallDashboardEditor', () => {
     fireEvent.change(screen.getByLabelText('Wall page duration'), { target: { value: '60' } })
     expect(onChange).toHaveBeenLastCalledWith({ ...saved, pages: [{ ...saved.pages[0], duration_seconds: 60 }, saved.pages[1]] })
 
-    fireEvent.click(screen.getByRole('button', { name: "Make normal: Today's events" }))
+    fireEvent.click(screen.getByRole('button', { name: "Make wall card normal: Today's events" }))
     expect(onChange).toHaveBeenLastCalledWith({ ...saved, pages: [{ ...saved.pages[0], widgets: [{ key: 'events', size: 'normal' }, { key: 'weather', size: 'normal' }] }, saved.pages[1]] })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move down: Today\'s events' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move wall card down: Today\'s events' }))
     expect(onChange).toHaveBeenLastCalledWith({ ...saved, pages: [{ ...saved.pages[0], widgets: [{ key: 'weather', size: 'normal' }, { key: 'events', size: 'wide' }] }, saved.pages[1]] })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove: Weather' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove wall card: Weather' }))
     expect(onChange).toHaveBeenLastCalledWith({ ...saved, pages: [{ ...saved.pages[0], widgets: [{ key: 'events', size: 'wide' }] }, saved.pages[1]] })
   })
 

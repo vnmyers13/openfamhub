@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as wallModule from '../api/wall'
+import type { WallSession } from '../api/wall'
 
 const getWallSessionMock = () => wallModule.getWallSession
 import WallLayout from './WallLayout'
@@ -11,7 +12,7 @@ const { SESSION } = vi.hoisted(() => ({
     device: 'Kitchen', family_name: 'Test', idle_timeout_seconds: 300, timezone: 'America/Detroit',
     sleep: { enabled: false, off: '22:00', on: '06:30' },
     dashboard: { pages: [{ name: 'Kitchen', duration_seconds: 45, widgets: [{ key: 'events', size: 'wide' }] }] },
-  },
+  } satisfies WallSession,
 }))
 
 const wallApi = vi.hoisted(() => ({

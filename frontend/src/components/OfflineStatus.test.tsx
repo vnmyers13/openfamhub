@@ -4,8 +4,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useOfflineSync } from '../hooks/useOfflineSync'
-import { allWrites, putWrite } from '../lib/idb'
-import { offlineWrite, refreshPending, useOffline } from '../lib/offline'
+import { allWrites, clearWrites, putWrite } from '../lib/idb'
+import { offlineWrite, refreshPending, replay, useOffline } from '../lib/offline'
 import { useAuthStore, type User } from '../stores/auth'
 import { apiError, mockApi } from '../test/api'
 import { renderApp } from '../test/render'
@@ -29,7 +29,10 @@ describe('offline banner, sync and conflicts', () => {
     useOffline.setState({ online: true, pending: [], syncing: false, signInNeeded: false })
     useAuthStore.getState().setUser({ id: 'kid', display_name: 'Kid', role: 'member' } as User)
   })
-  afterEach(() => {
+  afterEach(async () => {
+    await replay()  // join any detached useOfflineSync replay before replacing IndexedDB in the next test
+    await clearWrites()
+    await refreshPending()
     useAuthStore.getState().clearUser()
     vi.restoreAllMocks()
   })
