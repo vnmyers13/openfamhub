@@ -13,6 +13,7 @@
 - **Rewards:** two redeems at the same moment (say, from two devices) can no longer spend more points than someone has; the later one is refused.
 
 ### Developers
+- Paired walls can read today's chores (`/api/wall/chores`), the week's meals (`/api/wall/meals`), announcements (`/api/wall/announcements`) and the weather (`/api/wall/weather`) with their display cookie, read-only. The wall panels that use them come next.
 - New dependencies `tesseract.js` 7.0.0 and `@tesseract.js-data/eng` 1.0.0 (run `npm install`). `npm run dev` and `npm run build` copy the OCR engine into `frontend/public/ocr/` first (`scripts/ocr-assets.mjs`; not committed). The web image is about 15 MB larger.
 - Frontend work needs Node 24 (or 22.22+); Node 20 can't run the tests (jsdom 30, Vitest 5). `frontend/.nvmrc` pins 24 and `package.json` declares `engines`. The web image builds on `node:24-alpine`.
 

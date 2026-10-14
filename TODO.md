@@ -276,7 +276,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [x] **Before starting:** triaged 2026-10-13 (report for build 1.30): issues and TODO.md agree; no P0/P1; the 44 open issues are P3 Debian packages.
 - [x] `ScanListModal` with `tesseract.js`: capture, OCR, preview, edit, then add to the shopping list. Done: **Scan a list** on the Shopping list; OCR runs on the device with assets served from `/ocr/` (no CDN); headings and debris skipped, items already on the list unticked (`lib/ocr.ts`, `lib/ocrLines.ts`, `ScanListModal.tsx`).
 - [x] Wall cycling panel mode with a live countdown. Done: `WallCycle.tsx` rotates focused Calendar, Routines and Progress panels with a visible “Next in …” countdown, using `wallCycle.ts`; covered by `WallCycle.test.tsx`, `wallCycle.test.ts`, and `WallLayout.test.tsx`.
-- [ ] Read-only wall endpoints (`/api/wall/chores`, `/meals`, `/announcements`, `/weather`) behind the paired-device cookie. v0.29's panels need a family member's login.
+- [x] Read-only wall endpoints (`/api/wall/chores`, `/meals`, `/announcements`, `/weather`) behind the paired-device cookie. v0.29's panels need a family member's login. Done: `routers/wall_panels.py` (GET only, `get_wall_device`); `test_wall_panels.py` covers unpaired, revoked and member-cookie 401s, read-only 405s, and each panel's data.
 - [ ] The wall timezone is a family setting edited by an admin. v0.29 lets the wall itself write it via an admin-only call.
 - [ ] `DateTimeWallPanel` with a timezone picker; reuse `frontend/src/lib/dates.ts` and the wall token flow.
 - Photo slideshow and sleep schedule moved to Phase 3b.

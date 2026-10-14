@@ -83,7 +83,7 @@ Events from subscribed calendars are read-only for everyone, because the next sy
 
 **Tenancy.** An install holds exactly one family: setup refuses a second, and the `families_single_row` trigger (migration 006) rejects a second row even if two setup requests race. The public sign-in queries (avatar list, password and PIN login) run before anyone is signed in, so they scope to that install family. Event reads filter on the event's own `family_id` as well as its source's, so a malformed row can't cross families. Sources are created only as `ical`; each family's single `internal` source is created by the server on demand.
 
-A wall display can only read `/api/wall/events` and `/api/wall/members`, and open the `/api/wall/ws` live-update socket. It can't call any user endpoint.
+A wall display can only read its `/api/wall/*` data, and open the `/api/wall/ws` live-update socket. It can't call any user endpoint. The data: `events`, `members`, `media`, `routines`, `progress` and `birthdays` (`routers/wall.py`), and the Phase 10 panels in `routers/wall_panels.py`: `chores` (today's, without routine steps), `meals` (this week's plan, or `?start=`), `announcements` (10, pinned first) and `weather`. The panels reuse the member endpoints' queries, scoped to the display's family, and answer only GET.
 
 ## Calendar sync
 
