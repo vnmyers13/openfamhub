@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useWallRoutines } from '../api/wall'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { completeWallRoutineStep, useWallRoutines } from '../api/wall'
+import { errorDetail } from '../api/client'
 import type { RoutineRun } from '../api/chores'
 import { routineTimeline } from '../lib/routine'
 
@@ -20,6 +22,17 @@ function useTick(ms: number): Date {
 }
 
 function RoutineCard({ run, now, timeZone }: { run: RoutineRun; now: Date; timeZone: string }) {
+  const queryClient = useQueryClient()
+  const [error, setError] = useState('')
+  const complete = useMutation({
+    mutationFn: completeWallRoutineStep,
+    onSuccess: () => {
+      setError('')
+      queryClient.invalidateQueries({ queryKey: ['wall-routines'] })
+      queryClient.invalidateQueries({ queryKey: ['wall-progress'] })
+    },
+    onError: (err) => setError(errorDetail(err, 'Could not complete this step.')),
+  })
   const t = routineTimeline(now, run.start_time, run.steps, timeZone)
   const done = run.steps.filter((s) => s.status === 'completed').length
   if (!t || t.phase === 'after' || done === run.steps.length) return null
@@ -37,6 +50,20 @@ function RoutineCard({ run, now, timeZone }: { run: RoutineRun; now: Date; timeZ
         <>
           <p className="text-2xl font-bold text-white">{step.title}</p>
           <p className="font-mono text-4xl text-amber-300" aria-label="time left">{clock(t.secondsLeft)}</p>
+          {step.status !== 'completed' && (
+            <button
+              type="button"
+              className="mt-3 rounded-lg bg-emerald-500 px-4 py-2 font-semibold text-slate-950 disabled:cursor-wait disabled:bg-slate-500"
+              disabled={complete.isPending}
+              onClick={() => {
+                setError('')
+                complete.mutate(step.instance_id)
+              }}
+            >
+              {complete.isPending ? 'Saving…' : `Done with ${step.title}`}
+            </button>
+          )}
+          {error && <p className="mt-2 text-sm text-red-300" role="alert">{error}</p>}
           <div className="mt-2 h-2 overflow-hidden rounded bg-slate-700" aria-label={`${done} of ${run.steps.length} done`}>
             <div className="h-full bg-emerald-400" style={{ width: `${(done / run.steps.length) * 100}%` }} />
           </div>

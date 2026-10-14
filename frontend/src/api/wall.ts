@@ -52,6 +52,10 @@ export async function getWallSession() {
   return res.data as WallSession
 }
 
+export async function completeWallRoutineStep(instanceId: string): Promise<void> {
+  await apiClient.post(`/wall/routines/steps/${instanceId}/complete`)
+}
+
 export interface WallMediaItem {
   id: string
   kind: 'photo' | 'video'
