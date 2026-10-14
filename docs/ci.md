@@ -24,7 +24,7 @@ or GitHub don't run CI.
 boots the app to check migrations and scheduled jobs) and fails below the coverage
 floor in `backend/.coveragerc`. `frontend` runs `npm run lint`, `npm run test:coverage`
 (Vitest; fails below the thresholds in `vitest.config.ts`), the build-info tests and
-`npm run build`. `version` checks the
+`npm run build`. The runner's `node:22` image satisfies `engines` in `frontend/package.json` (`^22.22.2 || >=24.15.0`, set by jsdom and Vitest); locally use Node 24 (`frontend/.nvmrc`). `version` checks the
 `VERSION` sequence and runs the script test harnesses in `scripts/tests/`. One of them, `exec-bits-test.sh`, fails if a script under `scripts/` or `.githooks/` is committed without its executable bit (that broke `publish` for build 1).
 
 `publish` builds `linux/amd64` and `linux/arm64` images for `openfamhub-api` and

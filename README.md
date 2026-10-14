@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.31-blue)
+![Version](https://img.shields.io/badge/version-1.32-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -107,6 +107,8 @@ In **Admin › Calendars › Add ICS Feed**, paste a calendar's ICS (or `webcal:
 | Web | React 19, Vite, TypeScript, Tailwind CSS, TanStack Query, Zustand, served by nginx |
 | Edge | Caddy 2: internal TLS on the LAN, or plain HTTP behind another proxy |
 | Packaging | Docker Compose; images published to the Forgejo container registry |
+
+Frontend development needs **Node 24** (or 22.22+): jsdom and Vitest refuse Node 20, so `npm test` fails on it. `frontend/.nvmrc` pins 24 (`nvm use` in `frontend/`); `package.json` `engines` states the range.
 
 PWA PNG icons (180/192/512, maskable) are generated from the source SVGs in `frontend/public/icons/` with `npm run icons` (from `frontend/`).
 

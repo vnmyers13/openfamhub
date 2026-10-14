@@ -3,6 +3,9 @@
 ### Added
 - **Change your own name, color and avatar** under **My settings › Me**, without an admin. The new look shows straight away across the app; a name someone else in the family already has is refused.
 
+### Developers
+- Frontend work needs Node 24 (or 22.22+); Node 20 can't run the tests (jsdom 30, Vitest 5). `frontend/.nvmrc` pins 24 and `package.json` declares `engines`. The web image builds on `node:24-alpine`.
+
 ---
 
 ## [1.28] - 2026-10-14 — Phases 6–9
