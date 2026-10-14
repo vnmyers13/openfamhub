@@ -225,8 +225,10 @@ Rolling back across a schema change isn't supported: restore the backup taken be
 
 ### Version notes
 
-Release notes for each release are in [docs/releases/](releases/) (latest: [Release 1.28](releases/v1.28.md)). Per-build notes:
+Release notes for each release are in [docs/releases/](releases/) (latest: [Release 1.41](releases/v1.41.md)). Per-build notes:
 
+- **1.36–1.41 (Phase 10).** No migrations or configuration changes. The web image is about 15 MB larger (the OCR engine and English data, served from `/ocr/`); nothing is fetched from a CDN. Reload wall displays once for the cycling panels and extra clocks. New optional setting: Admin › Settings › Other clocks on the wall. Developers: `npm install` (adds `tesseract.js`); frontend work needs Node 24 (or 22.22+).
+- **1.29–1.35 (profile, calendar feeds, fixes).** No migrations or configuration changes. Members edit their own name, color and avatar in My settings; admins edit calendar feeds (a changed link is checked and re-synced). The web image builds on `node:24-alpine`.
 - **1.26–1.28 (Phase 9, offline).** No migrations or configuration changes. The service worker now caches sign-in, chores, to-dos, the shopping list and Home so the app opens offline; phones may need the app opened twice to pick it up. Developers: `npm install` (adds `fake-indexeddb`).
 - **1.20–1.25 (Phase 8 and recipe scaling).** Migration 011 (books, announcements, `users.birthday`) runs at startup. Weather calls Open-Meteo (`api.open-meteo.com`, `geocoding-api.open-meteo.com`, no key): allow them if egress is restricted, then pick the town under **Admin › Settings**. Reload wall displays once for birthdays.
 - **1.17–1.19 (Phase 7, meals).** Migration 010 (recipes, meal plan, shopping, pantry) runs at startup. Recipe and event import fetch the link given, through the SSRF-safe fetcher. A new hourly job resets the shopping list each Monday.

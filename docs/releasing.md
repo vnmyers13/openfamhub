@@ -68,6 +68,10 @@ CI runs: tests → `publish` (images + `v<release>` tag) → `deploy` to `test` 
 (scan, open and close Trivy issues) and `issues` (close issues TODO.md marks done,
 refresh the Triage report issue). The last two never fail the pipeline; read their logs.
 
+CI builds the newest commit of each push, so to give every commit its own build and
+tag, push after each commit. The push mirrors then copy the tag to the mirrors and
+GitHub ([Mirrors](#mirrors)).
+
 ## Releasing a phase
 
 1. **Ticked and green.** Every item in the phase is ticked in TODO.md and CI is green.
@@ -83,19 +87,11 @@ refresh the Triage report issue). The last two never fail the pipeline; read the
      and list the issues it closed (`#N`).
    - `docs/releases/v<release>.md`: what's in it, upgrade notes, issues closed, checks. Use [v1.01.md](releases/v1.01.md) as the template.
    - `docs/deployment.md` **Version notes**: one line for the builds in the release, if upgrading needs anything.
-5. **Push** to the primary first, then the mirrors and GitHub (zsh: no `#` comments when pasting):
-   ```bash
-   git push forgejo master
-   for r in forgejo-mirror1 forgejo-mirror2 origin; do git push $r master; done
-   ```
-   CI tags the build in `publish`, which can take 15 minutes or more per build, and
-   builds queue on the one runner. Wait until **Actions** shows that build's `publish`
-   green, then push the tag on its own (a missing tag in the same `git push` as
-   `master` aborts the whole push):
-   ```bash
-   git fetch forgejo --tags
-   for r in forgejo-mirror1 forgejo-mirror2 origin; do git push $r v<release>; done
-   ```
+5. **Push** to the primary: `git push forgejo master`. CI tags the build in `publish`
+   (15 minutes or more; builds queue on the one runner), and Forgejo's push mirrors
+   copy `master` and the new `v<release>` tag to `forgejo-mirror1`, `forgejo-mirror2`
+   and GitHub (see [Mirrors](#mirrors)). Wait until **Actions** shows that build's
+   `publish` green and the tag is on the mirrors before the next step.
 6. **Forgejo release** from the notes:
    ```bash
    jq -n --rawfile body docs/releases/v<release>.md '{tag_name:"v<release>",name:"v<release> — Phase N",body:$body}' |
@@ -104,3 +100,31 @@ refresh the Triage report issue). The last two never fail the pipeline; read the
    ```
    Creating a release needs a token with **repository: write**; use a separate token
    if `ISSUES_TOKEN` only has issue scope.
+
+
+## Mirrors
+
+`forgejo-mirror1`, `forgejo-mirror2` and GitHub (`origin`) are **push mirrors** of the
+primary Forgejo: every branch and tag, including the `v<release>` tags CI creates,
+is copied to them on each push and every 8 hours. Push only to the primary
+(`git push forgejo master`); a push mirror overwrites the mirror's refs, so
+nothing should be committed to a mirror directly.
+
+Set up once per mirror on the primary, under **OpenFamHub › Settings › Repository ›
+Mirror settings › Push to a remote repository**:
+
+| Mirror | Remote URL | Credentials |
+|---|---|---|
+| forgejo-mirror1 | `http://192.168.10.101:3002/vernon/OpenFamHub.git` | user `vernon`, a token from that Forgejo with **repository: read and write** |
+| forgejo-mirror2 | `http://192.168.10.102:3002/vernon/OpenFamHub.git` | user `vernon`, a token from that Forgejo with **repository: read and write** |
+| GitHub | `https://github.com/vnmyers13/openfamhub.git` | user `vnmyers13`, a fine-grained token for that repository with **Contents: read and write** |
+
+Tick **Sync when commits are pushed** and keep the 8h interval. **Synchronize now**
+checks one; its last sync time and any error show in the same list. Keep the
+tokens in 1Password next to the issues token.
+
+Before the push mirrors existed (up to 1.41) mirrors were pushed by hand:
+`for r in forgejo-mirror1 forgejo-mirror2 origin; do git push $r master; done`, then
+the tag once `publish` was green (`git fetch forgejo --tags` and push `v<release>`).
+That still works if a mirror's sync is broken.
+

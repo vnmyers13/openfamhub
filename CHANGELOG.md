@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+---
+
+## [1.41] - 2026-10-14 — Phase 10
+
+Reading photos (shopping lists and recipes), the wall's cycling panels and extra clocks, plus everything from builds 1.29 to 1.41: editing calendar feeds, editing your own profile, the meal plan offline, and security and offline fixes. Release notes and upgrade steps: [docs/releases/v1.41.md](docs/releases/v1.41.md).
+
 ### Added
 - **Other clocks on the wall:** in Admin › Settings, add up to three more clocks (say, "Grandma" in London). The wall shows them under its clock, with the day when it's already tomorrow (or still yesterday) there.
 - **The wall cycles its right side** between the week's calendar, routines, and family progress with birthdays, 20 seconds each, with a countdown to the next. Routines is skipped when none is on.

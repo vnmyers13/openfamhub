@@ -25,7 +25,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Phase 7 | Meals: recipes with import, catalog and cook mode; weekly plan; shopping list from the plan; pantry; event import (code complete at 1.19) | 1.28 |
 | Phase 8 | Books, announcements, weather, birthdays, dashboard summary and customization, top/side menu (code complete at 1.24) | 1.28 |
 | Phase 9 | Offline sync: queued writes for chores, to-dos and shopping, idempotent replay, conflict choices, offline banner (code complete at 1.28) | 1.28 |
-| Phase 10 | OCR, wall panels | |
+| Phase 10 | OCR (scan a list, recipe from a photo), wall cycling panels, read-only wall data, extra clocks (code complete at 1.41) | 1.41 |
 | Phase 11 | Notifications and reminders | |
 | Phase 12 | Home Assistant, AI, notes | |
 | Phase 13 | Two-way calendar sync | |
@@ -33,6 +33,8 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 **Release 1.01 (2026-10-13)** collects Review fixes, Phases 3 + 3b and Phase 5 with the CI and release-process work; notes in [docs/releases/v1.01.md](docs/releases/v1.01.md). It was never checked on `test` on its own; `test` ran 1.28 when it was confirmed (2026-10-14).
 
 **Release 1.28 (2026-10-14)** collects Phases 6–9, recipe scaling and the 1.08 security fixes; notes in [docs/releases/v1.28.md](docs/releases/v1.28.md). Follow-ups left open in those phases (wall routine check-off, reward notifications, members editing their own profile, more offline writes) are listed under each phase.
+
+**Release 1.41 (2026-10-14)** collects Phase 10 with the fixes and features from builds 1.29–1.41; notes in [docs/releases/v1.41.md](docs/releases/v1.41.md). Not in it: checking off routine steps from the wall (branch `wall-routine-step-completion`, still to merge) and the wall panels for chores, meals, announcements and weather (Phase 8 follow-up).
 
 The `pre-commit` hook bumps `VERSION` on every commit (see `docs/ci.md`); CI publishes each `master` build and deploys it to `test`. The release steps, including the issue checks, are in [docs/releasing.md](docs/releasing.md).
 
