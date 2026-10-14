@@ -29,3 +29,19 @@ export function routineTimeline(
   }
   return { phase: 'after', index: steps.length - 1, secondsLeft: 0 }
 }
+
+/** How early a routine appears on the wall before it starts. */
+export const ROUTINE_HEADS_UP_SECONDS = 30 * 60
+
+/**
+ * Whether the wall shows this routine now: from half an hour before its
+ * start until its last step ends, unless every step is already done.
+ * (WallRoutines applies the same rule per card.)
+ */
+export function routineShowsOnWall(
+  run: { start_time: string | null | undefined; steps: { minutes: number; status: string }[] }, now: Date, timeZone: string,
+): boolean {
+  const t = routineTimeline(now, run.start_time, run.steps, timeZone)
+  if (!t || t.phase === 'after' || run.steps.every((s) => s.status === 'completed')) return false
+  return t.phase === 'during' || t.secondsLeft <= ROUTINE_HEADS_UP_SECONDS
+}

@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+- **The wall cycles its right side** between the week's calendar, routines, and family progress with birthdays, 20 seconds each, with a countdown to the next. Routines is skipped when none is on.
 - **Scan a list** on the Shopping list: take a photo of a paper list and its items appear, with quantities, ready to check and add. Headings and smudges are skipped, and things already on the list start unticked. The photo is read on your phone and never uploaded; the reader is served by OpenFamHub itself, so it works without internet and, after the first scan, offline.
 - **Recipe from a photo:** in Recipes › Import, "Or read a photo of it" turns a photo of a recipe card or cookbook page into text to check, then reads it like pasted text.
 - **The meal plan works offline:** plan or clear a meal without a connection and it syncs when you're back; if someone else changed that meal meanwhile, you choose whose to keep. The week and your recipes open offline too.

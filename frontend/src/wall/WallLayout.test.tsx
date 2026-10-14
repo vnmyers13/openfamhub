@@ -36,7 +36,7 @@ vi.mock('./WallBirthdays', () => ({ default: () => null }))
 vi.mock('./WallClock', () => ({ default: () => <div>clock</div> }))
 vi.mock('./WallSlideshow', () => ({ default: () => <div>slideshow</div> }))
 vi.mock('./WallRoutines', () => ({ default: () => null }))
-vi.mock('./WallCycle.tsx', () => ({ default: () => <div>cycling wall panels</div> }))
+vi.mock('./WallCycle', () => ({ default: () => <div>cycling wall panels</div> }))
 vi.mock('./useWallWebSocket', () => ({ useWallWebSocket: () => {} }))
 
 describe('WallLayout revocation (#10)', () => {

@@ -7,7 +7,7 @@ import WallProgress from './WallProgress'
 import WallBirthdays from './WallBirthdays'
 import WallSlideshow from './WallSlideshow'
 import WallRoutines from './WallRoutines'
-import WallCycle from './WallCycle.tsx'
+import WallCycle from './WallCycle'
 import { useWallWebSocket } from './useWallWebSocket'
 
 const DEFAULT_IDLE_MS = 300_000

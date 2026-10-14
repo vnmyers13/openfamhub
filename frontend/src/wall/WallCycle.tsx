@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useWallRoutines } from '../api/wall'
+import { routineShowsOnWall } from '../lib/routine'
 import WallBirthdays from './WallBirthdays'
 import WallProgress from './WallProgress'
 import WallRoutines from './WallRoutines'
@@ -30,9 +32,21 @@ function PanelBody({ id, timeZone }: { id: string; timeZone: string }) {
   return <WallSevenDayStrip />
 }
 
+/**
+ * The wall's right side (Phase 10): Calendar, Routines and Progress in turn,
+ * with a "Next in …" countdown. Routines is skipped while no routine is on
+ * the wall, so it never shows an empty panel.
+ */
 export default function WallCycle({ startedAt, timeZone }: { startedAt: number; timeZone: string }) {
   const now = useNow()
-  const state = cycleState(WALL_CYCLE_PANELS, now.getTime(), startedAt)
+  const { data: runs = [] } = useWallRoutines()
+  const routineOn = runs.some((r) => routineShowsOnWall(r, now, timeZone))
+  const panels = useMemo(() => WALL_CYCLE_PANELS.filter((p) => p.id !== 'routines' || routineOn), [routineOn])
+  const state = cycleState(panels, now.getTime(), startedAt)
+  const id = state.panel?.id
+  // The countdown ticks every second; the panel itself is drawn again only
+  // when it changes (a calendar redraw each second is heavy on a Pi).
+  const body = useMemo(() => (id ? <PanelBody id={id} timeZone={timeZone} /> : null), [id, timeZone])
   if (!state.panel) return null
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -42,9 +56,7 @@ export default function WallCycle({ startedAt, timeZone }: { startedAt: number; 
           Next in {state.secondsLeft}s
         </span>
       </div>
-      <div className="h-full pt-16">
-        <PanelBody id={state.panel.id} timeZone={timeZone} />
-      </div>
+      <div className="h-full pt-16">{body}</div>
     </div>
   )
 }

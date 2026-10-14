@@ -110,6 +110,8 @@ A wall display can only read `/api/wall/events` and `/api/wall/members`, and ope
 
 `GET /api/family` (members) and `PATCH /api/family` (admins with an unlocked session) hold the family name, the IANA timezone and the wall sleep schedule (`enabled`, `off`, `on` as HH:MM; `off` later than `on` means overnight), stored in `families.settings_json`. The wall session returns the timezone and schedule; the wall evaluates the schedule itself with `Intl` in the family timezone (`lib/sleep.ts`), so it follows DST regardless of the display's own zone. While asleep the screen is black; a touch lights it for one idle period. Changing settings pushes `settings_updated`, and the wall refetches its session.
 
+While the board is active, its left column shows the clock, family progress, birthdays and routines, and the right side cycles (`wall/WallCycle.tsx`, timing in `wall/wallCycle.ts`): Calendar (the seven-day strip), Routines, then Progress with birthdays, 20 s each, with a "Next in …" countdown. Routines is skipped while no routine is on the wall (`lib/routine.routineShowsOnWall`). The countdown re-renders every second; the panel itself only when it changes.
+
 On the idle screen `WallSlideshow` shows the family's ready media full screen, in an order from `lib/shuffle.ts` that uses every item before repeating; photos stay up 12 s, videos play muted to the end.
 
 ## Chores, routines, to-dos and points

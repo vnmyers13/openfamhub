@@ -16,3 +16,17 @@ describe('cycleState', () => {
     expect(cycleState([], 10_000, 0)).toEqual({ panel: null, index: -1, secondsLeft: 0, elapsedInPanel: 0 })
   })
 })
+
+describe('routineShowsOnWall', () => {
+  it('is true from half an hour before a routine until it ends or is done', async () => {
+    const { routineShowsOnWall } = await import('../lib/routine')
+    const run = { start_time: '06:00', steps: [{ minutes: 15, status: 'pending' }, { minutes: 15, status: 'pending' }] }
+    const tz = 'America/Detroit'  // 06:00 there is 10:00Z in October
+    expect(routineShowsOnWall(run, new Date('2026-10-20T09:20:00Z'), tz)).toBe(false)
+    expect(routineShowsOnWall(run, new Date('2026-10-20T09:31:00Z'), tz)).toBe(true)
+    expect(routineShowsOnWall(run, new Date('2026-10-20T10:20:00Z'), tz)).toBe(true)
+    expect(routineShowsOnWall(run, new Date('2026-10-20T10:31:00Z'), tz)).toBe(false)
+    const done = { ...run, steps: run.steps.map((s) => ({ ...s, status: 'completed' })) }
+    expect(routineShowsOnWall(done, new Date('2026-10-20T10:20:00Z'), tz)).toBe(false)
+  })
+})
