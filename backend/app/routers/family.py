@@ -1,5 +1,5 @@
 """Family settings: name, timezone (used for feeds' floating times and the
-wall's sleep schedule) and the wall sleep schedule."""
+wall's sleep schedule), the wall sleep schedule and extra wall clocks."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,7 +8,7 @@ from app.core.events import queue_event
 from app.core.security import get_current_user, require_role
 from app.models.family import Family
 from app.models.user import User
-from app.schemas.family import FamilySettings, FamilySettingsUpdate, SleepSchedule
+from app.schemas.family import FamilySettings, FamilySettingsUpdate, SleepSchedule, WorldClock
 
 router = APIRouter()
 
@@ -21,8 +21,20 @@ def sleep_schedule(family: Family) -> SleepSchedule:
         return SleepSchedule()
 
 
+def world_clocks(family: Family) -> list[WorldClock]:
+    """Extra wall clocks (Phase 10). A stored one that no longer validates is skipped."""
+    out = []
+    for stored in (family.settings_json or {}).get("clocks") or []:
+        try:
+            out.append(WorldClock(**stored))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def to_settings(family: Family) -> FamilySettings:
-    return FamilySettings(name=family.name, timezone=family.timezone, sleep=sleep_schedule(family))
+    return FamilySettings(name=family.name, timezone=family.timezone, sleep=sleep_schedule(family),
+                          clocks=world_clocks(family))
 
 
 async def _family(db: AsyncSession, user: User) -> Family:
@@ -51,6 +63,8 @@ async def update_settings(
     if data.sleep is not None:
         # Reassign the dict so SQLAlchemy sees the JSON column change.
         family.settings_json = {**(family.settings_json or {}), "sleep": data.sleep.model_dump()}
+    if data.clocks is not None:
+        family.settings_json = {**(family.settings_json or {}), "clocks": [c.model_dump() for c in data.clocks]}
     await db.flush()
     await db.refresh(family)
     queue_event(db, "settings_updated", {})  # walls re-read their session

@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { errorDetail } from '../../api/client'
-import { useFamilySettings, useUpdateFamilySettings, type FamilySettings as Settings } from '../../api/family'
+import { MAX_CLOCKS, useFamilySettings, useUpdateFamilySettings, type FamilySettings as Settings } from '../../api/family'
 import { allZones, zoneLabel } from '../../lib/timezones'
 import WeatherSettings from './WeatherSettings'
 
-/** Admin › Settings: family name, timezone, the wall sleep schedule and the weather location. */
+/** Admin › Settings: family name, timezone, the wall sleep schedule, extra wall clocks and the weather location. */
 export default function FamilySettings() {
   const { data } = useFamilySettings()
   return (
@@ -24,6 +24,11 @@ function SettingsForm({ initial }: { initial: Settings }) {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [zones] = useState(() => allZones(initial.timezone))
   const setSleep = (patch: Partial<Settings['sleep']>) => setValues((v) => ({ ...v, sleep: { ...v.sleep, ...patch } }))
+  const clocks = values.clocks ?? []
+  const setClock = (i: number, patch: Partial<{ label: string; timezone: string }>) =>
+    setValues((v) => ({ ...v, clocks: (v.clocks ?? []).map((c, j) => (j === i ? { ...c, ...patch } : c)) }))
+  const addClock = () => setValues((v) => ({ ...v, clocks: [...(v.clocks ?? []), { label: '', timezone: 'Europe/London' }] }))
+  const removeClock = (i: number) => setValues((v) => ({ ...v, clocks: (v.clocks ?? []).filter((_, j) => j !== i) }))
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,6 +83,26 @@ function SettingsForm({ initial }: { initial: Settings }) {
           </div>
         </div>
         <p className="text-xs text-gray-500">A touch lights the screen for a few minutes while it's asleep.</p>
+      </fieldset>
+      <fieldset className="space-y-3">
+        <legend className="mb-1 text-sm font-medium text-gray-300">Other clocks on the wall</legend>
+        <p className="text-xs text-gray-500">Show the time somewhere else under the wall clock, like where Grandma lives. Up to {MAX_CLOCKS}.</p>
+        {clocks.map((c, i) => (
+          <div key={i} className="flex gap-2">
+            <input className={input} value={c.label} maxLength={40} required placeholder="Grandma" aria-label={`Clock ${i + 1} name`}
+              onChange={(e) => setClock(i, { label: e.target.value })} />
+            <select className={input} value={c.timezone} aria-label={`Clock ${i + 1} timezone`}
+              onChange={(e) => setClock(i, { timezone: e.target.value })}>
+              {(zones.includes(c.timezone) ? zones : [c.timezone, ...zones]).map((z) => <option key={z} value={z}>{zoneLabel(z)}</option>)}
+            </select>
+            <button type="button" className="px-2 text-gray-400 hover:text-red-300" aria-label={`Remove clock ${i + 1}`}
+              onClick={() => removeClock(i)}>✕</button>
+          </div>
+        ))}
+        <button type="button" onClick={addClock} disabled={clocks.length >= MAX_CLOCKS}
+          className="rounded border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-gray-500 disabled:opacity-50">
+          Add a clock
+        </button>
       </fieldset>
       <div className="flex justify-end">
         <button type="submit" disabled={save.isPending}

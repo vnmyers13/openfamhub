@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+- **Other clocks on the wall:** in Admin › Settings, add up to three more clocks (say, "Grandma" in London). The wall shows them under its clock, with the day when it's already tomorrow (or still yesterday) there.
 - **The wall cycles its right side** between the week's calendar, routines, and family progress with birthdays, 20 seconds each, with a countdown to the next. Routines is skipped when none is on.
 - **Scan a list** on the Shopping list: take a photo of a paper list and its items appear, with quantities, ready to check and add. Headings and smudges are skipped, and things already on the list start unticked. The photo is read on your phone and never uploaded; the reader is served by OpenFamHub itself, so it works without internet and, after the first scan, offline.
 - **Recipe from a photo:** in Recipes › Import, "Or read a photo of it" turns a photo of a recipe card or cookbook page into text to check, then reads it like pasted text.

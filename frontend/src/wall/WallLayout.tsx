@@ -149,7 +149,7 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
     >
       {/* Left panel */}
       <div className="flex flex-col gap-8 border-r border-slate-700 p-8">
-        <WallClock timeZone={session.timezone} />
+        <WallClock timeZone={session.timezone} clocks={session.clocks} />
         <div>
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
             Family

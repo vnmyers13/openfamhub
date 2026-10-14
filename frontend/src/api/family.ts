@@ -2,10 +2,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
 import type { SleepSchedule } from '../lib/sleep'
 
+/** An extra clock on the wall (Phase 10), e.g. a grandparent abroad. Up to 3. */
+export interface WorldClock {
+  label: string
+  timezone: string
+}
+
+export const MAX_CLOCKS = 3
+
 export interface FamilySettings {
   name: string
   timezone: string
   sleep: SleepSchedule
+  clocks?: WorldClock[]
 }
 
 export function useFamilySettings() {

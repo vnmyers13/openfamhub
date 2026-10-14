@@ -21,4 +21,14 @@ describe('WallClock', () => {
     render(<WallClock timeZone="Not/AZone" />)
     expect(screen.getByTestId('wall-time').textContent).toMatch(/^\d{2}:\d{2}$/)
   })
+
+  it('shows extra clocks under the main one, with the day when it differs', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    vi.setSystemTime(new Date('2026-10-21T03:30:00Z'))  // Tue 23:30 in Detroit
+    render(<WallClock timeZone="America/Detroit" clocks={[
+      { label: 'Grandma', timezone: 'Europe/London' }, { label: 'Denver', timezone: 'America/Denver' },
+    ]} />)
+    const rows = screen.getAllByTestId('wall-extra-clock').map((r) => r.textContent)
+    expect(rows).toEqual(['Grandma04:30 Wed', 'Denver21:30'])
+  })
 })

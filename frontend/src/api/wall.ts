@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
+import type { WorldClock } from './family'
 import { apiClient } from './client'
 import type { CalendarEvent } from './calendar'
 import type { SleepSchedule } from '../lib/sleep'
@@ -45,6 +46,7 @@ export interface WallSession {
   idle_timeout_seconds: number
   timezone: string
   sleep: SleepSchedule
+  clocks?: WorldClock[]
 }
 
 export async function getWallSession() {

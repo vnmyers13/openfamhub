@@ -48,4 +48,23 @@ describe('FamilySettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/off and on times must differ|Could not save/)).toBeTruthy()
   })
+
+  it('adds, names and removes extra wall clocks, up to three', async () => {
+    const calls = mockApi({ 'GET /family': { ...SETTINGS, clocks: [{ label: 'Grandma', timezone: 'Europe/London' }] },
+      'PATCH /family': (body: unknown) => ({ ...SETTINGS, ...(body as object) }) })
+    renderApp(<FamilySettings />)
+    await waitFor(() => expect(field('Clock 1 name').value).toBe('Grandma'))
+    expect((screen.getByLabelText('Clock 1 timezone') as HTMLSelectElement).value).toBe('Europe/London')
+    fireEvent.click(screen.getByRole('button', { name: 'Add a clock' }))
+    fireEvent.change(field('Clock 2 name'), { target: { value: 'Tokyo office' } })
+    fireEvent.change(screen.getByLabelText('Clock 2 timezone'), { target: { value: 'Asia/Tokyo' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add a clock' }))
+    expect((screen.getByRole('button', { name: 'Add a clock' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove clock 3' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Saved')).toBeTruthy()
+    expect((calls.find((c) => c.method === 'PATCH')?.body as { clocks: unknown }).clocks).toEqual([
+      { label: 'Grandma', timezone: 'Europe/London' }, { label: 'Tokyo office', timezone: 'Asia/Tokyo' },
+    ])
+  })
 })

@@ -1,8 +1,8 @@
 import re
-from typing import Optional
+from typing import List, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 _HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
@@ -29,16 +29,49 @@ class SleepSchedule(BaseModel):
         return self
 
 
+def _known_zone(v: str) -> str:
+    try:
+        ZoneInfo(v)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError("unknown timezone; use an IANA name such as America/Detroit")
+    return v
+
+
+MAX_CLOCKS = 3
+
+
+class WorldClock(BaseModel):
+    """An extra clock on the wall (Phase 10): a label and an IANA timezone."""
+
+    label: str
+    timezone: str
+
+    @field_validator("label")
+    @classmethod
+    def label_length(cls, v: str) -> str:
+        v = v.strip()
+        if not 1 <= len(v) <= 40:
+            raise ValueError("a clock's label must be 1-40 characters")
+        return v
+
+    @field_validator("timezone")
+    @classmethod
+    def clock_zone(cls, v: str) -> str:
+        return _known_zone(v)
+
+
 class FamilySettings(BaseModel):
     name: str
     timezone: str
     sleep: SleepSchedule
+    clocks: List[WorldClock] = []
 
 
 class FamilySettingsUpdate(BaseModel):
     name: Optional[str] = None
     timezone: Optional[str] = None
     sleep: Optional[SleepSchedule] = None
+    clocks: Optional[List[WorldClock]] = Field(None, max_length=MAX_CLOCKS)
 
     @field_validator("name")
     @classmethod
