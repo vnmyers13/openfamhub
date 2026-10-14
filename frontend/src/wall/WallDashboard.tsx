@@ -1,4 +1,3 @@
-import { addDays, format, startOfDay } from 'date-fns'
 import type { ReactNode } from 'react'
 import {
   useWallAnnouncements,
@@ -14,21 +13,20 @@ import { eventDayKeys, eventStart } from '../lib/dates'
 import WallBirthdays from './WallBirthdays'
 import WallProgress from './WallProgress'
 import WallRoutines from './WallRoutines'
+import { familyDayRange } from './wallDashboardDates'
 
 const card = 'rounded-2xl bg-slate-800/80 p-5 shadow-lg ring-1 ring-white/5'
 const title = 'mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400'
 
-function TodayEvents() {
-  const start = startOfDay(new Date())
-  const end = addDays(start, 1)
-  const todayKey = format(start, 'yyyy-MM-dd')
+function TodayEvents({ timeZone }: { timeZone: string }) {
+  const { start, end, dateKey: todayKey } = familyDayRange(new Date(), timeZone)
   const { data: events = [] } = useWallEvents(start, end)
   const todays = events.filter((ev) => !ev.all_day || eventDayKeys(ev).includes(todayKey)).slice(0, 6)
   return <WallCard title="Today's events">{todays.length === 0 ? <Empty text="No events today." /> : <ul className="space-y-2">{todays.map((ev) => (
     <li key={ev.id} className="flex items-center gap-3 rounded bg-slate-700/60 px-3 py-2">
       <span className="h-3 w-3 rounded-full" style={{ backgroundColor: ev.source_color_hex }} />
       <span className="flex-1 truncate text-lg text-white">{ev.title}</span>
-      <span className="text-sm text-slate-400">{ev.all_day ? 'All day' : format(eventStart(ev), 'HH:mm')}</span>
+      <span className="text-sm text-slate-400">{ev.all_day ? 'All day' : eventStart(ev).toLocaleTimeString([], { timeZone, hour: '2-digit', minute: '2-digit', hour12: false })}</span>
     </li>
   ))}</ul>}</WallCard>
 }
@@ -86,7 +84,7 @@ function Empty({ text }: { text: string }) {
 }
 
 function Widget({ widget, timeZone }: { widget: WallDashboardWidgetKey; timeZone: string }) {
-  if (widget === 'events') return <TodayEvents />
+  if (widget === 'events') return <TodayEvents timeZone={timeZone} />
   if (widget === 'chores') return <ChoresCard />
   if (widget === 'routines') return <WallCard title={wallDashboardWidgetLabel(widget)}><WallRoutines timeZone={timeZone} /></WallCard>
   if (widget === 'meals') return <MealsCard />

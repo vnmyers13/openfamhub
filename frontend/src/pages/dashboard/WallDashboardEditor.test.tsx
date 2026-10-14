@@ -64,4 +64,12 @@ describe('WallDashboardEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reset wall dashboard' }))
     expect(onChange.mock.lastCall?.[0].pages.map((p: { name: string }) => p.name)).toEqual(['Today', 'Family', 'Notes'])
   })
+
+  it('keeps an intentionally empty dashboard empty until a page is added', () => {
+    const onChange = renderEditor({ pages: [] })
+
+    expect(screen.getByText('No wall dashboard pages configured.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Add wall page' }))
+    expect(onChange).toHaveBeenLastCalledWith({ pages: [{ name: 'Wall page', duration_seconds: 30, widgets: [] }] })
+  })
 })

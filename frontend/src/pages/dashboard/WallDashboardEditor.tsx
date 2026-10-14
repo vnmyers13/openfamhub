@@ -30,11 +30,19 @@ export default function WallDashboardEditor({ config, current, onSelect, onChang
   config: WallDashboardConfig; current: number; saving: boolean
   onSelect: (i: number) => void; onChange: (config: WallDashboardConfig) => void
 }) {
-  const pages = config.pages.length ? config.pages : DEFAULT_WALL_DASHBOARD.pages
+  const pages = config.pages
   const index = Math.min(current, pages.length - 1)
   const page = pages[index]
   const [adding, setAdding] = useState<WallDashboardWidgetKey | ''>('')
   const [dragFrom, setDragFrom] = useState<number | null>(null)
+  if (!page) return (
+    <section className="space-y-4 rounded-xl border border-slate-700 bg-slate-900/90 p-4" aria-label="Family wall dashboard">
+      <div><h2 className="text-lg font-semibold text-white">Family wall dashboard</h2><p className="text-sm text-slate-400">Shared by the whole family and shown read-only on paired wall displays.</p></div>
+      <p className="text-sm text-slate-400">No wall dashboard pages configured.</p>
+      <div className="flex gap-2"><button className={btn} onClick={() => { onChange({ ...config, pages: [{ name: 'Wall page', duration_seconds: 30, widgets: [] }] }); onSelect(0) }}>Add wall page</button>
+        <button className={btn} onClick={() => { onChange(DEFAULT_WALL_DASHBOARD); onSelect(0) }}>Reset wall dashboard</button></div>
+    </section>
+  )
   const missing = missingWidgets(page)
 
   const updatePage = (fn: (p: WallDashboardPage) => WallDashboardPage) => onChange({ ...config, pages: pages.map((p, i) => (i === index ? fn(p) : p)) })

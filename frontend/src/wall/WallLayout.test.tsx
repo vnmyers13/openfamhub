@@ -100,6 +100,8 @@ describe('WallLayout revocation (#10)', () => {
     )
     expect(await screen.findByText('configured wall dashboard')).toBeTruthy()
     expect(wallCycle.props.at(-1)).toMatchObject({ dashboard: SESSION.dashboard, timeZone: 'America/Detroit' })
+    expect(screen.queryByText('progress')).toBeNull()
+    expect(screen.queryByText('clock')).toBeNull()
   })
 
   it('pairs from a ?token= link and removes the token from the address bar', async () => {

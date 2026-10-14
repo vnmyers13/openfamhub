@@ -3,11 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { DEFAULT_WALL_DASHBOARD, getWallSession, onWallUnauthorized, pairWall, type WallSession } from '../api/wall'
 import { isAsleep } from '../lib/sleep'
 import WallClock from './WallClock'
-import WallProgress from './WallProgress'
-import WallBirthdays from './WallBirthdays'
 import WallSlideshow from './WallSlideshow'
-import WallRoutines from './WallRoutines'
-import WallCycle from './WallCycle'
+import WallCycle from './WallCycle.tsx'
 import { useWallWebSocket } from './useWallWebSocket'
 
 const DEFAULT_IDLE_MS = 300_000
@@ -136,31 +133,13 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
       <div className="fixed inset-0 z-50 cursor-pointer">
         <WallSlideshow />
         <div className="absolute bottom-8 right-8 z-[60] drop-shadow-lg">
-          <WallClock timeZone={session.timezone} />
+          <WallClock timeZone={session.timezone} clocks={session.clocks} />
         </div>
       </div>
     )
   }
   return (
-    <div className="fixed inset-0 grid overflow-hidden bg-slate-900"
-      style={{
-        gridTemplateColumns: '380px 1fr',
-      }}
-    >
-      {/* Left panel */}
-      <div className="flex flex-col gap-8 border-r border-slate-700 p-8">
-        <WallClock timeZone={session.timezone} clocks={session.clocks} />
-        <div>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
-            Family
-          </h2>
-          <WallProgress />
-        </div>
-        <WallBirthdays />
-        <WallRoutines timeZone={session.timezone} />
-      </div>
-
-      {/* Right panel */}
+    <div className="fixed inset-0 overflow-hidden bg-slate-900">
       <WallCycle startedAt={cycleStartedAt} timeZone={session.timezone} dashboard={session.dashboard ?? DEFAULT_WALL_DASHBOARD} />
     </div>
   )
