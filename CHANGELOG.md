@@ -1,6 +1,9 @@
 ## [Unreleased]
 
 ### Added
+- **Scan a list** on the Shopping list: take a photo of a paper list and its items appear, with quantities, ready to check and add. Headings and smudges are skipped, and things already on the list start unticked. The photo is read on your phone and never uploaded; the reader is served by OpenFamHub itself, so it works without internet and, after the first scan, offline.
+- **Recipe from a photo:** in Recipes › Import, "Or read a photo of it" turns a photo of a recipe card or cookbook page into text to check, then reads it like pasted text.
+- **The meal plan works offline:** plan or clear a meal without a connection and it syncs when you're back; if someone else changed that meal meanwhile, you choose whose to keep. The week and your recipes open offline too.
 - **Edit calendar feeds** in **Admin › Calendars**: rename, recolor, change the sync interval, pause, or paste a new link. A new link (`webcal://` works) is checked before it's saved and its events replace the old ones; one that doesn't work is refused with the reason and nothing changes. Walls repaint with the new name and color straight away.
 - **Change your own name, color and avatar** under **My settings › Me**, without an admin. The new look shows straight away across the app; a name someone else in the family already has is refused.
 
@@ -9,6 +12,7 @@
 - **Rewards:** two redeems at the same moment (say, from two devices) can no longer spend more points than someone has; the later one is refused.
 
 ### Developers
+- New dependencies `tesseract.js` 7.0.0 and `@tesseract.js-data/eng` 1.0.0 (run `npm install`). `npm run dev` and `npm run build` copy the OCR engine into `frontend/public/ocr/` first (`scripts/ocr-assets.mjs`; not committed). The web image is about 15 MB larger.
 - Frontend work needs Node 24 (or 22.22+); Node 20 can't run the tests (jsdom 30, Vitest 5). `frontend/.nvmrc` pins 24 and `package.json` declares `engines`. The web image builds on `node:24-alpine`.
 
 ---

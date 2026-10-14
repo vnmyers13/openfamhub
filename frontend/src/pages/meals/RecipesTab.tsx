@@ -6,6 +6,8 @@ import {
 import { minutesLabel } from '../../lib/meals'
 import { scaleLine } from '../../lib/scale'
 import { useAuthStore } from '../../stores/auth'
+import { progressLabel, readText, type OcrProgress } from '../../lib/ocr'
+import { recipeTextFromOcr } from '../../lib/ocrRecipe'
 import { Banner } from '../chores/Controls'
 import { input, primary, subtle } from '../chores/shared'
 import CookMode from './CookMode'
@@ -24,6 +26,23 @@ function ImportForm({ onDraft, onCancel }: { onDraft: (d: RecipeDraft) => void; 
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [reading, setReading] = useState<OcrProgress | null | false>(false)
+  const [fromPhoto, setFromPhoto] = useState(false)
+  // Photo → recipe (Phase 10): read on this device, then into the paste box to check.
+  const readPhoto = async (file: File | undefined) => {
+    if (!file) return
+    setError(null)
+    setReading(null)
+    try {
+      setText(recipeTextFromOcr(await readText(file, setReading)))
+      setUrl('')
+      setFromPhoto(true)
+    } catch {
+      setError("Couldn't read that photo. Try a closer, brighter one, or paste the text.")
+    } finally {
+      setReading(false)
+    }
+  }
   const go = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -46,6 +65,13 @@ function ImportForm({ onDraft, onCancel }: { onDraft: (d: RecipeDraft) => void; 
       <div><label htmlFor="import-text" className="mb-1 block text-xs text-gray-400">Paste the recipe</label>
         <textarea id="import-text" rows={6} className={input} value={text} onChange={(e) => setText(e.target.value)}
           disabled={!!url.trim()} placeholder={'Pancakes\nIngredients\n1 cup flour\n…\nMethod\nWhisk…'} /></div>
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-300">
+        <span aria-hidden>📷</span>
+        <span className="underline">{reading !== false ? progressLabel(reading) : 'Or read a photo of it'}</span>
+        <input type="file" accept="image/*" capture="environment" className="sr-only" aria-label="Read a photo of a recipe"
+          disabled={reading !== false || !!url.trim()} onChange={(e) => { void readPhoto(e.target.files?.[0]); e.target.value = '' }} />
+      </label>
+      {fromPhoto && <p className="text-xs text-amber-300">Check the text, then read it.</p>}
       <p className="text-xs text-gray-500">You'll see what was found before anything is saved.</p>
       <div className="flex justify-end gap-2">
         <button type="button" className={subtle} onClick={onCancel}>Cancel</button>

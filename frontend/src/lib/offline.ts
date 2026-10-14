@@ -60,7 +60,8 @@ function stamp(): number {
 
 async function send(write: QueuedWrite) {
   const config = { headers: { 'Idempotency-Key': write.id } }
-  if (write.method === 'delete') return apiClient.delete(write.url, config)
+  // A queued clear carries its "as last seen" check in the body, like an edit.
+  if (write.method === 'delete') return apiClient.delete(write.url, write.body ? { ...config, data: write.body } : config)
   return apiClient[write.method](write.url, write.body, config)
 }
 

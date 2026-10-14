@@ -148,6 +148,14 @@ class PlanSlotSet(BaseModel):
         return self
 
 
+class PlanSlotWrite(PlanSlotSet):
+    base: Optional[dict] = None  # offline edits: the slot as last seen (core.conflicts)
+
+
+class PlanSlotClear(BaseModel):
+    base: Optional[dict] = None
+
+
 class PlanEntryIn(PlanSlotSet):
     day: date
     slot: Slot

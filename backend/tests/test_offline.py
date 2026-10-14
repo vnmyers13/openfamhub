@@ -104,3 +104,36 @@ class TestConflicts:
         fresh = {**stale, "checked": True}
         res = await client.patch(f"/api/meals/shopping/{item['id']}", json={"quantity": "2 gal", "base": fresh}, headers=_h(kid))
         assert res.status_code == 200 and res.json()["quantity"] == "2 gal"
+
+
+class TestMealPlanOffline:
+    """The meal plan's slots carry `base` (the slot as last seen) when set or cleared offline."""
+
+    EMPTY = {"recipe_id": None, "title": None, "note": None}
+
+    async def test_filling_a_slot_someone_else_filled_is_a_conflict(self, client, admin, kid):
+        url = "/api/meals/plan/2026-10-20/dinner"
+        await client.put(url, json={"title": "Tacos"}, headers=_h(admin))
+        res = await client.put(url, json={"title": "Pizza", "base": self.EMPTY}, headers=_h(kid))
+        assert res.status_code == 409
+        detail = res.json()["detail"]
+        assert detail["fields"] == ["title"] and detail["current"]["title"] == "Tacos"
+
+    async def test_a_matching_base_applies_and_an_empty_slot_matches_empty(self, client, admin, kid):
+        url = "/api/meals/plan/2026-10-21/lunch"
+        res = await client.put(url, json={"title": "Soup", "base": self.EMPTY}, headers=_h(kid))
+        assert res.status_code == 200 and res.json()["title"] == "Soup"
+        res = await client.put(url, json={"title": "Salad", "base": {**self.EMPTY, "title": "Soup"}}, headers=_h(kid))
+        assert res.status_code == 200 and res.json()["title"] == "Salad"
+
+    async def test_clearing_checks_base_too_and_works_without_it(self, client, admin, kid):
+        url = "/api/meals/plan/2026-10-22/dinner"
+        await client.put(url, json={"title": "Tacos"}, headers=_h(admin))
+        await client.put(url, json={"title": "Curry"}, headers=_h(admin))
+        stale = await client.request("DELETE", url, json={"base": {**self.EMPTY, "title": "Tacos"}}, headers=_h(kid))
+        assert stale.status_code == 409 and stale.json()["detail"]["current"]["title"] == "Curry"
+        res = await client.request("DELETE", url, json={"base": {**self.EMPTY, "title": "Curry"}}, headers=_h(kid))
+        assert res.status_code == 200
+        week = (await client.get("/api/meals/plan", params={"start": "2026-10-19"}, headers=_h(kid))).json()
+        assert not [e for e in week["entries"] if e["day"] == "2026-10-22"]
+        assert (await client.delete(url, headers=_h(kid))).status_code == 200  # already empty, no body: fine

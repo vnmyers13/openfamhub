@@ -53,6 +53,7 @@ Triaged 2026-10-13: 68 open issues, all from the Trivy image scan. Build 1.08 cl
 - [x] **P2** Bump `fastapi` (pinned 0.115.6) to a release whose Starlette is patched: starlette CVE-2025-62727, CVE-2026-48818, CVE-2026-54283 (#19, #31, #36).
 - [x] **P2** Bump `python-multipart` (pinned 0.0.20): CVE-2026-24486, CVE-2026-42561, CVE-2026-53539 (#26, #30, #32).
 - [x] **P2** Bump `Pillow` (pinned 11.3.0; check `pillow-heif` compatibility and rerun the media tests): CVE-2026-25990, -40192, -42311, -54058, -54059, -54060, -55379, -55380, -59197, -59199, -59200, -59204, -59205 (#27, #28, #29, #33, #34, #35, #41, #42, #43, #44, #45, #46, #47).
+- [ ] **P2** Frontend npm advisories (found 2026-10-13, already in the lockfile before Phase 10): axios (prototype pollution, high), react-router / react-router-dom (open redirect and XSS in RSC error handling, high), form-data (CRLF injection, high, via axios), moment (path traversal, moderate). `npm audit fix` (no `--force`) resolves all five; rerun the frontend tests after.
 - [x] **P3** `WallLayout.test.tsx` "drops back to the pairing screen" failed once in a full frontend run on 2026-10-13 and passed in six reruns. Fixed by waiting for the wall 401 listener before simulating revocation, with a delayed-registration regression in the test.
 - [ ] **P3** API image OS packages (`python:3.12-slim`): rebuild on a current base and add `apt-get upgrade -y` (or move to a newer Debian tag). ncurses CVE-2025-69720 (#20, #21, #22, #23); systemd CVE-2026-16742 (#24, #25); libacl1 CVE-2026-54369 (#40); perl-base CVE-2026-9538 (#85); util-linux CVE-2026-76642 (#48, #49, #50, #51, #52, #53, #54, #55, #56), CVE-2026-78408 (#57, #58, #59, #60, #61, #62, #63, #64, #65), CVE-2026-78409 (#66, #67, #68, #69, #70, #71, #72, #73, #74), CVE-2026-78410 (#75, #76, #77, #78, #79, #81, #82, #83, #84). Still open after 1.08's `apt-get upgrade`: Debian has no fix for these yet (P3 since 2026-10-13). Every build upgrades and pulls a fresh base, so Trivy closes them once Debian ships fixes; then tick this line.
 - [x] **P2** Web image OS packages (`nginx:alpine`): rebuild on a current tag and add `apk upgrade --no-cache`. pcre2 CVE-2026-103111 (#37), tiff CVE-2026-4775 (#38), libexpat CVE-2026-93990 (#39).
@@ -268,19 +269,19 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [x] Conflict resolution modal: 409 detection, keep-local / keep-server / merge. Edits carry `base` (the item as last seen); `core/conflicts.check_base` answers 409 if it changed.
 - [x] Offline banner and sync indicator (`OfflineStatus.tsx`). The service worker keeps the last copy of sign-in and those lists so the app opens offline; logout clears it.
 - Tests first: queue survives a reload; replay is all-or-nothing per operation; a 409 surfaces the conflict modal rather than silently overwriting; a failed replay leaves the item queued. Done: `lib/offline.test.ts`, `OfflineStatus.test.tsx`, `lib/swCaching.test.ts`, `test_offline.py`.
-- [ ] Offline support for more writes (meal plan, pantry, announcements) if the family wants it; each needs a `base` check on its PATCH.
+- [x] Offline support for more writes (meal plan, pantry, announcements) if the family wants it; each needs a `base` check on its PATCH. Decided 2026-10-13: **meal plan only**; pantry and announcements stay online. Done: setting and clearing a slot queue with the slot as last seen (`_check_slot_base`; `test_offline.py::TestMealPlanOffline`, `api/meals.offline.test.tsx`), and the plan and recipes open offline.
 - Note: the v0.29 version of this is broken — its `useOfflineMutations` hook is never called and its replay `fetch` sends no credentials, so every replay 401s. Design against the tests above, not against that code.
 
 ### Phase 10 — OCR and wall panels
-- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
-- [ ] `ScanListModal` with `tesseract.js`: capture, OCR, preview, edit, then add to the shopping list.
-- [ ] Wall cycling panel mode with a live countdown.
+- [x] **Before starting:** triaged 2026-10-13 (report for build 1.30): issues and TODO.md agree; no P0/P1; the 44 open issues are P3 Debian packages.
+- [x] `ScanListModal` with `tesseract.js`: capture, OCR, preview, edit, then add to the shopping list. Done: **Scan a list** on the Shopping list; OCR runs on the device with assets served from `/ocr/` (no CDN); headings and debris skipped, items already on the list unticked (`lib/ocr.ts`, `lib/ocrLines.ts`, `ScanListModal.tsx`).
+- [x] Wall cycling panel mode with a live countdown. Done: `WallCycle.tsx` rotates focused Calendar, Routines and Progress panels with a visible “Next in …” countdown, using `wallCycle.ts`; covered by `WallCycle.test.tsx`, `wallCycle.test.ts`, and `WallLayout.test.tsx`.
 - [ ] Read-only wall endpoints (`/api/wall/chores`, `/meals`, `/announcements`, `/weather`) behind the paired-device cookie. v0.29's panels need a family member's login.
 - [ ] The wall timezone is a family setting edited by an admin. v0.29 lets the wall itself write it via an admin-only call.
 - [ ] `DateTimeWallPanel` with a timezone picker; reuse `frontend/src/lib/dates.ts` and the wall token flow.
 - Photo slideshow and sleep schedule moved to Phase 3b.
-- [ ] **Smart Import (photo → recipe):** reuse the OCR pipeline.
-- Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device.
+- [x] **Smart Import (photo → recipe):** reuse the OCR pipeline. Done: Import › "Or read a photo of it" fills the paste box with the OCR'd text, wrapped steps joined (`lib/ocrRecipe.ts`), for checking before the usual recipe reader.
+- Tests first: OCR line parsing and classification against sample images; cycling-mode panel order and auto-advance; the wall panel renders only for a paired device. OCR done: `ocrLines.test.ts`, `ocrRecipe.test.ts`, `ocr.test.ts`, `ocr.real.test.ts` (real engine on `src/test/fixtures/ocr-*.png`), `ScanList.test.tsx`; also checked in headless Chromium loading only from `/ocr/`.
 
 ### Phase 11 — Notifications and reminders
 - [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.

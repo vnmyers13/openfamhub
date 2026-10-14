@@ -1,5 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
+import { dayLabel } from '../lib/meals'
 import { offlineWrite } from '../lib/offline'
 
 export type Slot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
@@ -115,13 +116,56 @@ export function usePlan(start: string | undefined) {
   return useQuery({ queryKey: ['meal-plan', start ?? 'this'], queryFn: () => get<PlanWeek>('/meals/plan', start ? { start } : undefined) })
 }
 
-export function useSetSlot() {
-  return useMealsMutation(async ({ day, slot, ...body }: { day: string; slot: Slot; recipe_id?: string | null; title?: string | null; note?: string | null }) =>
-    (await apiClient.put(`/meals/plan/${day}/${slot}`, body)).data as PlanEntry)
+/** The slot as this device last saw it, for the offline conflict check (an empty slot is all null). */
+function slotAsSeen(qc: QueryClient, day: string, slot: Slot) {
+  const entry = qc.getQueriesData<PlanWeek>({ queryKey: ['meal-plan'] })
+    .flatMap(([, week]) => week?.entries ?? []).find((e) => e.day === day && e.slot === slot)
+  return entry ? { recipe_id: entry.recipe_id, title: entry.title, note: entry.note } : { recipe_id: null, title: null, note: null }
 }
 
+/** Show a slot's change at once in every cached week that has that day (null clears it). */
+function showSlot(qc: QueryClient, day: string, slot: Slot, entry: PlanEntry | null) {
+  qc.setQueriesData<PlanWeek>({ queryKey: ['meal-plan'] }, (week) => {
+    if (!week?.days.includes(day)) return week
+    const others = week.entries.filter((e) => !(e.day === day && e.slot === slot))
+    return { ...week, entries: entry ? [...others, entry] : others }
+  })
+}
+
+type SlotWrite = { day: string; slot: Slot; recipe_id?: string | null; title?: string | null; note?: string | null }
+
+/** Plan a meal. Works offline (Phase 9): queued with the slot as last seen. */
+export function useSetSlot() {
+  const qc = useQueryClient()
+  return useMutation({
+    networkMode: 'always',
+    mutationFn: ({ day, slot, ...body }: SlotWrite) => {
+      const base = slotAsSeen(qc, day, slot)
+      const recipeTitle = body.recipe_id
+        ? qc.getQueriesData<Recipe[]>({ queryKey: ['recipes'] }).flatMap(([, rs]) => rs ?? []).find((r) => r.id === body.recipe_id)?.title
+        : undefined
+      const title = body.title?.trim() || recipeTitle || 'Planned meal'
+      showSlot(qc, day, slot, { id: `pending-${day}-${slot}`, day, slot, recipe_id: body.recipe_id ?? null, title, note: body.note ?? null })
+      return offlineWrite<PlanEntry>({ method: 'put', url: `/meals/plan/${day}/${slot}`, body, label: `Plan ${slot} on ${dayLabel(day)}: ${title}`,
+        refresh: [['meal-plan']], base, local: { recipe_id: body.recipe_id ?? null, title, note: body.note ?? null } })
+    },
+    onSettled: (res) => { if (!res?.queued) void Promise.all(MEAL_KEYS.map((queryKey) => qc.invalidateQueries({ queryKey }))) },
+  })
+}
+
+/** Clear a planned meal. Works offline like useSetSlot. */
 export function useClearSlot() {
-  return useMealsMutation(async ({ day, slot }: { day: string; slot: Slot }) => apiClient.delete(`/meals/plan/${day}/${slot}`))
+  const qc = useQueryClient()
+  return useMutation({
+    networkMode: 'always',
+    mutationFn: ({ day, slot }: { day: string; slot: Slot }) => {
+      const base = slotAsSeen(qc, day, slot)
+      showSlot(qc, day, slot, null)
+      return offlineWrite<unknown>({ method: 'delete', url: `/meals/plan/${day}/${slot}`, label: `Clear ${slot} on ${dayLabel(day)}`,
+        refresh: [['meal-plan']], base, local: { recipe_id: null, title: null, note: null } })
+    },
+    onSettled: (res) => { if (!res?.queued) void Promise.all(MEAL_KEYS.map((queryKey) => qc.invalidateQueries({ queryKey }))) },
+  })
 }
 
 // ---- shopping ----

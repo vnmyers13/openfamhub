@@ -7,6 +7,7 @@ import {
 import { useAuthStore } from '../../stores/auth'
 import { Banner } from '../chores/Controls'
 import { input, primary, subtle } from '../chores/shared'
+import ScanListModal from './ScanListModal'
 
 function Row({ item, canEdit, onToggle, onDelete }: {
   item: ShoppingItem; canEdit: boolean; onToggle: () => void; onDelete: () => void
@@ -47,6 +48,7 @@ export default function ShoppingTab() {
   const { data: history } = useShoppingHistory(showHistory)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  const [scanning, setScanning] = useState(false)
   const run = async (fn: () => Promise<unknown>, fallback: string) => {
     setError(null)
     try { await fn() } catch (err) { setError(errorDetail(err, fallback)) }
@@ -81,7 +83,14 @@ export default function ShoppingTab() {
             const res = await fromPlan.mutateAsync(undefined)
             setNote(res.added || res.removed ? `Added ${res.added} from this week's meals${res.removed ? `, removed ${res.removed}` : ''}.` : "Everything for this week's meals is already here.")
           }, "Couldn't add this week's meals")}>Add this week's meals</button>
+          <button className={subtle} onClick={() => { setNote(null); setScanning(true) }}>Scan a list</button>
         </div>
+      )}
+      {scanning && (
+        <ScanListModal items={items ?? []} onClose={(added) => {
+          setScanning(false)
+          if (added) setNote(`Added ${added} ${added === 1 ? 'item' : 'items'} from the photo.`)
+        }} />
       )}
       {items && items.length === 0 && <p className="text-sm text-gray-500">The list is empty.</p>}
       <ul className="space-y-1">{todo.map(row)}</ul>

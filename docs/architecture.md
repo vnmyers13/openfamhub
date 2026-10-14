@@ -134,12 +134,20 @@ On the idle screen `WallSlideshow` shows the family's ready media full screen, i
   - Wallpaper: a gradient or a media id.
   - Up to 6 dashboard pages, each a list of widget keys and sizes. An empty list means the default page.
 
+## Reading photos (OCR)
+
+Scan a list (shopping) and Import › read a photo (recipes) read text on the device with tesseract.js; the photo is never uploaded. `lib/ocr.ts` loads the library on demand and runs it LSTM-only with its worker, engine and English model served by OpenFamHub from `/ocr/`, never a CDN, so it works on a LAN without internet. `scripts/ocr-assets.mjs` copies them from `node_modules` into `public/ocr/` before `dev` and `build` (not committed). The service worker skips them at install (about 7 MB) and caches them on first use.
+
+- `lib/ocrLines.ts` turns list text into items with quantities, and classifies headings ("Produce:", "DAIRY") and debris to skip. Things already on the list start unticked.
+- `lib/ocrRecipe.ts` joins steps that wrapped across lines (never ingredient lines), and the text goes into the paste box for the existing recipe reader (`smart_import.recipe_from_text`), so people check it first.
+- `lib/ocr.real.test.ts` runs the real engine in Node on the sample photos in `src/test/fixtures/`.
+
 ## Offline
 
-- **Reads:** the service worker (`lib/swCaching.ts`) caches reads network-first: the calendar, users, and for offline use `auth/me`, chores, to-dos, the shopping list and the dashboard summary. Logout clears these caches.
-- **Writes:** `lib/offline.offlineWrite` sends the write now, or, if there's no reply, puts it in IndexedDB (`lib/idb.ts`, store `writes`) and the screen updates optimistically. Used for chore actions, adding and ticking shopping items, and adding and editing to-dos.
+- **Reads:** the service worker (`lib/swCaching.ts`) caches reads network-first: the calendar, users, and for offline use `auth/me`, chores, to-dos, the shopping list, the meal plan and recipes, and the dashboard summary. Logout clears these caches.
+- **Writes:** `lib/offline.offlineWrite` sends the write now, or, if there's no reply, puts it in IndexedDB (`lib/idb.ts`, store `writes`) and the screen updates optimistically. Used for chore actions, adding and ticking shopping items, adding and editing to-dos, and setting and clearing meal-plan slots (a queued clear sends its `base` in the DELETE body).
 - **Replay:** `replay()` runs oldest first, one write at a time, with the cookie and `Idempotency-Key: <write id>`. `useOfflineSync` triggers it on start, on `online`, on tab-visible, and every minute while anything is waiting. A write is removed only after a 2xx.
-  - 409: the write is kept with the conflict.
+  - 409: the write is kept with the conflict. Keep mine or merge re-queues it under a new id (so a new Idempotency-Key: the server remembers its 409 for the old one).
   - Another 4xx: kept with the reason.
   - 401: kept, and the app asks to sign in again.
   - No reply or 5xx: the replay stops and everything stays queued.
@@ -181,7 +189,7 @@ Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_u
 ```
 App.tsx            boot: setup status → /auth/me; routes (wall is outside the nav shell); pages are React.lazy chunks
 api/               axios client (401 → /login, except /auth/* and /wall/*; 403 password_required → one shared password prompt + retry), React Query hooks; wall.ts onWallUnauthorized
-lib/               dates.ts (time convention above), permissions.ts and choreActions.ts (client mirrors of the API's rules), sleep.ts, shuffle.ts, timezones.ts, repeat.ts, routine.ts
+lib/               dates.ts (time convention above), permissions.ts and choreActions.ts (client mirrors of the API's rules), sleep.ts, shuffle.ts, timezones.ts, repeat.ts, routine.ts, ocr.ts, ocrLines.ts, ocrRecipe.ts
 hooks/             useToday (local midnight, rolls over)
 pages/             Dashboard, CalendarPage, chores/ (Today, To-dos, Routines, Manage, History), rewards/ (Rewards, Requests, Badges, Allowance, Manage), meals/ (This week, Recipes, Shopping list, Pantry), books/, dashboard/ (cards, Customize), MySettings, PhotosPage, Login (avatar picker + PIN pad), SetupWizard, ManageUsers, admin/CalendarSettings, admin/WallDisplays, admin/FamilySettings
 wall/              WallLayout (pairing gate, revocation → pairing screen, live session, sleep schedule, idle screen), WallSlideshow, WallRoutines, clock, 7-day strip, useWallWebSocket, member list

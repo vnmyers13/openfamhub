@@ -8,7 +8,7 @@ the shopping list without auth.)
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +19,7 @@ from app.core.security import get_current_user
 from app.models.meals import MealPlanEntry, PantryItem, Recipe, ShoppingItem
 from app.models.user import User
 from app.schemas.meals import (
-    SLOTS, CatalogRecipe, PantryCreate, PantryResponse, PantryUpdate, PlanEntry, PlanSlotSet, PlanWeek, PlanWeekSet,
+    SLOTS, CatalogRecipe, PantryCreate, PantryResponse, PantryUpdate, PlanEntry, PlanSlotClear, PlanSlotSet, PlanSlotWrite, PlanWeek, PlanWeekSet,
     RecipeCreate, RecipeResponse, RecipeUpdate, RegenerateResult, ShoppingCreate, ShoppingResponse, ShoppingUpdate,
     Slot,
 )
@@ -214,14 +214,28 @@ async def set_week(monday: date, data: PlanWeekSet, db: AsyncSession = Depends(g
     return await _plan_week(db, user.family_id, monday)
 
 
-@router.put("/plan/{day}/{slot}", response_model=PlanEntry)
-async def set_slot(day: date, slot: Slot, data: PlanSlotSet, db: AsyncSession = Depends(get_db),
-                   user: User = Depends(editor)):
-    recipe_id, title = await _slot_values(db, user.family_id, data)
-    entry = (await db.execute(
-        select(MealPlanEntry).where(MealPlanEntry.family_id == user.family_id, MealPlanEntry.day == day,
+async def _slot_entry(db: AsyncSession, family_id: str, day: date, slot: str) -> Optional[MealPlanEntry]:
+    return (await db.execute(
+        select(MealPlanEntry).where(MealPlanEntry.family_id == family_id, MealPlanEntry.day == day,
                                     MealPlanEntry.slot == slot)
     )).scalar_one_or_none()
+
+
+def _check_slot_base(base: Optional[dict], entry: Optional[MealPlanEntry]) -> None:
+    """Offline edits: 409 if the slot changed since it was seen (an empty slot is all None)."""
+    if not base:
+        return
+    current = {"recipe_id": entry.recipe_id, "title": entry.title, "note": entry.note} if entry else \
+        {"recipe_id": None, "title": None, "note": None}
+    check_base({k: v for k, v in base.items() if k in current}, current)
+
+
+@router.put("/plan/{day}/{slot}", response_model=PlanEntry)
+async def set_slot(day: date, slot: Slot, data: PlanSlotWrite, db: AsyncSession = Depends(get_db),
+                   user: User = Depends(editor)):
+    recipe_id, title = await _slot_values(db, user.family_id, data)
+    entry = await _slot_entry(db, user.family_id, day, slot)
+    _check_slot_base(data.base, entry)
     if entry is None:
         entry = MealPlanEntry(family_id=user.family_id, day=day, slot=slot, created_by=user.id, title=title)
         db.add(entry)
@@ -232,11 +246,10 @@ async def set_slot(day: date, slot: Slot, data: PlanSlotSet, db: AsyncSession = 
 
 
 @router.delete("/plan/{day}/{slot}")
-async def clear_slot(day: date, slot: Slot, db: AsyncSession = Depends(get_db), user: User = Depends(editor)):
-    entry = (await db.execute(
-        select(MealPlanEntry).where(MealPlanEntry.family_id == user.family_id, MealPlanEntry.day == day,
-                                    MealPlanEntry.slot == slot)
-    )).scalar_one_or_none()
+async def clear_slot(day: date, slot: Slot, data: Optional[PlanSlotClear] = Body(None),
+                     db: AsyncSession = Depends(get_db), user: User = Depends(editor)):
+    entry = await _slot_entry(db, user.family_id, day, slot)
+    _check_slot_base(data.base if data else None, entry)
     if entry is not None:
         await db.delete(entry)
         await db.flush()

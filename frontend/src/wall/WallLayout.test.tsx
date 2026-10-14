@@ -36,6 +36,7 @@ vi.mock('./WallBirthdays', () => ({ default: () => null }))
 vi.mock('./WallClock', () => ({ default: () => <div>clock</div> }))
 vi.mock('./WallSlideshow', () => ({ default: () => <div>slideshow</div> }))
 vi.mock('./WallRoutines', () => ({ default: () => null }))
+vi.mock('./WallCycle.tsx', () => ({ default: () => <div>cycling wall panels</div> }))
 vi.mock('./useWallWebSocket', () => ({ useWallWebSocket: () => {} }))
 
 describe('WallLayout revocation (#10)', () => {
@@ -54,7 +55,7 @@ describe('WallLayout revocation (#10)', () => {
         <WallLayout />
       </QueryClientProvider>,
     )
-    expect(await screen.findByText('seven-day strip')).toBeTruthy()
+    expect(await screen.findByText('cycling wall panels')).toBeTruthy()
     await waitFor(() => expect(wallApi.listener).not.toBeNull())
 
     act(() => wallApi.listener!())
@@ -74,13 +75,23 @@ describe('WallLayout revocation (#10)', () => {
         <WallLayout />
       </QueryClientProvider>,
     )
-    expect(await screen.findByText('seven-day strip')).toBeTruthy()
+    expect(await screen.findByText('cycling wall panels')).toBeTruthy()
     expect(await screen.findByText('slideshow')).toBeTruthy()
-    expect(screen.queryByText('seven-day strip')).toBeNull()
+    expect(screen.queryByText('cycling wall panels')).toBeNull()
     act(() => {
       window.dispatchEvent(new Event('mousemove'))
     })
-    expect(await screen.findByText('seven-day strip')).toBeTruthy()
+    expect(await screen.findByText('cycling wall panels')).toBeTruthy()
+  })
+
+  it('shows cycling mode on the paired wall board', async () => {
+    const client = new QueryClient()
+    render(
+      <QueryClientProvider client={client}>
+        <WallLayout />
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('cycling wall panels')).toBeTruthy()
   })
 
   it('pairs from a ?token= link and removes the token from the address bar', async () => {
@@ -92,7 +103,7 @@ describe('WallLayout revocation (#10)', () => {
         <WallLayout />
       </QueryClientProvider>,
     )
-    expect(await screen.findByText('seven-day strip')).toBeTruthy()
+    expect(await screen.findByText('cycling wall panels')).toBeTruthy()
     expect(vi.mocked(pairWall)).toHaveBeenCalledWith('secret-token')
     expect(window.location.search).toBe('')
   })
@@ -118,23 +129,24 @@ describe('WallLayout revocation (#10)', () => {
       // 23:00 in Detroit (EDT): inside 22:00-06:30.
       await bootAt('2026-10-21T03:00:00Z', { enabled: true, off: '22:00', on: '06:30' }, 'America/Detroit')
       expect(await screen.findByTestId('wall-asleep')).toBeTruthy()
+      expect(screen.queryByText('cycling wall panels')).toBeNull()
       act(() => {
         window.dispatchEvent(new Event('touchstart'))
       })
-      expect(await screen.findByText('seven-day strip')).toBeTruthy()
+      expect(await screen.findByText('cycling wall panels')).toBeTruthy()
     })
 
     it('follows the family timezone, not the device zone', async () => {
       // 03:00Z is 23:00 in Detroit (inside 22:00-02:00 there) but 04:00 in
       // London (outside it). The family is in London, so the screen stays on.
       await bootAt('2026-10-21T03:00:00Z', { enabled: true, off: '22:00', on: '02:00' }, 'Europe/London')
-      expect(await screen.findByText('seven-day strip')).toBeTruthy()
+      expect(await screen.findByText('cycling wall panels')).toBeTruthy()
       expect(screen.queryByTestId('wall-asleep')).toBeNull()
     })
 
     it('stays on when the schedule is disabled', async () => {
       await bootAt('2026-10-21T03:00:00Z', { enabled: false, off: '22:00', on: '06:30' }, 'America/Detroit')
-      expect(await screen.findByText('seven-day strip')).toBeTruthy()
+      expect(await screen.findByText('cycling wall panels')).toBeTruthy()
     })
   })
 })

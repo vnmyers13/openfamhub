@@ -28,3 +28,5 @@ graphify-out/*
 .coverage.*
 htmlcov/
 frontend/coverage/
+# OCR engine and data, copied from node_modules at build time (frontend/scripts/ocr-assets.mjs)
+frontend/public/ocr/

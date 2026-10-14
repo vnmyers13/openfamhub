@@ -221,3 +221,21 @@ class TestImportApi:
         assert (await client.post("/api/import/recipe", json={"text": "x\n1 egg"}, headers=_h(viewer))).status_code == 403
         res = await client.post("/api/import/recipe", json={"text": "<html><body>no recipe</body></html>"}, headers=_h(admin))
         assert res.status_code == 400 and "No recipe found" in res.json()["detail"]
+
+
+def test_a_recipe_read_from_a_photo_parses_like_pasted_text():
+    """Phase 10 photo → recipe: the app OCRs the photo, joins wrapped steps
+    (frontend lib/ocrRecipe.ts) and sends the text here. This is that text as
+    the real OCR test (frontend lib/ocr.real.test.ts) produces it."""
+    from app.integrations.smart_import import recipe_from_text
+
+    text = "\n".join([
+        "Banana Bread", "Serves 8", "Ingredients", "3 ripe bananas", "1/3 cup melted butter", "1 cup sugar", "Method",
+        "1. Heat the oven to 350F and butter a loaf pan.", "2. Mash the bananas, then stir in the butter and sugar.",
+        "3. Bake for 60 minutes.",
+    ])
+    r = recipe_from_text(text)
+    assert (r["title"], r["servings"]) == ("Banana Bread", 8)
+    assert r["ingredients"] == ["3 ripe bananas", "1/3 cup melted butter", "1 cup sugar"]
+    assert r["steps"] == ["Heat the oven to 350F and butter a loaf pan.",
+                          "Mash the bananas, then stir in the butter and sugar.", "Bake for 60 minutes."]

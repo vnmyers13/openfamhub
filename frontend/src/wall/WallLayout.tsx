@@ -3,11 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getWallSession, onWallUnauthorized, pairWall, type WallSession } from '../api/wall'
 import { isAsleep } from '../lib/sleep'
 import WallClock from './WallClock'
-import WallSevenDayStrip from './WallSevenDayStrip'
 import WallProgress from './WallProgress'
 import WallBirthdays from './WallBirthdays'
 import WallSlideshow from './WallSlideshow'
 import WallRoutines from './WallRoutines'
+import WallCycle from './WallCycle.tsx'
 import { useWallWebSocket } from './useWallWebSocket'
 
 const DEFAULT_IDLE_MS = 300_000
@@ -100,6 +100,7 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
 
   const [isIdle, setIsIdle] = useState(false)
   const [wokenUntil, setWokenUntil] = useState(0)
+  const [cycleStartedAt] = useState(() => Date.now())
   const idleRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const now = useNow(SLEEP_CHECK_MS)
   const scheduled = isAsleep(now, session.sleep, session.timezone)
@@ -160,7 +161,7 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
       </div>
 
       {/* Right panel */}
-      <WallSevenDayStrip />
+      <WallCycle startedAt={cycleStartedAt} timeZone={session.timezone} />
     </div>
   )
 }

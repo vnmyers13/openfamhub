@@ -17,11 +17,18 @@ describe('service worker caching rules', () => {
 
   it("keeps the lists you can change offline, and doesn't cache other pages' data", () => {
     const offline = rules().find((r) => r.options?.cacheName === 'offline-api')!
-    for (const path of ['/api/auth/me', '/api/todos', '/api/meals/shopping', '/api/chores/instances', '/api/dashboard/summary']) {
+    for (const path of ['/api/auth/me', '/api/todos', '/api/meals/shopping', '/api/meals/plan', '/api/meals/recipes', '/api/chores/instances', '/api/dashboard/summary']) {
       expect(offline.urlPattern({ url: new URL(`https://x.test${path}`) })).toBe(true)
     }
     for (const path of ['/api/media/abc/wall', '/api/rewards/allowance', '/api/wall/session']) {
       expect(offline.urlPattern({ url: new URL(`https://x.test${path}`) })).toBe(false)
     }
+  })
+
+  it('keeps the OCR engine after the first scan, and nothing else under that rule', () => {
+    const ocr = rules().find((r) => r.options?.cacheName === 'ocr')!
+    expect(ocr.handler).toBe('CacheFirst')
+    expect(ocr.urlPattern({ url: new URL('https://x.test/ocr/eng.traineddata.gz') })).toBe(true)
+    expect(ocr.urlPattern({ url: new URL('https://x.test/api/ocr') })).toBe(false)
   })
 })
