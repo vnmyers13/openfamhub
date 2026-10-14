@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allDayEndIso, allDayStartIso, eventDayKeys, eventEnd, eventStart } from './dates'
+import { allDayEndIso, allDayStartIso, eventDayKeys, eventEnd, eventFormInputs, eventStart } from './dates'
 
 // vitest.config.ts pins TZ=America/Detroit (UTC-4 in October).
 
@@ -54,5 +54,18 @@ describe('timed events', () => {
   it('still show a zero-length event on its day', () => {
     const e = { start_dt: '2026-10-07T15:00:00+00:00', end_dt: '2026-10-07T15:00:00+00:00', all_day: false }
     expect(eventDayKeys(e)).toEqual(['2026-10-07'])
+  })
+})
+
+describe('eventFormInputs', () => {
+  it('turns an imported timed event into local inputs', () => {
+    const start = new Date(2026, 10, 5, 18, 30)
+    const end = new Date(2026, 10, 5, 20, 0)
+    expect(eventFormInputs({ start_dt: start.toISOString(), end_dt: end.toISOString(), all_day: false }))
+      .toEqual({ startDate: '2026-11-05', startTime: '18:30', endDate: '2026-11-05', endTime: '20:00' })
+  })
+  it("gives an all-day event's last day, not its exclusive end", () => {
+    expect(eventFormInputs({ start_dt: '2026-11-09T00:00:00+00:00', end_dt: '2026-11-12T00:00:00+00:00', all_day: true }))
+      .toMatchObject({ startDate: '2026-11-09', endDate: '2026-11-11' })
   })
 })

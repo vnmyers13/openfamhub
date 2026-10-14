@@ -58,3 +58,17 @@ export function allDayEndIso(lastDate: string): string {
 export function localDateTimeIso(date: string, time: string): string {
   return new Date(`${date}T${time}`).toISOString()
 }
+
+/**
+ * An imported event (API times) → the new-event form's inputs: local dates and
+ * times, with an all-day event's exclusive end turned back into its last day.
+ */
+export function eventFormInputs(e: EventTimes): { startDate: string; startTime: string; endDate: string; endTime: string } {
+  const start = eventStart(e)
+  const end = eventEnd(e)
+  const last = e.all_day ? addDays(end, -1) : end
+  return {
+    startDate: format(start, 'yyyy-MM-dd'), startTime: format(start, 'HH:mm'),
+    endDate: format(last, 'yyyy-MM-dd'), endTime: format(end, 'HH:mm'),
+  }
+}

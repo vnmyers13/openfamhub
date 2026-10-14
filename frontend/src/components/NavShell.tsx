@@ -11,6 +11,7 @@ const navItems = [
   { to: '/calendar', label: 'Calendar', icon: '📅' },
   { to: '/chores', label: 'Chores', icon: '✅' },
   { to: '/rewards', label: 'Rewards', icon: '⭐' },
+  { to: '/meals', label: 'Meals', icon: '🍽️' },
   { to: '/photos', label: 'Photos', icon: '🖼️' },
 ]
 

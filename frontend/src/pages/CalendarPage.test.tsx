@@ -88,6 +88,40 @@ describe('CalendarPage', () => {
     expect(body.end_dt).toBe(new Date(`${today}T18:30`).toISOString())
   })
 
+  it('fills the form from an event link, then saves what was reviewed', async () => {
+    signIn('member')
+    const start = new Date(2026, 10, 5, 18, 30)
+    const calls = mockApi({
+      'GET /calendar/events': [], 'GET /calendar/sources': SOURCES, 'POST /calendar/events': DINNER,
+      'POST /import/event': { title: 'School Concert', start_dt: start.toISOString(),
+        end_dt: new Date(start.getTime() + 90 * 60_000).toISOString(), all_day: false, location: 'Lincoln Elementary',
+        description: 'Bring a chair.' },
+    })
+    renderApp(<CalendarPage />)
+    fireEvent.click(await screen.findByRole('button', { name: '+ New Event' }))
+    fireEvent.change(screen.getByLabelText('Fill from a link'), { target: { value: 'https://school.example.com/concert' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Fill' }))
+    expect(await screen.findByDisplayValue('School Concert')).toBeTruthy()
+    expect(screen.getByDisplayValue('Lincoln Elementary')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /save|create|add/i }))
+    await waitFor(() => expect(calls.some((c) => c.url === '/calendar/events' && c.method === 'POST')).toBe(true))
+    expect(calls.find((c) => c.url === '/calendar/events' && c.method === 'POST')?.body).toMatchObject({
+      title: 'School Concert', start_dt: start.toISOString(), end_dt: new Date(start.getTime() + 90 * 60_000).toISOString(),
+      all_day: false, location: 'Lincoln Elementary', description: 'Bring a chair.',
+    })
+  })
+
+  it("says why a link couldn't fill the form", async () => {
+    signIn('member')
+    mockApi({ 'GET /calendar/events': [], 'GET /calendar/sources': SOURCES,
+      'POST /import/event': () => { throw apiError(400, 'No event found on that page') } })
+    renderApp(<CalendarPage />)
+    fireEvent.click(await screen.findByRole('button', { name: '+ New Event' }))
+    fireEvent.change(screen.getByLabelText('Fill from a link'), { target: { value: 'https://example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Fill' }))
+    expect(await screen.findByText('No event found on that page')).toBeTruthy()
+  })
+
   it('saves an all-day event as dates with an exclusive end', async () => {
     signIn('member')
     const calls = mockApi({ 'GET /calendar/events': [], 'GET /calendar/sources': SOURCES, 'POST /calendar/events': DINNER })

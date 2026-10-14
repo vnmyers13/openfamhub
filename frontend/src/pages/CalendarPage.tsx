@@ -5,7 +5,8 @@ import { enUS } from 'date-fns/locale/en-US'
 import { useGesture } from '@use-gesture/react'
 import { useCalendarEvents, useCalendarSources, useCreateEvent, useDeleteEvent } from '../api/calendar'
 import { useAuthStore } from '../stores/auth'
-import { allDayEndIso, allDayStartIso, eventEnd, eventStart, localDateTimeIso } from '../lib/dates'
+import { allDayEndIso, allDayStartIso, eventEnd, eventFormInputs, eventStart, localDateTimeIso } from '../lib/dates'
+import { importEvent } from '../api/meals'
 import { canCreateEvents, canEditEvent } from '../lib/permissions'
 import { errorDetail } from '../api/client'
 
@@ -317,6 +318,30 @@ function CreateEventModal({
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [link, setLink] = useState('')
+  const [reading, setReading] = useState(false)
+
+  // Smart Import: fill the form from an event page's schema.org data; nothing is saved until "Create".
+  const fillFromLink = async () => {
+    setError('')
+    setReading(true)
+    try {
+      const draft = await importEvent({ url: link.trim() })
+      const inputs = eventFormInputs(draft)
+      setTitle(draft.title)
+      setAllDay(draft.all_day)
+      setStartDate(inputs.startDate)
+      setStartTime(inputs.startTime)
+      setEndDate(inputs.endDate)
+      setEndTime(inputs.endTime)
+      setLocation(draft.location ?? '')
+      setDescription(draft.description ?? '')
+    } catch (err) {
+      setError(errorDetail(err, "Couldn't read that link"))
+    } finally {
+      setReading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -344,6 +369,18 @@ function CreateEventModal({
       <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl p-6 max-w-md w-full border border-gray-800 space-y-3" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-xl font-bold text-white">New Event</h2>
         {error && <div className="bg-red-900/50 text-red-300 px-3 py-2 rounded text-sm">{error}</div>}
+        <div className="flex gap-2">
+          <input
+            type="url"
+            className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm"
+            placeholder="Fill from a link (optional)"
+            aria-label="Fill from a link"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+          />
+          <button type="button" className="rounded bg-gray-800 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50"
+            disabled={!link.trim() || reading} onClick={fillFromLink}>{reading ? 'Reading…' : 'Fill'}</button>
+        </div>
         <input
           className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
           placeholder="Event title"
