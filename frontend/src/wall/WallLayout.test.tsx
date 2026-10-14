@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as wallModule from '../api/wall'
@@ -21,8 +21,11 @@ vi.mock('../api/wall', () => ({
   pairWall: vi.fn(),
   getWallSession: vi.fn(async () => ({ ...SESSION })),
   onWallUnauthorized: vi.fn((listener: () => void) => {
-    wallApi.listener = listener
+    const id = setTimeout(() => {
+      wallApi.listener = listener
+    }, 0)
     return () => {
+      clearTimeout(id)
       if (wallApi.listener === listener) wallApi.listener = null
     }
   }),
@@ -52,7 +55,7 @@ describe('WallLayout revocation (#10)', () => {
       </QueryClientProvider>,
     )
     expect(await screen.findByText('seven-day strip')).toBeTruthy()
-    expect(wallApi.listener).not.toBeNull()
+    await waitFor(() => expect(wallApi.listener).not.toBeNull())
 
     act(() => wallApi.listener!())
 
@@ -135,4 +138,3 @@ describe('WallLayout revocation (#10)', () => {
     })
   })
 })
-
