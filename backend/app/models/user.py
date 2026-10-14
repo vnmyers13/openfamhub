@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, String, Text, func
+from sqlalchemy import Boolean, Date, String, Text, func
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,6 +24,7 @@ class User(Base):
     avatar_type: Mapped[str] = mapped_column(String(32), nullable=True)
     avatar_value: Mapped[str] = mapped_column(String(256), nullable=True)
     settings_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    birthday: Mapped[date] = mapped_column(Date, nullable=True)  # Phase 8
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     last_login_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), server_default=func.now())

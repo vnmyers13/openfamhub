@@ -11,3 +11,4 @@ from app.models.rewards import (
     AllowanceEntry, AllowancePlan, BadgeDefinition, Redemption, Reward, UserBadge,
 )
 from app.models.meals import MealPlanEntry, PantryItem, Recipe, ShoppingItem
+from app.models.family_info import Announcement, Book

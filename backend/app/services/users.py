@@ -57,6 +57,7 @@ async def create_user(db: AsyncSession, data: CreateUserRequest, family_id: str)
         user.pin_hash = hash_password(data.pin)
     if data.avatar:
         user.avatar_type, user.avatar_value = "emoji", data.avatar
+    user.birthday = data.birthday
     db.add(user)
     await db.flush()
     return _user_to_response(user)
@@ -104,6 +105,8 @@ async def update_user(
         updates["pin_hash"] = hash_password(data.pin)
     if data.avatar is not None:
         updates["avatar_type"], updates["avatar_value"] = "emoji", data.avatar
+    if "birthday" in data.model_fields_set:
+        updates["birthday"] = data.birthday
 
     if updates:
         for k, v in updates.items():
@@ -154,6 +157,7 @@ def _user_to_response(user: User) -> UserResponse:
         family_id=user.family_id,
         has_password=bool(user.hashed_password),
         has_pin=bool(user.pin_hash),
+        birthday=user.birthday,
         last_login_at=user.last_login_at.isoformat() if user.last_login_at else None,
         created_at=user.created_at.isoformat() if user.created_at else None,
     )

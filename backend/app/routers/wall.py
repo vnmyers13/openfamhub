@@ -33,6 +33,8 @@ from app.schemas.chores import RoutineRun
 from app.schemas.family import SleepSchedule
 from app.schemas.rewards import ProgressRow
 from app.services import rewards as rewards_svc
+from app.services import birthdays as birthdays_svc
+from app.schemas.family_info import UpcomingBirthday
 
 router = APIRouter()
 
@@ -255,6 +257,13 @@ async def wall_routines(db: AsyncSession = Depends(get_db), device: WallDevice =
 async def wall_progress(db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device)):
     """Family points, streaks and badges for the wall's progress panel (read-only)."""
     return [ProgressRow(**vars(r)) for r in await rewards_svc.progress(db, device.family_id)]
+
+
+@router.get("/birthdays", response_model=List[UpcomingBirthday])
+async def wall_birthdays(db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device)):
+    """Birthdays in the next two weeks, for the wall's birthday card (read-only)."""
+    today = rewards_svc.local_today(await rewards_svc.family_zone(db, device.family_id))
+    return [UpcomingBirthday(**vars(b)) for b in await birthdays_svc.upcoming(db, device.family_id, today, 14)]
 
 
 @router.websocket("/ws")

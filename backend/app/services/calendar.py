@@ -77,7 +77,12 @@ async def get_events_in_range(
         )
         .order_by(CalendarEvent.start_dt)
     )
-    return [event_to_response(event, color_hex) for event, color_hex, _name in result.all()]
+    events = [event_to_response(event, color_hex) for event, color_hex, _name in result.all()]
+    # Birthdays are computed all-day entries, not stored events (Phase 8).
+    from app.services.birthdays import birthday_events
+
+    extra = await birthday_events(db, family_id, start, end)
+    return sorted(events + extra, key=lambda e: e.start_dt) if extra else events
 
 
 async def get_source_logs(db: AsyncSession, source_id: str, limit: int = 20) -> list[SyncLog]:

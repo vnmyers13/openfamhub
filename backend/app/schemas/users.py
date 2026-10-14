@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, field_validator
@@ -15,6 +16,14 @@ class _UserFields(BaseModel):
     ui_mode: Optional[str] = None
     role: Optional[str] = None
     avatar: Optional[str] = None  # an emoji, shown in the sign-in picker
+    birthday: Optional[date] = None  # send null on update to clear it
+
+    @field_validator("birthday")
+    @classmethod
+    def check_birthday(cls, x):
+        if x is not None and not date(1900, 1, 1) <= x <= date.today():
+            raise ValueError("birthday must be a past date")
+        return x
 
     @field_validator("password")
     @classmethod
@@ -86,6 +95,7 @@ class UserResponse(BaseModel):
     family_id: str
     has_password: bool = False
     has_pin: bool = False
+    birthday: Optional[date] = None
     last_login_at: Optional[str] = None
     created_at: Optional[str] = None
 

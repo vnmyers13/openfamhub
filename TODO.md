@@ -243,7 +243,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [ ] Scale a recipe's ingredients by servings (quantities are free text today).
 
 ### Phase 8 — Books, announcements, weather
-- [ ] **Before starting:** check the pinned [Triage report](https://forgejo.vernonmyers.cloud/vernon/OpenFamHub/issues?type=all&state=open&q=Triage+report) issue (or run `python3 scripts/issues.py triage`). Schedule every issue it lists into TODO.md with a priority, and finish open **P0**/**P1** items first.
+- [x] **Before starting:** triaged 2026-10-13: nothing new; every open issue is a P3 Debian package (see Open issues).
 - [ ] Books: personal lists, shared family library, status transitions, 50-point award on completion (writes to the Phase 6 ledger).
 - [ ] Announcements: free text with pin/unpin.
 - [ ] Weather: Open-Meteo, no API key, cached ~10 minutes server-side. WMO code → emoji mapping. Location is a family setting.

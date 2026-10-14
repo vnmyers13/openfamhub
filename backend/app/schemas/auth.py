@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel, field_validator
@@ -69,6 +70,7 @@ class UserResponse(BaseModel):
     avatar_type: Optional[str] = None
     avatar_value: Optional[str] = None
     family_id: str
+    birthday: Optional[date] = None
     # How this session signed in, and whether it may do admin actions now.
     auth_method: Optional[str] = None
     admin_unlocked: bool = False
