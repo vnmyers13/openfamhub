@@ -10,3 +10,4 @@ from app.models.chores import ChoreCompletion, ChoreInstance, ChoreTemplate, Poi
 from app.models.rewards import (
     AllowanceEntry, AllowancePlan, BadgeDefinition, Redemption, Reward, UserBadge,
 )
+from app.models.meals import MealPlanEntry, PantryItem, Recipe, ShoppingItem
