@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getWallSession, onWallUnauthorized, pairWall, type WallSession } from '../api/wall'
+import { DEFAULT_WALL_DASHBOARD, getWallSession, onWallUnauthorized, pairWall, type WallSession } from '../api/wall'
 import { isAsleep } from '../lib/sleep'
 import WallClock from './WallClock'
 import WallProgress from './WallProgress'
@@ -55,7 +55,7 @@ export default function WallLayout() {
   useEffect(() => {
     if (state !== 'paired') return
     return onWallUnauthorized(() => {
-      for (const key of ['wall-events', 'wall-progress', 'wall-routines', 'wall-birthdays', 'wall-media', 'wall-session']) {
+      for (const key of ['wall-events', 'wall-progress', 'wall-routines', 'wall-birthdays', 'wall-media', 'wall-session', 'wall-chores', 'wall-meals', 'wall-announcements', 'wall-weather']) {
         queryClient.removeQueries({ queryKey: [key] })
       }
       setState('unpaired')
@@ -161,7 +161,7 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
       </div>
 
       {/* Right panel */}
-      <WallCycle startedAt={cycleStartedAt} timeZone={session.timezone} />
+      <WallCycle startedAt={cycleStartedAt} timeZone={session.timezone} dashboard={session.dashboard ?? DEFAULT_WALL_DASHBOARD} />
     </div>
   )
 }

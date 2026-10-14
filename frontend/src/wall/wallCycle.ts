@@ -8,9 +8,6 @@ export interface CycleState {
 }
 
 export const WALL_CYCLE_PANELS: CyclePanel[] = [
-  { id: 'calendar', label: 'Calendar', durationSeconds: 20 },
-  { id: 'routines', label: 'Routines', durationSeconds: 20 },
-  { id: 'progress', label: 'Progress', durationSeconds: 20 },
 ]
 
 const duration = (panel: CyclePanel) => Math.max(1, panel.durationSeconds)

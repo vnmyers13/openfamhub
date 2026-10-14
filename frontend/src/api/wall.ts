@@ -4,9 +4,9 @@ import type { WorldClock } from './family'
 import { apiClient } from './client'
 import type { CalendarEvent } from './calendar'
 import type { SleepSchedule } from '../lib/sleep'
-import type { RoutineRun } from './chores'
+import type { ChoreInstance, RoutineRun } from './chores'
 import type { ProgressRow } from './rewards'
-import type { UpcomingBirthday } from './home'
+import type { Announcement, MealSlot, UpcomingBirthday, Weather } from './home'
 
 export const WALL_DASHBOARD_WIDGETS = [
   { key: 'events', label: "Today's events" },
@@ -110,6 +110,40 @@ export function useWallEvents(start: Date, end: Date) {
       return res.data as CalendarEvent[]
     },
     refetchInterval: 15 * 60 * 1000, // backstop in case the WebSocket drops
+  })
+}
+
+export function useWallChores() {
+  return useQuery({
+    queryKey: ['wall-chores'],
+    queryFn: async () => (await apiClient.get('/wall/chores')).data as ChoreInstance[],
+    refetchInterval: 5 * 60 * 1000,
+  })
+}
+
+export interface WallMeals { today: string; meals_today: MealSlot[]; meals_week: MealSlot[] }
+
+export function useWallMeals() {
+  return useQuery({
+    queryKey: ['wall-meals'],
+    queryFn: async () => (await apiClient.get('/wall/meals')).data as WallMeals,
+    refetchInterval: 15 * 60 * 1000,
+  })
+}
+
+export function useWallAnnouncements() {
+  return useQuery({
+    queryKey: ['wall-announcements'],
+    queryFn: async () => (await apiClient.get('/wall/announcements')).data as Announcement[],
+    refetchInterval: 5 * 60 * 1000,
+  })
+}
+
+export function useWallWeather() {
+  return useQuery({
+    queryKey: ['wall-weather'],
+    queryFn: async () => (await apiClient.get('/wall/weather')).data as Weather,
+    refetchInterval: 15 * 60 * 1000,
   })
 }
 

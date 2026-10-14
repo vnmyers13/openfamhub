@@ -15,6 +15,17 @@ describe('cycleState', () => {
   it('handles an empty panel list without crashing', () => {
     expect(cycleState([], 10_000, 0)).toEqual({ panel: null, index: -1, secondsLeft: 0, elapsedInPanel: 0 })
   })
+
+  it('uses configured page durations for wall dashboard pages', () => {
+    const panels = [
+      { id: 'page-0', label: 'Today', durationSeconds: 45 },
+      { id: 'page-1', label: 'Family', durationSeconds: 15 },
+    ]
+
+    expect(cycleState(panels, 44_000, 0)).toMatchObject({ index: 0, secondsLeft: 1 })
+    expect(cycleState(panels, 46_000, 0)).toMatchObject({ index: 1, secondsLeft: 14 })
+    expect(cycleState(panels, 61_000, 0)).toMatchObject({ index: 0, secondsLeft: 44 })
+  })
 })
 
 describe('routineShowsOnWall', () => {
