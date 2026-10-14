@@ -9,6 +9,7 @@
 - **Change your own name, color and avatar** under **My settings › Me**, without an admin. The new look shows straight away across the app; a name someone else in the family already has is refused.
 
 ### Fixed
+- **Wall clock:** the time and date on the wall (and over the slideshow) now follow the family's timezone, like the rest of the wall, instead of the display's own setting. A Pi left on UTC showed the wrong time.
 - **Offline conflicts:** choosing "Keep mine" or "Merge" now goes through. Before, the resolved change was re-sent with the same Idempotency-Key, so the server answered with the remembered 409 every time and the change stayed stuck.
 - **Rewards:** two redeems at the same moment (say, from two devices) can no longer spend more points than someone has; the later one is refused.
 

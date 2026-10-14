@@ -33,7 +33,7 @@ vi.mock('../api/wall', () => ({
 vi.mock('./WallSevenDayStrip', () => ({ default: () => <div>seven-day strip</div> }))
 vi.mock('./WallProgress', () => ({ default: () => <div>progress</div> }))
 vi.mock('./WallBirthdays', () => ({ default: () => null }))
-vi.mock('./WallClock', () => ({ default: () => <div>clock</div> }))
+vi.mock('./WallClock', () => ({ default: ({ timeZone }: { timeZone?: string }) => <div>clock {timeZone ?? 'device'}</div> }))
 vi.mock('./WallSlideshow', () => ({ default: () => <div>slideshow</div> }))
 vi.mock('./WallRoutines', () => ({ default: () => null }))
 vi.mock('./WallCycle', () => ({ default: () => <div>cycling wall panels</div> }))
@@ -141,6 +141,7 @@ describe('WallLayout revocation (#10)', () => {
       // London (outside it). The family is in London, so the screen stays on.
       await bootAt('2026-10-21T03:00:00Z', { enabled: true, off: '22:00', on: '02:00' }, 'Europe/London')
       expect(await screen.findByText('cycling wall panels')).toBeTruthy()
+      expect(screen.getByText('clock Europe/London')).toBeTruthy()  // the clock follows it too
       expect(screen.queryByTestId('wall-asleep')).toBeNull()
     })
 

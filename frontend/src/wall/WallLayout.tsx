@@ -136,7 +136,7 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
       <div className="fixed inset-0 z-50 cursor-pointer">
         <WallSlideshow />
         <div className="absolute bottom-8 right-8 z-[60] drop-shadow-lg">
-          <WallClock />
+          <WallClock timeZone={session.timezone} />
         </div>
       </div>
     )
@@ -149,7 +149,7 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
     >
       {/* Left panel */}
       <div className="flex flex-col gap-8 border-r border-slate-700 p-8">
-        <WallClock />
+        <WallClock timeZone={session.timezone} />
         <div>
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
             Family

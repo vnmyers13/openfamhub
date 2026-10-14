@@ -108,3 +108,14 @@ async def test_weather_uses_the_family_location(client, admin, monkeypatch):
     _, wall = await _pair(client, admin)
     body = (await client.get("/api/wall/weather", headers=wall)).json()
     assert body["configured"] is True and body["place"] == "Detroit"
+
+
+async def test_a_display_cant_change_the_family_timezone(client, admin):
+    """The wall timezone is the family's, set by an admin (Admin › Settings); a display only reads it."""
+    _, wall = await _pair(client, admin)
+    res = await client.patch("/api/family", json={"timezone": "Asia/Tokyo"}, headers=wall)
+    assert res.status_code == 401
+    session = (await client.get("/api/wall/session", headers=wall)).json()
+    assert session["timezone"] == SETUP.get("timezone", session["timezone"]) and session["timezone"] != "Asia/Tokyo"
+    await client.patch("/api/family", json={"timezone": "Asia/Tokyo"}, headers=_h(admin))
+    assert (await client.get("/api/wall/session", headers=wall)).json()["timezone"] == "Asia/Tokyo"
