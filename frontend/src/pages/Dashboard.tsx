@@ -1,11 +1,20 @@
-import { Suspense } from 'react'
+import { useDashboardSummary, type DashboardSummary } from '../api/home'
+import { WIDGETS, type WidgetKey } from '../lib/dashboard'
 import { useAuthStore } from '../stores/auth'
-import { useCalendarEvents, useCalendarSources } from '../api/calendar'
-import { startOfDay, endOfDay, format } from 'date-fns'
-import { eventDayKeys, eventStart } from '../lib/dates'
-import { Link } from 'react-router-dom'
-import { useFamilyProgress } from '../api/rewards'
-import FamilyProgress from '../components/FamilyProgress'
+import {
+  Announcements, Birthdays, FamilyStars, MealsToday, MyDay, SyncStatus, TodaysEvents, WeatherCard,
+} from './dashboard/widgets'
+
+const RENDER: Record<WidgetKey, (s?: DashboardSummary) => React.ReactNode> = {
+  events: (s) => <TodaysEvents summary={s} />,
+  weather: () => <WeatherCard />,
+  'my-day': (s) => <MyDay summary={s} />,
+  meals: (s) => <MealsToday summary={s} />,
+  stars: () => <FamilyStars />,
+  announcements: (s) => <Announcements summary={s} />,
+  birthdays: (s) => <Birthdays summary={s} />,
+  sync: () => <SyncStatus />,
+}
 
 function Greeting() {
   const user = useAuthStore((s) => s.user)
@@ -20,132 +29,16 @@ function Greeting() {
   )
 }
 
-function TodaysEventsWidget() {
-  const today = new Date()
-  const { data: events = [], isLoading } = useCalendarEvents(
-    startOfDay(today),
-    endOfDay(today),
-  )
-  const todayKey = format(today, 'yyyy-MM-dd')
-  // The range query is by overlap in UTC; all-day events are dates, so keep only
-  // those that actually fall on today's local date.
-  const todays = events.filter((ev) => !ev.all_day || eventDayKeys(ev).includes(todayKey))
-
-  if (isLoading) {
-    return (
-      <div className="animate-pulse rounded-xl bg-slate-800 p-4">
-        <div className="mb-2 h-4 w-32 rounded bg-slate-700" />
-        <div className="h-3 w-48 rounded bg-slate-700" />
-      </div>
-    )
-  }
-
-  return (
-    <div className="rounded-xl bg-slate-800 p-4">
-      <h2 className="mb-3 text-lg font-semibold text-white">Today's Events</h2>
-      {todays.length === 0 && (
-        <p className="text-sm text-slate-400">No events scheduled for today.</p>
-      )}
-      <div className="flex flex-col gap-2">
-        {todays.map((ev) => (
-          <div
-            key={ev.id}
-            className="flex items-center gap-3 rounded bg-slate-700/50 px-3 py-2"
-          >
-            <span
-              className="h-3 w-3 shrink-0 rounded-full"
-              style={{ backgroundColor: ev.source_color_hex }}
-            />
-            <span className="flex-1 truncate text-sm text-slate-200">{ev.title}</span>
-            <span className="text-xs text-slate-400">
-              {ev.all_day
-                ? 'All day'
-                : eventStart(ev).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function FamilyProgressWidget() {
-  const { data: rows, isLoading } = useFamilyProgress()
-  return (
-    <div className="rounded-xl bg-slate-800 p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Family Stars</h2>
-        <Link to="/rewards" className="text-sm text-primary hover:underline">Rewards</Link>
-      </div>
-      {isLoading ? <div className="h-3 w-40 animate-pulse rounded bg-slate-700" /> : <FamilyProgress rows={rows ?? []} />}
-    </div>
-  )
-}
-
-function SyncStatusWidget() {
-  const { data: sources = [], isLoading } = useCalendarSources()
-
-  if (isLoading) {
-    return (
-      <div className="animate-pulse rounded-xl bg-slate-800 p-4">
-        <div className="mb-2 h-4 w-40 rounded bg-slate-700" />
-        <div className="h-3 w-32 rounded bg-slate-700" />
-      </div>
-    )
-  }
-
-  const errors = sources.filter((s) => s.sync_error)
-
-  return (
-    <div className="rounded-xl bg-slate-800 p-4">
-      <h2 className="mb-3 text-lg font-semibold text-white">Sync Status</h2>
-      <p className="text-sm text-slate-400">
-        {sources.length} source{sources.length !== 1 ? 's' : ''} configured
-      </p>
-      {errors.length > 0 && (
-        <div className="mt-2 rounded bg-red-900/30 px-3 py-2 text-sm text-red-300">
-          {errors.length} source{errors.length !== 1 ? 's' : ''} with errors
-        </div>
-      )}
-      {errors.length === 0 && sources.length > 0 && (
-        <p className="mt-2 text-sm text-green-400">All sources healthy</p>
-      )}
-    </div>
-  )
-}
-
+/** Home: one summary call feeds most cards; weather and stars load on their own. */
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
-  const isAdmin = user?.role === 'admin'
-
+  const { data: summary } = useDashboardSummary()
+  const widgets = WIDGETS.filter((w) => !('adminOnly' in w && w.adminOnly) || user?.role === 'admin')
   return (
     <div className="flex flex-col gap-6 p-6">
       <Greeting />
-      <div className="grid gap-6 md:grid-cols-2">
-        <Suspense
-          fallback={
-            <div className="animate-pulse rounded-xl bg-slate-800 p-4">
-              <div className="mb-2 h-4 w-32 rounded bg-slate-700" />
-            </div>
-          }
-        >
-          <TodaysEventsWidget />
-        </Suspense>
-        <FamilyProgressWidget />
-        {isAdmin && (
-          <Suspense
-            fallback={
-              <div className="animate-pulse rounded-xl bg-slate-800 p-4">
-                <div className="mb-2 h-4 w-40 rounded bg-slate-700" />
-              </div>
-            }
-          >
-            <SyncStatusWidget />
-          </Suspense>
-        )}
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {widgets.map((w) => <div key={w.key}>{RENDER[w.key](summary)}</div>)}
       </div>
     </div>
   )

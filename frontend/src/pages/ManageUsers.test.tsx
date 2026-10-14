@@ -94,9 +94,11 @@ describe('ManageUsers', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1])
     expect(screen.getByText('Edit Kid')).toBeTruthy()
     fireEvent.change(field(/^Name/), { target: { value: 'Sam' } })
+    fireEvent.change(field(/^Birthday/), { target: { value: '2017-03-04' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true))
-    expect(calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({ display_name: 'Sam', pin: undefined, password: undefined })
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toMatchObject(
+      { display_name: 'Sam', pin: undefined, password: undefined, birthday: '2017-03-04' })
   })
 
   it('removes a member after confirming', async () => {

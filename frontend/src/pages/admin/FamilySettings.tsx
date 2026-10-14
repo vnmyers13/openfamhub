@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { errorDetail } from '../../api/client'
 import { useFamilySettings, useUpdateFamilySettings, type FamilySettings as Settings } from '../../api/family'
 import { allZones, zoneLabel } from '../../lib/timezones'
+import WeatherSettings from './WeatherSettings'
 
-/** Admin › Settings: family name, timezone and the wall sleep schedule. */
+/** Admin › Settings: family name, timezone, the wall sleep schedule and the weather location. */
 export default function FamilySettings() {
   const { data } = useFamilySettings()
   return (
@@ -11,6 +12,7 @@ export default function FamilySettings() {
       <div className="mx-auto max-w-xl">
         <h1 className="mb-6 text-2xl font-bold text-white">Family settings</h1>
         {data ? <SettingsForm initial={data} /> : <p className="text-gray-400">Loading…</p>}
+        <div className="mt-6"><WeatherSettings /></div>
       </div>
     </div>
   )

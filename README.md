@@ -1,7 +1,7 @@
 # OpenFamHub
 
 <<<<<<< HEAD
-![Version](https://img.shields.io/badge/version-1.20-blue)
+![Version](https://img.shields.io/badge/version-1.21-blue)
 =======
 >>>>>>> temp-build
 ![License](https://img.shields.io/badge/license-MIT-green)

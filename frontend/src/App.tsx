@@ -21,6 +21,7 @@ const PhotosPage = lazy(() => import('./pages/PhotosPage'))
 const ChoresPage = lazy(() => import('./pages/chores/ChoresPage'))
 const RewardsPage = lazy(() => import('./pages/rewards/RewardsPage'))
 const MealsPage = lazy(() => import('./pages/meals/MealsPage'))
+const BooksPage = lazy(() => import('./pages/books/BooksPage'))
 const FamilySettings = lazy(() => import('./pages/admin/FamilySettings'))
 
 // Paths an authenticated user should be moved off of after boot.
@@ -84,6 +85,7 @@ function AppRoutes() {
           <Route path="/chores" element={<ChoresPage />} />
           <Route path="/rewards" element={<RewardsPage />} />
           <Route path="/meals" element={<MealsPage />} />
+          <Route path="/books" element={<BooksPage />} />
           <Route path="/photos" element={<PhotosPage />} />
           <Route element={<RequireAdmin />}>
             <Route path="/admin/users" element={<ManageUsers />} />

@@ -18,6 +18,7 @@ interface User {
   family_id: string
   last_login_at: string | null
   created_at: string | null
+  birthday?: string | null
 }
 
 const AVATARS = ['🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐵', '🦄', '🐙', '🐢', '🦖', '🐝', '🌟', '🚀', '⚽', '🎸']
@@ -34,6 +35,7 @@ interface FormValues {
   avatar: string
   pin: string
   password: string
+  birthday: string
 }
 
 export default function ManageUsers() {
@@ -141,6 +143,7 @@ function UserForm({ user, onDone, onCancel }: { user: User | null; onDone: () =>
     avatar: user?.avatar_value ?? AVATARS[0],
     pin: '',
     password: '',
+    birthday: user?.birthday ?? '',
   })
   const [error, setError] = useState('')
   const set = (k: keyof FormValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -155,6 +158,7 @@ function UserForm({ user, onDone, onCancel }: { user: User | null; onDone: () =>
         avatar: values.avatar,
         pin: values.pin || undefined,
         password: values.password || undefined,
+        birthday: values.birthday || null,
       }
       return isNew ? apiClient.post('/users/', body) : apiClient.patch(`/users/${user!.id}`, body)
     },
@@ -220,6 +224,10 @@ function UserForm({ user, onDone, onCancel }: { user: User | null; onDone: () =>
         <label className="text-sm text-gray-300">
           Color
           <input type="color" className="h-9 w-full cursor-pointer rounded border border-gray-700 bg-gray-800" value={values.color_hex} onChange={set('color_hex')} />
+        </label>
+        <label className="text-sm text-gray-300">
+          Birthday (optional)
+          <input className={input} type="date" value={values.birthday} onChange={set('birthday')} />
         </label>
       </div>
       <div className="flex justify-end gap-2">

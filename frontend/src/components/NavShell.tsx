@@ -12,6 +12,7 @@ const navItems = [
   { to: '/chores', label: 'Chores', icon: '✅' },
   { to: '/rewards', label: 'Rewards', icon: '⭐' },
   { to: '/meals', label: 'Meals', icon: '🍽️' },
+  { to: '/books', label: 'Books', icon: '📚' },
   { to: '/photos', label: 'Photos', icon: '🖼️' },
 ]
 
