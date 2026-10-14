@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Recipes (build 1.25)
+- Scale a recipe: change the servings (or pick ½×, 2×, 3× when it doesn't say) and the amounts at the start of each ingredient line follow, written as kitchen fractions.
+
 ### Phase 8: Family info and your own layout (builds 1.20–1.24)
 
 #### Added

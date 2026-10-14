@@ -51,6 +51,7 @@ Triaged 2026-10-13: 68 open issues, all from the Trivy image scan. Build 1.08 cl
 - [x] **P2** Bump `fastapi` (pinned 0.115.6) to a release whose Starlette is patched: starlette CVE-2025-62727, CVE-2026-48818, CVE-2026-54283 (#19, #31, #36).
 - [x] **P2** Bump `python-multipart` (pinned 0.0.20): CVE-2026-24486, CVE-2026-42561, CVE-2026-53539 (#26, #30, #32).
 - [x] **P2** Bump `Pillow` (pinned 11.3.0; check `pillow-heif` compatibility and rerun the media tests): CVE-2026-25990, -40192, -42311, -54058, -54059, -54060, -55379, -55380, -59197, -59199, -59200, -59204, -59205 (#27, #28, #29, #33, #34, #35, #41, #42, #43, #44, #45, #46, #47).
+- [ ] **P3** `WallLayout.test.tsx` "drops back to the pairing screen" failed once in a full frontend run on 2026-10-13 and passed in six reruns. If it flakes again, raise its `findByText` timeout or wait on the effect that registers the 401 listener.
 - [ ] **P3** API image OS packages (`python:3.12-slim`): rebuild on a current base and add `apt-get upgrade -y` (or move to a newer Debian tag). ncurses CVE-2025-69720 (#20, #21, #22, #23); systemd CVE-2026-16742 (#24, #25); libacl1 CVE-2026-54369 (#40); perl-base CVE-2026-9538 (#85); util-linux CVE-2026-76642 (#48, #49, #50, #51, #52, #53, #54, #55, #56), CVE-2026-78408 (#57, #58, #59, #60, #61, #62, #63, #64, #65), CVE-2026-78409 (#66, #67, #68, #69, #70, #71, #72, #73, #74), CVE-2026-78410 (#75, #76, #77, #78, #79, #81, #82, #83, #84). Still open after 1.08's `apt-get upgrade`: Debian has no fix for these yet (P3 since 2026-10-13). Every build upgrades and pulls a fresh base, so Trivy closes them once Debian ships fixes; then tick this line.
 - [x] **P2** Web image OS packages (`nginx:alpine`): rebuild on a current tag and add `apk upgrade --no-cache`. pcre2 CVE-2026-103111 (#37), tiff CVE-2026-4775 (#38), libexpat CVE-2026-93990 (#39).
 
@@ -240,7 +241,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [x] **Recipe library extras:** seed/featured catalog, step-by-step mode, per-recipe video links. 8 built-in recipes (`backend/app/data/recipe_catalog.json`).
 - [x] **Smart Import:** URL → event (JSON-LD) alongside URL → recipe; photo → recipe lands in Phase 10 with the OCR work. "Fill from a link" in the calendar's New Event form.
 - Tests first: import parsing for both formats; plan overwrite semantics; regenerate is idempotent; reset does not delete completed purchases; pantry flags and expiry; URL → event parsing. Done: `test_meals.py`, `test_smart_import.py`, `MealsPage.test.tsx`, `CalendarPage.test.tsx`, `lib/meals.test.ts`, `lib/dates.test.ts`.
-- [ ] Scale a recipe's ingredients by servings (quantities are free text today).
+- [x] Scale a recipe's ingredients by servings (quantities are free text today). Done at 1.25: ± servings (or ½×–3× when servings are unknown) scales the number at the start of each line (`lib/scale.ts`: fractions, mixed numbers, ½, ranges).
 
 ### Phase 8 — Books, announcements, weather ✅ (code complete at 1.24)
 - [x] **Before starting:** triaged 2026-10-13: nothing new; every open issue is a P3 Debian package (see Open issues).

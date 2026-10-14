@@ -101,6 +101,26 @@ describe('MealsPage', () => {
       expect(await screen.findByLabelText('Search recipes')).toBeTruthy()
     })
 
+    it('scales ingredients by servings, or by a multiplier when servings are unknown', async () => {
+      mealsApi({ 'GET /meals/recipes': [recipe('r1', 'Tacos', { servings: 4, ingredients: ['1 1/2 lb beef', 'Salsa to serve'] }),
+        recipe('r3', 'Mystery stew', { servings: null, ingredients: ['2 cups beans'] })] })
+      signIn('kid', 'member')
+      renderApp(<MealsPage />)
+      tab('Recipes')
+      fireEvent.click(await screen.findByText('Tacos'))
+      for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: 'More servings' }))
+      expect(screen.getByText('Serves 8')).toBeTruthy()
+      expect(screen.getByText('3 lb beef')).toBeTruthy()
+      expect(screen.getByText('Salsa to serve')).toBeTruthy()
+      expect(screen.getByText(/Amounts at the start of each line are scaled/)).toBeTruthy()
+      for (let i = 0; i < 6; i++) fireEvent.click(screen.getByRole('button', { name: 'Fewer servings' }))
+      expect(screen.getByText('3/4 lb beef')).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: '← All recipes' }))
+      fireEvent.click(await screen.findByText('Mystery stew'))
+      fireEvent.click(screen.getByRole('button', { name: '½×' }))
+      expect(screen.getByText('1 cups beans')).toBeTruthy()
+    })
+
     it('adds a recipe from the form', async () => {
       const calls = mealsApi({ 'POST /meals/recipes': recipe('r9', 'Soup') })
       signIn('kid', 'member')

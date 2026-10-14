@@ -4,6 +4,7 @@ import {
   importRecipe, useAddFromCatalog, useCatalog, useDeleteRecipe, useRecipes, type Recipe, type RecipeDraft,
 } from '../../api/meals'
 import { minutesLabel } from '../../lib/meals'
+import { scaleLine } from '../../lib/scale'
 import { useAuthStore } from '../../stores/auth'
 import { Banner } from '../chores/Controls'
 import { input, primary, subtle } from '../chores/shared'
@@ -87,6 +88,10 @@ function RecipeView({ recipe, canEdit, onEdit, onBack, onError }: {
 }) {
   const del = useDeleteRecipe()
   const [cooking, setCooking] = useState(false)
+  // Scale by servings when the recipe says how many it serves, else by a multiplier.
+  const [servings, setServings] = useState(recipe.servings ?? 0)
+  const [multiplier, setMultiplier] = useState(1)
+  const factor = recipe.servings ? servings / recipe.servings : multiplier
   const remove = async () => {
     if (!window.confirm(`Delete ${recipe.title}? Planned meals keep their name.`)) return
     try {
@@ -118,7 +123,22 @@ function RecipeView({ recipe, canEdit, onEdit, onBack, onError }: {
       <div className="grid gap-6 md:grid-cols-[16rem_1fr]">
         <section>
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-400">Ingredients</h3>
-          <ul className="list-disc space-y-1 pl-5 text-gray-200">{recipe.ingredients.map((x, i) => <li key={i}>{x}</li>)}</ul>
+          <div className="mb-2 flex items-center gap-2 text-sm text-gray-300" role="group" aria-label="Scale the recipe">
+            {recipe.servings ? (
+              <>
+                <button className={subtle} aria-label="Fewer servings" disabled={servings <= 1} onClick={() => setServings(servings - 1)}>−</button>
+                <span aria-live="polite">Serves {servings}</span>
+                <button className={subtle} aria-label="More servings" disabled={servings >= 100} onClick={() => setServings(servings + 1)}>+</button>
+              </>
+            ) : (
+              [0.5, 1, 2, 3].map((m) => (
+                <button key={m} className={`${subtle} ${multiplier === m ? 'ring-1 ring-primary' : ''}`} aria-pressed={multiplier === m}
+                  onClick={() => setMultiplier(m)}>{m === 0.5 ? '½×' : `${m}×`}</button>
+              ))
+            )}
+          </div>
+          <ul className="list-disc space-y-1 pl-5 text-gray-200">{recipe.ingredients.map((x, i) => <li key={i}>{scaleLine(x, factor)}</li>)}</ul>
+          {factor !== 1 && <p className="mt-2 text-xs text-gray-500">Amounts at the start of each line are scaled; check anything else by eye.</p>}
         </section>
         <section>
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-400">Steps</h3>
