@@ -36,7 +36,7 @@ export const ROUTINE_HEADS_UP_SECONDS = 30 * 60
 /**
  * Whether the wall shows this routine now: from half an hour before its
  * start until its last step ends, unless every step is already done.
- * (WallRoutines applies the same rule per card.)
+ * WallRoutines uses it for each card and for its "No routine right now".
  */
 export function routineShowsOnWall(
   run: { start_time: string | null | undefined; steps: { minutes: number; status: string }[] }, now: Date, timeZone: string,

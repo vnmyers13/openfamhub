@@ -93,7 +93,7 @@ class FamilySettingsUpdate(BaseModel):
 
 
 WallDashboardWidgetKey = Literal[
-    "events", "chores", "routines", "meals", "weather", "announcements", "progress", "birthdays"
+    "clock", "events", "chores", "routines", "meals", "weather", "announcements", "progress", "birthdays"
 ]
 
 

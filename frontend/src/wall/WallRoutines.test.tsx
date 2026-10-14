@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mockApi } from '../test/api'
+import { apiError, mockApi } from '../test/api'
 import WallRoutines from './WallRoutines'
 
 const step = (n: number, title: string, minutes: number, status = 'pending') =>
@@ -14,9 +14,9 @@ const MORNING = {
 function renderAt(iso: string, runs: object[], timeZone = 'America/Detroit') {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(iso))
-  mockApi({ 'GET /wall/routines': runs })
+  const calls = mockApi({ 'GET /wall/routines': runs })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={client}><WallRoutines timeZone={timeZone} /></QueryClientProvider>)
+  return { calls, client, ...render(<QueryClientProvider client={client}><WallRoutines timeZone={timeZone} /></QueryClientProvider>) }
 }
 
 describe('WallRoutines', () => {
@@ -40,6 +40,7 @@ describe('WallRoutines', () => {
     const { container } = renderAt('2026-10-20T09:00:00Z', [MORNING]) // 05:00, too early
     await new Promise((r) => setTimeout(r, 20))
     expect(container.querySelector('[data-testid="wall-routine"]')).toBeNull()
+    expect(screen.getByText('No routine right now.')).toBeTruthy()  // the card isn't left blank
   })
 
   it('disappears once every step is done', async () => {
@@ -54,5 +55,31 @@ describe('WallRoutines', () => {
     const { container } = renderAt('2026-10-20T11:06:30Z', [MORNING], 'Europe/London')
     await new Promise((r) => setTimeout(r, 20))
     expect(container.querySelector('[data-testid="wall-routine"]')).toBeNull()
+  })
+
+  it('checks off the current step from the wall', async () => {
+    const { calls } = renderAt('2026-10-20T11:06:30Z', [
+      { ...MORNING, steps: [step(1, 'Get dressed', 5, 'completed'), MORNING.steps[1], MORNING.steps[2]] },
+    ])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Done with Breakfast' }))
+
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/wall/routines/steps/i2/complete')).toBe(true))
+  })
+
+  it('shows an error when the wall cannot complete a step', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-20T11:06:30Z'))
+    mockApi({
+      'GET /wall/routines': [{ ...MORNING, steps: [step(1, 'Get dressed', 5, 'completed'), MORNING.steps[1], MORNING.steps[2]] }],
+      'POST /wall/routines/steps/i2/complete': () => { throw apiError(403, 'This routine step is not assigned to a person') },
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={client}><WallRoutines timeZone="America/Detroit" /></QueryClientProvider>)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Done with Breakfast' }))
+
+    expect(await screen.findByText('This routine step is not assigned to a person')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Done with Breakfast' })).toHaveProperty('disabled', false)
   })
 })

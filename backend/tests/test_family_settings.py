@@ -191,3 +191,12 @@ async def test_changing_wall_dashboard_notifies_walls(client, admin, setup_db):
 async def test_anonymous_cannot_read_or_save_wall_dashboard(client):
     assert (await client.get("/api/family/wall-dashboard")).status_code in (401, 403)
     assert (await client.put("/api/family/wall-dashboard", json=wall_dashboard_body())).status_code in (401, 403)
+
+
+async def test_a_clock_card_can_be_put_on_a_wall_page(client, admin):
+    """The wall's header always shows the time; a Clock card puts a big one on a page too."""
+    body = {"pages": [{"name": "Morning", "duration_seconds": 30, "widgets": [{"key": "clock", "size": "normal"},
+                                                                              {"key": "routines", "size": "wide"}]}]}
+    res = await client.put("/api/family/wall-dashboard", json=body, headers=_h(admin))
+    assert res.status_code == 200, res.text
+    assert res.json()["pages"][0]["widgets"][0] == {"key": "clock", "size": "normal"}

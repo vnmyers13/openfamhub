@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+### Added
+- **A wall dashboard the family arranges (#87):** the wall shows pages of cards (today's events, chores, routines, meals, weather, announcements, family progress, birthdays) that turn every so often. Anyone signed in can change the pages, cards, sizes and timing from the Dashboard; every wall follows the same layout.
+- **Tick off routine steps on the wall:** the current step has a **Done** button. It counts for whoever the routine is assigned to, so kids can work through their morning routine at the wall without signing in. Undo stays in the app.
+- **The time is always on the wall:** a header bar shows the family's time and date, with any extra clocks, above every page. A **Clock** card puts a big clock on a page too.
+
+### Fixed
+- The wall redrew every card on the page each second to tick its countdown, heavy on a Raspberry Pi; now only the countdown does.
+- The Routines card was blank when no routine was on; it says "No routine right now."
+
 ---
 
 ## [1.41] - 2026-10-14 — Phase 10

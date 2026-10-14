@@ -110,7 +110,7 @@ A wall display can only read its `/api/wall/*` data, and open the `/api/wall/ws`
 
 `GET /api/family` (members) and `PATCH /api/family` (admins with an unlocked session) hold the family name, the IANA timezone and the wall sleep schedule (`enabled`, `off`, `on` as HH:MM; `off` later than `on` means overnight), stored in `families.settings_json`. The wall session returns the timezone and schedule; the wall evaluates the schedule itself with `Intl` in the family timezone (`lib/sleep.ts`), so it follows DST regardless of the display's own zone. The wall clock (`WallClock`) shows the time and date in the family timezone the same way. Up to three extra clocks (`settings_json.clocks`, a label and an IANA zone each, set in Admin › Settings) come in the wall session and show under it. A display can read the timezone but not change it. While asleep the screen is black; a touch lights it for one idle period. Changing settings pushes `settings_updated`, and the wall refetches its session.
 
-While the board is active, its left column shows the clock, family progress, birthdays and routines, and the right side cycles (`wall/WallCycle.tsx`, timing in `wall/wallCycle.ts`): Calendar (the seven-day strip), Routines, then Progress with birthdays, 20 s each, with a "Next in …" countdown. Routines is skipped while no routine is on the wall (`lib/routine.routineShowsOnWall`). The countdown re-renders every second; the panel itself only when it changes.
+While the board is active it shows the family wall dashboard (below): `wall/WallCycle.tsx` turns its pages (timing in `wall/wallCycle.ts`) under a header bar with the time and date in the family timezone, any extra clocks, the page's name and a "Next in …" countdown. The countdown re-renders every second; the page's cards only when the page changes.
 
 On the idle screen `WallSlideshow` shows the family's ready media full screen, in an order from `lib/shuffle.ts` that uses every item before repeating; photos stay up 12 s, videos play muted to the end.
 
@@ -135,7 +135,7 @@ On the idle screen `WallSlideshow` shows the family's ready media full screen, i
   - Calendar scope: everyone or just me.
   - Wallpaper: a gradient or a media id.
   - Up to 6 dashboard pages, each a list of widget keys and sizes. An empty list means the default page.
-- **Family wall dashboard** (`/api/family/wall-dashboard`, `families.settings_json["wall_dashboard"]`): shared by the whole family and editable by any signed-in user. It stores wall pages, card order, card size and page duration; `/api/wall/session` returns it to paired wall displays, which render it read-only through paired-device endpoints for events, chores, routines, meals, weather, announcements, progress and birthdays.
+- **Family wall dashboard** (`/api/family/wall-dashboard`, `families.settings_json["wall_dashboard"]`): shared by the whole family and editable by any signed-in user. It stores wall pages, card order, card size and page duration; `/api/wall/session` returns it to paired wall displays, which render it read-only through paired-device endpoints for events, chores, routines, meals, weather, announcements, progress and birthdays. A `clock` card shows the big wall clock with the extra clocks.
 
 ## Reading photos (OCR)
 
@@ -181,7 +181,7 @@ All under `/api/rewards` (`routers/rewards.py`, rules in `services/rewards.py`).
 - **Streaks**: consecutive family-local days with a completion that isn't undone, ending today or yesterday.
 - **Allowance** (`allowance_plans`, `allowance_ledger`): whole cents. `jobs/allowance.py` runs hourly: for each plan it pays every week from `start_week` up to the latest Monday 07:00 (family time) not yet paid, capped at 8 weeks back. `(user_id, week_start)` is unique. Admins record payouts as negative adjustments; a new or restarted plan starts at the next Monday.
 - **Progress**: `GET /api/rewards/progress` and the paired-display `GET /api/wall/progress` return each non-viewer's balance, points earned since Monday (chores and badges, not spending), streak and badges.
-- **Wall**: `WallRoutines` shows a routine from half an hour before its start until its steps are done or its time is up: the current step (steps run back to back from the start time, `lib/routine.ts`), a live countdown and progress. Read-only: steps are ticked in the app.
+- **Wall**: `WallRoutines` shows a routine from half an hour before its start until its steps are done or its time is up: the current step (steps run back to back from the start time, `lib/routine.ts`), a live countdown and progress, or "No routine right now" (`lib/routine.routineShowsOnWall`). The current step has a **Done** button: `POST /api/wall/routines/steps/{id}/complete` completes it for the step's assignee if it's one of today's routine steps in the display's family and assigned to someone; otherwise 404/403, and a completed step is returned unchanged.
 
 ## Realtime
 

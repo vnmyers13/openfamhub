@@ -222,7 +222,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [x] **Routines:** ordered groups of recurring steps (morning/bedtime) with a visual countdown timer on the wall; built on chore instances. Reminders come from Phase 11.
 - Tests first: recurrence expansion across DST; instance generation idempotency; claim/complete role gating; admin view counts; generator does not double-generate; to-do CRUD is family-scoped; routine step order survives edits. Done: `test_chore_schedule.py`, `test_chores_api.py`, `test_todos_routines.py`, `lib/repeat.test.ts`, `lib/routine.test.ts`, `lib/choreActions.test.ts`, `pages/chores/*.test.tsx`, `WallRoutines.test.tsx`.
 - Done notes: the points ledger (`points_ledger`, append-only, unique per source) arrived here because completing must credit it; undo writes a reversal. Points go to the assignee, else whoever claimed it. Instances still open after their day are marked missed by the generator.
-- [ ] Check off routine steps from the wall. The wall shows routines and the current step's countdown, but steps are ticked in the app: completing from a paired display (no user session) would credit a child's points without anyone signing in, so it needs a decision (e.g. allow it only for routine steps assigned to a child).
+- [x] Check off routine steps from the wall. The wall shows routines and the current step's countdown, but steps are ticked in the app: completing from a paired display (no user session) would credit a child's points without anyone signing in, so it needs a decision (e.g. allow it only for routine steps assigned to a child). Done 2026-10-14 (branch `wall-routine-step-completion`): a **Done** button on the current step; `POST /api/wall/routines/steps/{id}/complete` accepts only today's routine steps of the display's family that are assigned to someone, credits that person and is a no-op if already done (`test_todos_routines.py`, `WallRoutines.test.tsx`). Undo stays in the app.
 
 
 ### Phase 6 — Rewards ✅ (code complete at 1.12)
@@ -262,7 +262,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - Tests first (done: `test_books_announcements.py`, `test_weather_dashboard.py`, `Dashboard.test.tsx`, `CustomizeDashboard.test.tsx`, `BooksPage.test.tsx`, `MySettings.test.tsx`, `NavShell.test.tsx`): cross-family isolation on the shared library; point award fires once; cache hit within the window; WMO mapping table has no unmapped codes; birthday age crosses the year boundary; layout persistence; filter scoping.
 
 - [x] Members can't change their own name, color or avatar outside Admin › Users; add them to My settings. Done: a **Me** section at the top of My settings (`PATCH /users/{id}` already allowed your own profile; `test_users_api.py`, `MySettings.test.tsx`). The avatar list is shared in `lib/avatars.ts`.
-- [ ] Weather and announcements panels on the wall come with Phase 10's wall panels.
+- [x] Weather and announcements panels on the wall come with Phase 10's wall panels. Done in #87: Weather and Announcements (and Chores, Meals) are cards on the configurable family wall dashboard.
 
 ### Phase 9 — Offline sync ✅ (code complete at 1.28)
 - [x] **Before starting:** triaged 2026-10-13: no new P0/P1; every open issue is P3.

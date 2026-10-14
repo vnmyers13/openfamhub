@@ -4,7 +4,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select
 
-from app.models.chores import PointsEntry, Todo
+from app.models.chores import ChoreInstance, ChoreTemplate, PointsEntry, Todo
 from app.services.chores import family_today
 from tests.test_phase2 import SETUP, _cookie, _h, _member
 
@@ -200,3 +200,73 @@ class TestRoutines:
         [routine] = (await client.get("/api/wall/routines", headers=wall)).json()
         assert routine["name"] == "Morning" and routine["assigned_name"] == "Kid"
         assert [s["title"] for s in routine["steps"]] == ["Get dressed", "Breakfast", "Brush teeth"]
+
+    async def test_the_wall_completes_an_assigned_routine_step_and_credits_the_child(self, client, admin, kid):
+        await make_routine(client, admin, kid)
+        device = (await client.post("/api/wall/devices", json={"name": "Kitchen"}, headers=_h(admin))).json()
+        pair = await client.post("/api/wall/pair", json={"token": device["token"]})
+        wall = {"Cookie": _cookie(pair, "wall_token")}
+        [routine] = (await client.get("/api/wall/routines", headers=wall)).json()
+
+        res = await client.post(f"/api/wall/routines/steps/{routine['steps'][0]['instance_id']}/complete", headers=wall)
+
+        assert res.status_code == 200, res.text
+        assert res.json()["status"] == "completed"
+        assert res.json()["completed_by"] == kid["id"]
+        stats = (await client.get("/api/chores/stats", headers=_h(kid))).json()
+        assert stats["points_balance"] == 1
+        [routine] = (await client.get("/api/wall/routines", headers=wall)).json()
+        assert routine["steps"][0]["status"] == "completed"
+
+    async def test_wall_routine_completion_is_idempotent(self, client, admin, kid, setup_db):
+        await make_routine(client, admin, kid)
+        device = (await client.post("/api/wall/devices", json={"name": "Kitchen"}, headers=_h(admin))).json()
+        pair = await client.post("/api/wall/pair", json={"token": device["token"]})
+        wall = {"Cookie": _cookie(pair, "wall_token")}
+        [routine] = (await client.get("/api/wall/routines", headers=wall)).json()
+        step_id = routine["steps"][0]["instance_id"]
+
+        assert (await client.post(f"/api/wall/routines/steps/{step_id}/complete", headers=wall)).status_code == 200
+        second = await client.post(f"/api/wall/routines/steps/{step_id}/complete", headers=wall)
+
+        assert second.status_code == 200, second.text
+        assert second.json()["status"] == "completed"
+        points = (await setup_db.execute(select(PointsEntry))).scalars().all()
+        assert [(p.user_id, p.delta) for p in points] == [(kid["id"], 1)]
+
+    async def test_wall_cannot_complete_plain_chores_or_foreign_steps(self, client, admin, kid, setup_db):
+        plain = (await client.post("/api/chores/templates", json={
+            "title": "Feed the cat", "points": 2, "assignment": "assigned", "assigned_to": kid["id"],
+        }, headers=_h(admin))).json()
+        [plain_inst] = (await client.get("/api/chores/instances", headers=_h(admin))).json()
+        foreign_template = ChoreTemplate(
+            family_id="another-family", title="Foreign step", points=1, assignment="assigned", assigned_to=kid["id"],
+            repeat={"every": "day"}, start_date=TODAY, routine_id="foreign-routine", position=0, minutes=5,
+        )
+        setup_db.add(foreign_template)
+        await setup_db.flush()
+        foreign_inst = ChoreInstance(
+            family_id="another-family", template_id=foreign_template.id, due_date=TODAY, assigned_to=kid["id"],
+        )
+        setup_db.add(foreign_inst)
+        await setup_db.flush()
+        device = (await client.post("/api/wall/devices", json={"name": "Kitchen"}, headers=_h(admin))).json()
+        pair = await client.post("/api/wall/pair", json={"token": device["token"]})
+        wall = {"Cookie": _cookie(pair, "wall_token")}
+
+        assert plain["title"] == "Feed the cat"
+        assert (await client.post(f"/api/wall/routines/steps/{plain_inst['id']}/complete", headers=wall)).status_code == 404
+        assert (await client.post(f"/api/wall/routines/steps/{foreign_inst.id}/complete", headers=wall)).status_code == 404
+
+    async def test_wall_refuses_unassigned_routine_steps(self, client, admin, kid):
+        await make_routine(client, admin, kid, assigned_to=None)
+        device = (await client.post("/api/wall/devices", json={"name": "Kitchen"}, headers=_h(admin))).json()
+        pair = await client.post("/api/wall/pair", json={"token": device["token"]})
+        wall = {"Cookie": _cookie(pair, "wall_token")}
+        [routine] = (await client.get("/api/wall/routines", headers=wall)).json()
+
+        res = await client.post(f"/api/wall/routines/steps/{routine['steps'][0]['instance_id']}/complete", headers=wall)
+
+        assert res.status_code == 403
+        stats = (await client.get("/api/chores/stats", headers=_h(kid))).json()
+        assert stats["points_balance"] == 0

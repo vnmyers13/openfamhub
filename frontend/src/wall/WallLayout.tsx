@@ -140,7 +140,8 @@ function WallBoard({ initialSession }: { initialSession: WallSession }) {
   }
   return (
     <div className="fixed inset-0 overflow-hidden bg-slate-900">
-      <WallCycle startedAt={cycleStartedAt} timeZone={session.timezone} dashboard={session.dashboard ?? DEFAULT_WALL_DASHBOARD} />
+      <WallCycle startedAt={cycleStartedAt} timeZone={session.timezone} dashboard={session.dashboard ?? DEFAULT_WALL_DASHBOARD}
+        clocks={session.clocks} />
     </div>
   )
 }

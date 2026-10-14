@@ -9,6 +9,7 @@ import type { ProgressRow } from './rewards'
 import type { Announcement, UpcomingBirthday, Weather } from './home'
 
 export const WALL_DASHBOARD_WIDGETS = [
+  { key: 'clock', label: 'Clock' },
   { key: 'events', label: "Today's events" },
   { key: 'chores', label: 'Chores' },
   { key: 'routines', label: 'Routines' },
@@ -79,6 +80,10 @@ export interface WallSession {
 export async function getWallSession() {
   const res = await apiClient.get('/wall/session')
   return res.data as WallSession
+}
+
+export async function completeWallRoutineStep(instanceId: string): Promise<void> {
+  await apiClient.post(`/wall/routines/steps/${instanceId}/complete`)
 }
 
 export interface WallMediaItem {

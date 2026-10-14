@@ -8,6 +8,8 @@ interface WallClockProps {
   timeZone?: string
   /** Extra clocks under the main one (Admin › Settings). */
   clocks?: WorldClock[]
+  /** One line for the wall's header bar instead of the big clock. */
+  compact?: boolean
 }
 
 function validZone(timeZone: string | undefined): string | undefined {
@@ -20,7 +22,7 @@ function validZone(timeZone: string | undefined): string | undefined {
   }
 }
 
-export default function WallClock({ className, timeZone, clocks = [] }: WallClockProps) {
+export default function WallClock({ className, timeZone, clocks = [], compact = false }: WallClockProps) {
   const [now, setNow] = useState(new Date())
 
   useEffect(() => {
@@ -42,6 +44,20 @@ export default function WallClock({ className, timeZone, clocks = [] }: WallCloc
     timeZone: zone,
   })
 
+  if (compact) {
+    return (
+      <div className={cn('flex min-w-0 items-baseline gap-4', className)}>
+        <span className="font-mono text-2xl font-bold text-white" data-testid="wall-time">{timeStr}</span>
+        <span className="truncate text-sm text-slate-400" data-testid="wall-date">{dateStr}</span>
+        {clocks.length > 0 && (
+          <ul className="hidden gap-4 lg:flex">
+            {clocks.map((c) => <ExtraClock key={`${c.label}-${c.timezone}`} clock={c} now={now} homeZone={zone} compact />)}
+          </ul>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={cn('flex flex-col', className)}>
       <span className="font-mono text-8xl font-bold tracking-tight text-white" data-testid="wall-time">
@@ -61,13 +77,13 @@ const dayIn = (now: Date, timeZone: string | undefined) =>
   now.toLocaleDateString('en-CA', { timeZone })  // YYYY-MM-DD, for comparing days
 
 /** "Grandma  04:30 Wed": the weekday only when it isn't the family's day. */
-function ExtraClock({ clock, now, homeZone }: { clock: WorldClock; now: Date; homeZone: string | undefined }) {
+function ExtraClock({ clock, now, homeZone, compact = false }: { clock: WorldClock; now: Date; homeZone: string | undefined; compact?: boolean }) {
   const zone = validZone(clock.timezone)
   if (!zone) return null
   const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: zone })
   const otherDay = dayIn(now, zone) !== dayIn(now, homeZone)
   return (
-    <li className="flex items-baseline justify-between gap-4 text-lg" data-testid="wall-extra-clock">
+    <li className={cn('flex items-baseline justify-between', compact ? 'gap-1.5 text-sm' : 'gap-4 text-lg')} data-testid="wall-extra-clock">
       <span className="truncate text-slate-400">{clock.label}</span>
       <span className="font-mono text-slate-200">
         {time}{otherDay && <span className="text-sm text-slate-500"> {now.toLocaleDateString([], { weekday: 'short', timeZone: zone })}</span>}

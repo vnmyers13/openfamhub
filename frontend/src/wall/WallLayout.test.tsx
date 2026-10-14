@@ -11,6 +11,7 @@ const { SESSION } = vi.hoisted(() => ({
   SESSION: {
     device: 'Kitchen', family_name: 'Test', idle_timeout_seconds: 300, timezone: 'America/Detroit',
     sleep: { enabled: false, off: '22:00', on: '06:30' },
+    clocks: [{ label: 'Grandma', timezone: 'Europe/London' }],
     dashboard: { pages: [{ name: 'Kitchen', duration_seconds: 45, widgets: [{ key: 'events', size: 'wide' }] }] },
   } satisfies WallSession,
 }))
@@ -101,7 +102,7 @@ describe('WallLayout revocation (#10)', () => {
     expect(await screen.findByText('configured wall dashboard')).toBeTruthy()
     expect(wallCycle.props.at(-1)).toMatchObject({ dashboard: SESSION.dashboard, timeZone: 'America/Detroit' })
     expect(screen.queryByText('progress')).toBeNull()
-    expect(screen.queryByText('clock')).toBeNull()
+    expect(wallCycle.props.at(-1)).toMatchObject({ clocks: SESSION.clocks })  // the header clock gets the extra clocks
   })
 
   it('pairs from a ?token= link and removes the token from the address bar', async () => {

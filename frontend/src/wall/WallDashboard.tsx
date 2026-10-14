@@ -10,7 +10,9 @@ import {
   type WallDashboardWidgetKey,
 } from '../api/wall'
 import { eventDayKeys, eventStart } from '../lib/dates'
+import type { WorldClock } from '../api/family'
 import WallBirthdays from './WallBirthdays'
+import WallClock from './WallClock'
 import WallProgress from './WallProgress'
 import WallRoutines from './WallRoutines'
 import { familyDayRange } from './wallDashboardDates'
@@ -84,7 +86,8 @@ function Empty({ text }: { text: string }) {
   return <p className="text-lg text-slate-400">{text}</p>
 }
 
-function Widget({ widget, timeZone }: { widget: WallDashboardWidgetKey; timeZone: string }) {
+function Widget({ widget, timeZone, clocks }: { widget: WallDashboardWidgetKey; timeZone: string; clocks: WorldClock[] }) {
+  if (widget === 'clock') return <WallCard title={wallDashboardWidgetLabel(widget)}><WallClock timeZone={timeZone} clocks={clocks} /></WallCard>
   if (widget === 'events') return <TodayEvents timeZone={timeZone} />
   if (widget === 'chores') return <ChoresCard />
   if (widget === 'routines') return <WallCard title={wallDashboardWidgetLabel(widget)}><WallRoutines timeZone={timeZone} /></WallCard>
@@ -95,11 +98,11 @@ function Widget({ widget, timeZone }: { widget: WallDashboardWidgetKey; timeZone
   return <BirthdaysCard />
 }
 
-export function WallDashboardPageView({ page, timeZone }: { page: WallDashboardPage; timeZone: string }) {
+export function WallDashboardPageView({ page, timeZone, clocks = [] }: { page: WallDashboardPage; timeZone: string; clocks?: WorldClock[] }) {
   if (page.widgets.length === 0) return <div className="p-8 text-2xl text-slate-400">This wall dashboard page is empty.</div>
   return (
     <div className="grid h-full content-start gap-6 overflow-y-auto p-8 md:grid-cols-2 xl:grid-cols-3">
-      {page.widgets.map((w) => <div key={w.key} className={w.size === 'wide' ? 'md:col-span-2' : ''}><Widget widget={w.key} timeZone={timeZone} /></div>)}
+      {page.widgets.map((w) => <div key={w.key} className={w.size === 'wide' ? 'md:col-span-2' : ''}><Widget widget={w.key} timeZone={timeZone} clocks={clocks} /></div>)}
     </div>
   )
 }
