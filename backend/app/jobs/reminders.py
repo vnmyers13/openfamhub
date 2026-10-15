@@ -8,6 +8,11 @@ choices (Preferences.notifications):
 - **Daily**: once a day at `daily_time` (family timezone), today's chores and
   to-dos that are theirs. Nothing due, nothing sent.
 - **Reward requests** (admins): a request waiting for a yes.
+- **Birthdays**: the day before, at `daily_time`, to everyone but the
+  birthday person.
+- **Pantry** (members and admins): at `daily_time`, one list of what reaches
+  its use-by date today or tomorrow.
+- **Allowance**: their weekly allowance was paid.
 
 Each reminder is sent once (`notifications_sent`, unique per person, kind and
 reference). Quiet hours are the wall's sleep schedule: nothing is sent then;
@@ -28,12 +33,14 @@ from app.core.database import AsyncSessionLocal
 from app.models.chores import ChoreInstance, ChoreTemplate, Todo
 from app.models.family import Family
 from app.models.push import NotificationSent, PushSubscription
-from app.models.rewards import Redemption
+from app.models.meals import PantryItem
+from app.models.rewards import AllowanceEntry, Redemption
 from app.models.user import User
 from app.routers.family import sleep_schedule
 from app.schemas.family import SleepSchedule
 from app.schemas.users import NotificationPrefs, Preferences
 from app.services import push as push_svc
+from app.services.birthdays import age_on, next_birthday
 from app.services.calendar import get_events_in_range
 
 logger = logging.getLogger(__name__)
@@ -172,6 +179,73 @@ async def _reward_requests(db, family: Family, people: list[User], now: datetime
     return sent
 
 
+def _morning(prefs: NotificationPrefs, local: datetime) -> bool:
+    return local.hour * 60 + local.minute >= _minutes(prefs.daily_time)
+
+
+async def _birthdays(db, family: Family, people: list[User], local: datetime) -> int:
+    tomorrow = local.date() + timedelta(days=1)
+    rows = (await db.execute(
+        select(User.id, User.display_name, User.birthday)
+        .where(User.family_id == family.id, User.is_deleted == False, User.birthday.is_not(None))  # noqa: E712
+        .order_by(User.display_name)
+    )).all()
+    tomorrows = [(uid, name, born) for uid, name, born in rows if next_birthday(born, tomorrow) == tomorrow]
+    sent = 0
+    for uid, name, born in tomorrows:
+        payload = {"title": f"Tomorrow: {name} turns {age_on(born, tomorrow)}", "body": "Their birthday is tomorrow.",
+                   "url": "/calendar"}
+        for user in people:
+            prefs = notification_prefs(user)
+            if user.id == uid or not prefs.birthdays or not _morning(prefs, local):
+                continue
+            sent += await _push(db, family.id, user.id, "birthday", f"{uid}:{tomorrow.isoformat()}", payload)
+    return sent
+
+
+async def _pantry(db, family: Family, people: list[User], local: datetime) -> int:
+    today = local.date()
+    wanted = [u for u in people if u.role in ("admin", "member")
+              and (p := notification_prefs(u)).pantry and _morning(p, local)]
+    if not wanted:
+        return 0
+    items = (await db.execute(
+        select(PantryItem.name, PantryItem.expires_on)
+        .where(PantryItem.family_id == family.id, PantryItem.expires_on >= today,
+               PantryItem.expires_on <= today + timedelta(days=1))
+        .order_by(PantryItem.expires_on, PantryItem.name)
+    )).all()
+    ref = today.isoformat()
+    if not items:
+        return 0  # checked again next run, so food added later today still counts
+    names = ", ".join(f"{n} ({'today' if d == today else 'tomorrow'})" for n, d in items[:6]) + ("…" if len(items) > 6 else "")
+    payload = {"title": f"Use soon: {len(items)} pantry item{'s' if len(items) != 1 else ''}", "body": names,
+               "url": "/meals"}
+    sent = 0
+    for user in wanted:
+        sent += await _push(db, family.id, user.id, "pantry", ref, payload)
+    return sent
+
+
+async def _allowance_paid(db, family: Family, people: list[User], now: datetime) -> int:
+    by_id = {u.id: u for u in people if notification_prefs(u).allowance}
+    if not by_id:
+        return 0
+    rows = (await db.execute(
+        select(AllowanceEntry)
+        .where(AllowanceEntry.family_id == family.id, AllowanceEntry.source_type == "weekly",
+               AllowanceEntry.user_id.in_(list(by_id)), AllowanceEntry.created_at >= now - REQUEST_WINDOW)
+        .order_by(AllowanceEntry.created_at)
+    )).scalars().all()
+    sent = 0
+    for entry in rows:
+        amount = f"${entry.delta_cents / 100:,.2f}"
+        week = f" for the week of {entry.week_start.day} {entry.week_start:%b}" if entry.week_start else ""
+        payload = {"title": f"Allowance paid: {amount}", "body": f"Your allowance{week} is in.", "url": "/rewards"}
+        sent += await _push(db, family.id, entry.user_id, "allowance", entry.id, payload)
+    return sent
+
+
 async def remind_family(db: AsyncSession, family: Family, now: datetime) -> int:
     zone = _zone(family.timezone)
     local = now.astimezone(zone)
@@ -185,7 +259,10 @@ async def remind_family(db: AsyncSession, family: Family, now: datetime) -> int:
         return 0
     return (await _event_reminders(db, family, people, now, zone)
             + await _daily_nudges(db, family, people, local)
-            + await _reward_requests(db, family, people, now))
+            + await _reward_requests(db, family, people, now)
+            + await _birthdays(db, family, people, local)
+            + await _pantry(db, family, people, local)
+            + await _allowance_paid(db, family, people, now))
 
 
 async def run_reminders(now: Optional[datetime] = None) -> int:

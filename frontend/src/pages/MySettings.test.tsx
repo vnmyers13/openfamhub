@@ -169,6 +169,35 @@ describe('MySettings', () => {
       const section = await screen.findByRole('region', { name: 'Notifications' })
       expect(within(section).queryByLabelText('Reward requests waiting for a yes')).toBeNull()
     })
+
+    it('saves birthday, pantry and allowance choices', async () => {
+      const calls = setup('member')
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      fireEvent.click(within(section).getByLabelText('Birthdays, the morning before'))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ birthdays: false }))
+      fireEvent.click(within(section).getByLabelText('Pantry food reaching its use-by date'))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ pantry: false }))
+      fireEvent.click(within(section).getByLabelText('When my allowance is paid'))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ allowance: false }))
+    })
+
+    it('viewers only choose events and birthdays', async () => {
+      setup('viewer')
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      expect(within(section).getByLabelText('Birthdays, the morning before')).toBeTruthy()
+      expect(within(section).queryByLabelText('Pantry food reaching its use-by date')).toBeNull()
+      expect(within(section).queryByLabelText('When my allowance is paid')).toBeNull()
+    })
+
+    it('keeps the morning time while birthdays still use it', async () => {
+      setup('member')
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      fireEvent.click(within(section).getByLabelText('A morning list of my chores and to-dos'))
+      expect(await within(section).findByLabelText('Morning list time')).toBeTruthy()
+    })
   })
 })
 

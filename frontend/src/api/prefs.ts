@@ -13,9 +13,14 @@ export interface NotificationPrefs {
   daily: boolean
   daily_time: string  // HH:MM, family timezone
   rewards: boolean  // admins
+  birthdays: boolean  // the day before, at daily_time
+  pantry: boolean  // members and admins: use-by dates, at daily_time
+  allowance: boolean  // their weekly allowance was paid
 }
 
-export const DEFAULT_NOTIFICATIONS: NotificationPrefs = { events: 'off', event_minutes: 15, daily: true, daily_time: '07:00', rewards: true }
+export const DEFAULT_NOTIFICATIONS: NotificationPrefs = { events: 'off', event_minutes: 15, daily: true, daily_time: '07:00', rewards: true,
+  birthdays: true, pantry: true, allowance: true,
+}
 
 /** One person's layout choices, saved on the server so they follow them to every device. */
 export interface Preferences {

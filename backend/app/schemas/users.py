@@ -136,6 +136,9 @@ class NotificationPrefs(BaseModel):
     daily: bool = True  # a nudge with today's chores and to-dos
     daily_time: str = "07:00"  # HH:MM, family timezone
     rewards: bool = True  # admins: reward requests waiting for a yes
+    birthdays: bool = True  # the day before someone's birthday, at daily_time
+    pantry: bool = True  # members and admins: food reaching its use-by date, at daily_time
+    allowance: bool = True  # their weekly allowance was paid
 
     @field_validator("daily_time")
     @classmethod

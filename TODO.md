@@ -289,7 +289,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 ### Phase 11 — Notifications and reminders
 - [x] **Before starting:** triaged 2026-10-14: no P0/P1; the 44 open issues are P3 Debian packages.
 - [x] Reminder engine on the existing scheduler: events, chores, to-dos, birthdays, pantry expiry, allowance payouts. Decided 2026-10-14: first version = events, chores and to-dos, reward requests. Done: `jobs/reminders.py` every minute; per-person choices in My settings › Notifications (events off/mine/all and how long before, daily list and time, reward requests); each sent once (`notifications_sent`); `test_reminders.py`.
-- [ ] More reminders: birthdays (the day before), pantry use-by dates, allowance paid.
+- [x] More reminders: birthdays (the day before), pantry use-by dates, allowance paid.
 - [x] Channels: Web Push (PWA), ntfy, and SMTP email, with per-user preferences. Decided 2026-10-14: Web Push first. Done: VAPID keys made by the server, subscriptions per device, RFC 8291/8292 sending with the SSRF guard (`services/push.py`, `test_push.py`), service worker handler (`public/push-sw.js`), My settings › Notifications.
 - [ ] ntfy and SMTP email channels (each person picks theirs).
 - [x] Quiet hours aware of the Phase 3b sleep schedule. Done: nothing is sent during the wall's sleep schedule; daily lists and waiting requests go out when it ends, event reminders inside it are skipped.

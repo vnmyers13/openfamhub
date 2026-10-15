@@ -2,7 +2,8 @@
 
 Event reminders (each person: off by default, "mine" or "all", N minutes
 before), a morning nudge with today's chores and to-dos, and reward requests
-for admins. Each is sent once; nothing is sent in quiet hours (the wall's
+for admins; the day before a birthday, pantry food reaching its use-by date,
+and allowance paid (Phase 11, more reminders). Each is sent once; nothing is sent in quiet hours (the wall's
 sleep schedule); people without a device get nothing."""
 from contextlib import asynccontextmanager
 from datetime import datetime, time, timedelta, timezone
@@ -199,6 +200,118 @@ class TestRewardRequests:
         await self.request(client, admin, kid)
         await run(now=datetime.now(timezone.utc))
         assert inbox == []
+
+
+def _born(turns: int, on):
+    try:
+        return on.replace(year=on.year - turns)
+    except ValueError:  # tomorrow is 29 Feb
+        return on.replace(year=on.year - turns - 4)
+
+
+class TestBirthdays:
+    async def test_the_day_before_at_the_morning_time_to_everyone_but_them(self, client, admin, inbox, run):
+        kid = await _member(client, admin)
+        grandma = await _member(client, admin, name="Grandma", pin="1111", role="viewer")
+        tomorrow = TODAY + timedelta(days=1)
+        res = await client.patch(f"/api/users/{kid['id']}", json={"birthday": _born(10, tomorrow).isoformat()}, headers=_h(kid))
+        assert res.status_code == 200, res.text
+        for who in (admin, kid, grandma):
+            await device(client, who)
+        await run(now=local(6, 59))
+        assert [p for _, p in inbox if p["tag"].startswith("birthday")] == []
+        await run(now=local(7, 0))
+        got = [(u, p) for u, p in inbox if p["tag"].startswith("birthday")]
+        assert sorted(u for u, _ in got) == sorted([admin["id"], grandma["id"]])
+        assert got[0][1]["title"] == "Tomorrow: Kid turns 10"
+        await run(now=local(9, 0))
+        assert len([1 for _, p in inbox if p["tag"].startswith("birthday")]) == 2
+
+    async def test_not_on_other_days_and_it_can_be_turned_off(self, client, admin, inbox, run):
+        kid = await _member(client, admin)
+        sib = await _member(client, admin, name="Sib", pin="2468")
+        await client.patch(f"/api/users/{kid['id']}", json={"birthday": _born(8, TODAY + timedelta(days=1)).isoformat()}, headers=_h(kid))
+        await client.patch(f"/api/users/{sib['id']}", json={"birthday": _born(6, TODAY + timedelta(days=3)).isoformat()}, headers=_h(sib))
+        await device(client, admin)
+        await notify(client, admin, birthdays=False)
+        await run(now=local(8, 0))
+        assert [p for _, p in inbox if p["tag"].startswith("birthday")] == []
+
+
+class TestPantry:
+    async def item(self, client, admin, name, expires):
+        res = await client.post("/api/meals/pantry", json={"name": name, "expires_on": expires.isoformat()}, headers=_h(admin))
+        assert res.status_code in (200, 201), res.text
+
+    async def test_one_list_of_what_reaches_its_use_by_today_or_tomorrow(self, client, admin, inbox, run):
+        kid = await _member(client, admin)
+        grandma = await _member(client, admin, name="Grandma", pin="1111", role="viewer")
+        for who in (admin, kid, grandma):
+            await device(client, who)
+        await self.item(client, admin, "Milk", TODAY)
+        await self.item(client, admin, "Yogurt", TODAY + timedelta(days=1))
+        await self.item(client, admin, "Rice", TODAY + timedelta(days=30))
+        await self.item(client, admin, "Old bread", TODAY - timedelta(days=5))
+        await run(now=local(7, 5))
+        got = [(u, p) for u, p in inbox if p["tag"].startswith("pantry")]
+        assert sorted(u for u, _ in got) == sorted([admin["id"], kid["id"]])  # not viewers
+        assert got[0][1]["title"] == "Use soon: 2 pantry items"
+        assert got[0][1]["body"] == "Milk (today), Yogurt (tomorrow)"
+        await run(now=local(12, 0))
+        assert len([1 for _, p in inbox if p["tag"].startswith("pantry")]) == 2
+
+    async def test_nothing_close_means_nothing_sent_and_it_can_be_turned_off(self, client, admin, inbox, run):
+        kid = await _member(client, admin)
+        await device(client, admin)
+        await device(client, kid)
+        await notify(client, kid, pantry=False)
+        await run(now=local(7, 5))
+        await self.item(client, admin, "Milk", TODAY)
+        await run(now=local(7, 6))
+        assert [u for u, p in inbox if p["tag"].startswith("pantry")] == [admin["id"]]
+
+
+class TestAllowancePaid:
+    async def pay(self, client, admin, setup_db, monkeypatch, kid, cents=500):
+        from datetime import date
+
+        from sqlalchemy import select
+
+        from app.jobs import allowance
+        from app.models.rewards import AllowancePlan
+
+        res = await client.put(f"/api/rewards/allowance/{kid['id']}", json={"weekly_cents": cents}, headers=_h(admin))
+        assert res.status_code == 200, res.text
+        row = (await setup_db.execute(select(AllowancePlan).where(AllowancePlan.user_id == kid["id"]))).scalar_one()
+        row.start_week = date(2026, 10, 19)
+        await setup_db.flush()
+
+        @asynccontextmanager
+        async def shared_session():
+            yield setup_db
+
+        monkeypatch.setattr(allowance, "session_factory", shared_session)
+        assert await allowance.run_allowance(now=datetime.combine(date(2026, 10, 19), time(7, 5), ZONE)) == 1
+
+    async def test_the_child_hears_their_allowance_was_paid_once(self, client, admin, setup_db, monkeypatch, inbox, run):
+        kid = await _member(client, admin)
+        await device(client, kid)
+        await device(client, admin)
+        await self.pay(client, admin, setup_db, monkeypatch, kid)
+        await run(now=datetime.now(timezone.utc))
+        got = [(u, p) for u, p in inbox if p["tag"].startswith("allowance")]
+        assert [u for u, _ in got] == [kid["id"]]
+        assert got[0][1]["title"] == "Allowance paid: $5.00" and got[0][1]["url"] == "/rewards"
+        await run(now=datetime.now(timezone.utc))
+        assert len([1 for _, p in inbox if p["tag"].startswith("allowance")]) == 1
+
+    async def test_it_can_be_turned_off(self, client, admin, setup_db, monkeypatch, inbox, run):
+        kid = await _member(client, admin)
+        await device(client, kid)
+        await notify(client, kid, allowance=False)
+        await self.pay(client, admin, setup_db, monkeypatch, kid)
+        await run(now=datetime.now(timezone.utc))
+        assert [p for _, p in inbox if p["tag"].startswith("allowance")] == []
 
 
 class TestQuietHoursAndDevices:

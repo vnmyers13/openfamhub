@@ -101,8 +101,8 @@ const STATE_TEXT: Record<PushState, string> = {
  * Reminders on your devices (Phase 11). Turning them on is per device; which
  * reminders you get is saved with your preferences and applies to all of them.
  */
-function Notifications({ prefs, isAdmin, onChange }: {
-  prefs: NotificationPrefs; isAdmin: boolean; onChange: (n: NotificationPrefs) => void
+function Notifications({ prefs, role, onChange }: {
+  prefs: NotificationPrefs; role: string; onChange: (n: NotificationPrefs) => void
 }) {
   const [state, setState] = useState<PushState | null>(null)
   const [busy, setBusy] = useState(false)
@@ -122,6 +122,7 @@ function Notifications({ prefs, isAdmin, onChange }: {
     }
   }
   const set = (patch: Partial<NotificationPrefs>) => onChange({ ...prefs, ...patch })
+  const canEdit = role === 'admin' || role === 'member'  // viewers have no pantry or allowance
   const select = 'rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white'
   return (
     <section className={box} aria-label="Notifications">
@@ -164,12 +165,28 @@ function Notifications({ prefs, isAdmin, onChange }: {
             <input type="checkbox" checked={prefs.daily} onChange={(e) => set({ daily: e.target.checked })} />
             A morning list of my chores and to-dos
           </label>
-          {prefs.daily && (
+          {(prefs.daily || prefs.birthdays || (canEdit && prefs.pantry)) && (
             <input type="time" className={select} aria-label="Morning list time" value={prefs.daily_time}
               onChange={(e) => e.target.value && set({ daily_time: e.target.value })} />
           )}
         </div>
-        {isAdmin && (
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={prefs.birthdays} onChange={(e) => set({ birthdays: e.target.checked })} />
+          Birthdays, the morning before
+        </label>
+        {canEdit && (
+          <>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={prefs.pantry} onChange={(e) => set({ pantry: e.target.checked })} />
+              Pantry food reaching its use-by date
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={prefs.allowance} onChange={(e) => set({ allowance: e.target.checked })} />
+              When my allowance is paid
+            </label>
+          </>
+        )}
+        {role === 'admin' && (
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={prefs.rewards} onChange={(e) => set({ rewards: e.target.checked })} />
             Reward requests waiting for a yes
@@ -196,7 +213,7 @@ export default function MySettings() {
         <h1 className="text-2xl font-bold text-white">My settings</h1>
         {save.isError && <p className="rounded bg-red-900/50 px-3 py-2 text-sm text-red-300" role="alert">{errorDetail(save.error, "Couldn't save that")}</p>}
         <Profile />
-        <Notifications prefs={prefs.notifications ?? DEFAULT_NOTIFICATIONS} isAdmin={user.role === 'admin'}
+        <Notifications prefs={prefs.notifications ?? DEFAULT_NOTIFICATIONS} role={user.role}
           onChange={(notifications) => set({ notifications })} />
         {user.role !== 'viewer' && <Birthday userId={user.id} />}
         <section className={box} aria-label="Menu">

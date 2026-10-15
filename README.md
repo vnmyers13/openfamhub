@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.52-blue)
+![Version](https://img.shields.io/badge/version-1.53-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -116,7 +116,7 @@ To retire a display, press **Unpair** under **Admin › Wall displays**; it goes
 
 ## Notifications
 
-Each person turns notifications on in **My settings › Notifications** on each phone or computer they want them on, and chooses which reminders they get: before calendar events (off until chosen: events they added, or all family events, 5 to 60 minutes before), a morning list of their chores and to-dos, and, for admins, reward requests waiting for a yes. Nothing is sent during the wall's sleep hours.
+Each person turns notifications on in **My settings › Notifications** on each phone or computer they want them on, and chooses which reminders they get: before calendar events (off until chosen: events they added, or all family events, 5 to 60 minutes before), a morning list of their chores and to-dos, the morning before someone's birthday, pantry food reaching its use-by date, their weekly allowance being paid, and, for admins, reward requests waiting for a yes. Nothing is sent during the wall's sleep hours.
 
 - They use Web Push, so there's no account to set up: the server makes its own keys. The server must be able to reach the browsers' push services over HTTPS (`fcm.googleapis.com`, `updates.push.services.mozilla.com`, `*.notify.windows.com`, `web.push.apple.com`).
 - The app must be opened over HTTPS (it always is through Caddy).

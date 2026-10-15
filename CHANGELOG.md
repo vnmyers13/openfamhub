@@ -2,6 +2,7 @@
 
 ### Added
 - **Notifications on your phone** (Phase 11): turn them on in **My settings › Notifications** and choose reminders before events (events you added, or all family events; off until you choose), a morning list of your chores and to-dos, and, for parents, reward requests waiting for a yes. Nothing is sent during the wall's sleep hours. They use Web Push, with no account to set up; on iPhone and iPad, add OpenFamHub to the Home Screen first (iOS 16.4+).
+- **More reminders** (Phase 11): the morning before someone's birthday (everyone but them), pantry food reaching its use-by date today or tomorrow (one list, members and parents), and a note when your weekly allowance is paid. Each has its own switch in **My settings › Notifications**, on by default; birthdays and pantry come at your morning list time.
 - **A wall dashboard the family arranges (#87):** the wall shows pages of cards (today's events, chores, routines, meals, weather, announcements, family progress, birthdays) that turn every so often. Anyone signed in can change the pages, cards, sizes and timing from the Dashboard; every wall follows the same layout.
 - **Tick off routine steps on the wall:** the current step has a **Done** button. It counts for whoever the routine is assigned to, so kids can work through their morning routine at the wall without signing in. Undo stays in the app.
 - **The time is always on the wall:** a header bar shows the family's time and date, with any extra clocks, above every page. A **Clock** card puts a big clock on a page too.
