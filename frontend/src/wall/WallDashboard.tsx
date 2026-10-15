@@ -29,7 +29,10 @@ function TodayEvents({ timeZone }: { timeZone: string }) {
   return <WallCard title="Today's events">{todays.length === 0 ? <Empty text="No events today." /> : <ul className="space-y-2">{todays.map((ev) => (
     <li key={ev.id} className="flex items-center gap-3 rounded bg-slate-700/60 px-3 py-2">
       <span className="h-3 w-3 rounded-full" style={{ backgroundColor: ev.source_color_hex }} />
-      <span className="flex-1 truncate text-lg text-white">{ev.title}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-lg text-white">{ev.title}</span>
+        {ev.location && <span className="block truncate text-sm text-slate-400"><span aria-hidden="true">📍 </span><span>{ev.location}</span></span>}
+      </span>
       <span className="text-sm text-slate-400">{ev.all_day ? 'All day' : eventStart(ev).toLocaleTimeString([], { timeZone, hour: '2-digit', minute: '2-digit', hour12: false })}</span>
     </li>
   ))}</ul>}</WallCard>

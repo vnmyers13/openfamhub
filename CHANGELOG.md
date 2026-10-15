@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+- **Event details:** tap an event on Home or in the Calendar to see when and where it is (the place opens in your maps app), its notes with clickable links, its link, organizer and attendees (from calendar feeds), and who added it. Home and the wall now show each event's location. New events can carry a link.
 - **This week on Home:** a new card lists the events for today and the next six days, day by day. Add it with Customize; it's on the default page and the Parents template.
 - **Richer Smart home card** (Phase 12): dim lights with a slider, switch a thermostat between its modes (heat, cool, off…), and see a 24-hour trend line with the low and high under each numeric sensor, on Home and the wall.
 - **Home Assistant** (Phase 12): set `HA_URL` and `HA_TOKEN` (a long-lived access token) in `.env`, then pick entities under **Admin › Settings › Home Assistant**. They show on a new **Smart home** card on Home and the wall: members and parents can switch lights, run scenes and scripts and nudge the thermostat; viewers and the wall only look. A timed routine can start a scene or script at its start time. If Home Assistant is down the card says so.

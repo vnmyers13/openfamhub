@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { useAuthStore, type User } from '../stores/auth'
 import { apiError, mockApi } from '../test/api'
@@ -86,6 +86,32 @@ describe('CalendarPage', () => {
     expect(body).toMatchObject({ title: 'Soccer', all_day: false, location: 'Field 3' })
     expect(body.start_dt).toBe(new Date(`${today}T17:00`).toISOString())
     expect(body.end_dt).toBe(new Date(`${today}T18:30`).toISOString())
+  })
+
+  it('saves a link with the event, and refuses one that is not a web link', async () => {
+    signIn('member')
+    const calls = mockApi({ 'GET /calendar/events': [], 'GET /calendar/sources': SOURCES, 'POST /calendar/events': DINNER })
+    renderApp(<CalendarPage />)
+    fireEvent.click(await screen.findByRole('button', { name: '+ New Event' }))
+    fill('Event title', 'Soccer')
+    fireEvent.change(screen.getByLabelText('Link'), { target: { value: 'javascript:alert(1)' } })
+    fireEvent.click(screen.getByRole('button', { name: /save|create|add/i }))
+    expect(await screen.findByText('The link must start with http:// or https://')).toBeTruthy()
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
+    fireEvent.change(screen.getByLabelText('Link'), { target: { value: ' https://club.example/game ' } })
+    fireEvent.click(screen.getByRole('button', { name: /save|create|add/i }))
+    await waitFor(() => expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ url: 'https://club.example/game' }))
+  })
+
+  it('opens the details of an event from the calendar', async () => {
+    signIn('member')
+    mockApi({ 'GET /calendar/events': [{ ...DINNER, location: "Nonna's", url: 'https://nonna.example' }], 'GET /calendar/sources': SOURCES, 'GET /users/': [] })
+    renderApp(<CalendarPage />)
+    fireEvent.click(await screen.findByText('Dinner'))
+    const dialog = await screen.findByRole('dialog', { name: 'Dinner' })
+    expect(within(dialog).getByRole('link', { name: "Map: Nonna's" })).toBeTruthy()
+    expect(within(dialog).getByRole('link', { name: 'nonna.example' })).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeTruthy()  // her own event
   })
 
   it('fills the form from an event link, then saves what was reviewed', async () => {

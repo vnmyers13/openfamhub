@@ -3,7 +3,8 @@ import { Calendar, dateFnsLocalizer, type View } from 'react-big-calendar'
 import { format, parse, getDay, addMonths, subMonths, addWeeks, subWeeks, startOfMonth, endOfMonth, startOfWeek as sow, endOfWeek as eow, addDays, subDays, startOfDay, endOfDay } from 'date-fns'
 import { enUS } from 'date-fns/locale/en-US'
 import { useGesture } from '@use-gesture/react'
-import { useCalendarEvents, useCalendarSources, useCreateEvent, useDeleteEvent } from '../api/calendar'
+import { useCalendarEvents, useCalendarSources, useCreateEvent, useDeleteEvent, type CalendarEvent } from '../api/calendar'
+import EventDetails from '../components/EventDetails'
 import { useAuthStore } from '../stores/auth'
 import { allDayEndIso, allDayStartIso, eventEnd, eventFormInputs, eventStart, localDateTimeIso } from '../lib/dates'
 import { importEvent } from '../api/meals'
@@ -18,7 +19,7 @@ interface RBCEvent {
   start: Date
   end: Date
   allDay: boolean
-  resource: { color: string; sourceName: string; createdBy: string | null; synced: boolean }
+  resource: { color: string; sourceName: string; createdBy: string | null; synced: boolean; event: CalendarEvent }
 }
 
 const locales = { 'en-US': enUS }
@@ -133,6 +134,7 @@ export default function CalendarPage() {
           sourceName: sourceNames.get(e.source_id) ?? 'Calendar',
           createdBy: e.created_by,
           synced: !!e.external_uid,
+          event: e,
         },
       }))
   }, [events, hiddenIds, sourceNames])
@@ -258,36 +260,15 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Event detail modal */}
+      {/* Event details */}
       {selectedEvent && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSelectedEvent(null)}>
-          <div className="bg-gray-900 rounded-xl p-6 max-w-md w-full border border-gray-800" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold text-white mb-2">{selectedEvent.title}</h2>
-            <p className="text-gray-400 text-sm mb-1">
-              {format(selectedEvent.start, 'MMM d, yyyy h:mm a')} &ndash; {format(selectedEvent.end, 'MMM d, yyyy h:mm a')}
-            </p>
-            {selectedEvent.allDay && <p className="text-gray-400 text-sm mb-1">All day</p>}
-            {selectedEvent.resource && (
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedEvent.resource.color }} />
-                <span className="text-gray-400 text-sm">{selectedEvent.resource.sourceName}</span>
-              </div>
-            )}
-            {actionError && (
-              <div className="mt-3 rounded bg-red-900/50 px-3 py-2 text-sm text-red-300">{actionError}</div>
-            )}
-            <div className="flex gap-2 mt-4">
-              {canEditEvent(currentUser, selectedEvent.resource) && (
-                <button onClick={handleDeleteEvent} className="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded text-sm">
-                  Delete
-                </button>
-              )}
-              <button onClick={() => setSelectedEvent(null)} className="text-gray-400 hover:text-white text-sm px-4 py-1.5">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <EventDetails event={selectedEvent.resource.event} onClose={() => setSelectedEvent(null)} error={actionError || undefined}>
+          {canEditEvent(currentUser, selectedEvent.resource) && (
+            <button onClick={handleDeleteEvent} className="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded text-sm">
+              Delete
+            </button>
+          )}
+        </EventDetails>
       )}
 
       {/* Create event modal */}
@@ -309,7 +290,7 @@ function CreateEventModal({
   onCreate,
 }: {
   onClose: () => void
-  onCreate: (data: { title: string; start_dt: string; end_dt: string; all_day?: boolean; location?: string; description?: string }) => Promise<void>
+  onCreate: (data: { title: string; start_dt: string; end_dt: string; all_day?: boolean; location?: string; description?: string; url?: string }) => Promise<void>
 }) {
   // Default to now -> one hour from now (computed once, on open).
   const [initial] = useState(() => {
@@ -330,6 +311,7 @@ function CreateEventModal({
   const [allDay, setAllDay] = useState(false)
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
+  const [webLink, setWebLink] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [link, setLink] = useState('')
@@ -343,6 +325,7 @@ function CreateEventModal({
       const draft = await importEvent({ url: link.trim() })
       const inputs = eventFormInputs(draft)
       setTitle(draft.title)
+      setWebLink(link.trim())
       setAllDay(draft.all_day)
       setStartDate(inputs.startDate)
       setStartTime(inputs.startTime)
@@ -371,7 +354,14 @@ function CreateEventModal({
     }
     setSaving(true)
     try {
-      await onCreate({ title, start_dt: startDt, end_dt: endDt, all_day: allDay, location: location || undefined, description: description || undefined })
+      const url = webLink.trim()
+      if (url && !/^https?:\/\/\S+$/i.test(url)) {
+        setError('The link must start with http:// or https://')
+        setSaving(false)
+        return
+      }
+      await onCreate({ title, start_dt: startDt, end_dt: endDt, all_day: allDay, location: location || undefined,
+        description: description || undefined, url: url || undefined })
     } catch (err) {
       setError(errorDetail(err, 'Could not save the event'))
       setSaving(false)
@@ -433,6 +423,13 @@ function CreateEventModal({
           placeholder="Location (optional)"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
+        />
+        <input
+          className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+          placeholder="Link (optional), e.g. https://…"
+          aria-label="Link"
+          value={webLink}
+          onChange={(e) => setWebLink(e.target.value)}
         />
         <textarea
           className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white resize-none"

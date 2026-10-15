@@ -227,6 +227,7 @@ Rolling back across a schema change isn't supported: restore the backup taken be
 
 Release notes for each release are in [docs/releases/](releases/) (latest: [Release 1.41](releases/v1.41.md)). Per-build notes:
 
+- **1.59 (event details).** Migration 013 (`calendar_events.url`, `organizer`, `attendees`) runs at startup. Feeds fill them on their next sync. No configuration changes.
 - **1.57 (Home Assistant, menu choice).** No migrations. Optional new settings in `.env`: `HA_URL` and `HA_TOKEN` (see `.env.example` / `deploy/env.template`); leave them out to keep it off. If set, the API container must reach `HA_URL` (usually a LAN address such as `http://homeassistant.local:8123`; use an IP if the container can't resolve `.local` names). A new every-minute job, `ha_routine_scenes`, runs only when they're set.
 - **1.55 (wellness reminders).** No migrations or configuration changes. Water and breathing-pause reminders, off for everyone until they turn them on in My settings.
 - **1.54 (home chores card, ntfy and email).** No migrations. Optional new settings in `.env`: `NTFY_URL`, `NTFY_TOKEN`, `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_SECURITY` (`starttls`, `ssl` or `none`), `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` (see `.env.example` / `deploy/env.template`); leave them out to keep these channels off. If set, the API container must reach that ntfy server and SMTP server. Then people add their topic or address in My settings › Notifications.

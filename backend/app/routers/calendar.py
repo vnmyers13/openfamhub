@@ -92,6 +92,7 @@ async def create_event(
         all_day=data.all_day,
         location=data.location,
         description=data.description,
+        url=data.url or None,
         created_by=current_user.id,
     )
     db.add(event)
@@ -138,6 +139,8 @@ async def update_event(
         event.location = data.location
     if data.description is not None:
         event.description = data.description
+    if data.url is not None:
+        event.url = data.url or None
     if event.end_dt <= event.start_dt:
         raise HTTPException(status_code=400, detail="end_dt must be after start_dt")
     await db.flush()

@@ -61,6 +61,9 @@ async def sync_source(source: CalendarSource, db: AsyncSession) -> str | None:
             ev.all_day = event_data["all_day"]
             ev.location = event_data["location"]
             ev.description = event_data["description"]
+            ev.url = event_data.get("url")
+            ev.organizer = event_data.get("organizer")
+            ev.attendees = event_data.get("attendees")
             ev.is_deleted = False
             upserted += 1
 

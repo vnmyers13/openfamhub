@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Index, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -25,6 +25,9 @@ class CalendarEvent(Base):
     all_day: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     location: Mapped[str] = mapped_column(String(256), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
+    url: Mapped[str] = mapped_column(String(2048), nullable=True)  # http(s) only (migration 013)
+    organizer: Mapped[str] = mapped_column(String(256), nullable=True)  # feeds: ORGANIZER's name or address
+    attendees: Mapped[list] = mapped_column(JSON, nullable=True)  # feeds: ATTENDEE names or addresses
     created_by: Mapped[str] = mapped_column(String, nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), server_default=func.now())

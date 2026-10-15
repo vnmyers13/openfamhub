@@ -10,6 +10,11 @@ export interface CalendarEvent {
   all_day: boolean
   location: string | null
   description: string | null
+  /** A web link (feeds' iCal URL, or one added here). */
+  url?: string | null
+  /** Feeds only: the organizer's and attendees' names (or addresses). */
+  organizer?: string | null
+  attendees?: string[] | null
   created_by: string | null
   /** Set for events from a subscribed calendar (read-only). */
   external_uid?: string | null
@@ -25,6 +30,7 @@ interface CreateEventData {
   all_day?: boolean
   location?: string
   description?: string
+  url?: string
 }
 
 export interface CalendarSource {

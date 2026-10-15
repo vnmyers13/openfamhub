@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { useCalendarEvents, useCalendarSources } from '../../api/calendar'
+import { useCalendarEvents, useCalendarSources, type CalendarEvent } from '../../api/calendar'
+import EventDetails from '../../components/EventDetails'
 import { usePreferences } from '../../api/prefs'
 import { useChoreAction, useChoreInstances } from '../../api/chores'
 import { useHAAction, useHAStates, type HAActionExtra, type HAActionName, type HAEntity } from '../../api/homeAssistant'
@@ -36,7 +37,35 @@ function Pending() {
   return <div className="h-3 w-40 animate-pulse rounded bg-slate-700" />
 }
 
+/** An event row that opens its details: title, time, and where, when it has a place. */
+function EventRow({ ev, onOpen, compact = false }: { ev: CalendarEvent; onOpen: (ev: CalendarEvent) => void; compact?: boolean }) {
+  return (
+    <button type="button" onClick={() => onOpen(ev)} aria-label={`Details: ${ev.title}`}
+      className={`flex w-full items-center gap-3 rounded bg-slate-700/50 px-3 text-left hover:bg-slate-700 ${compact ? 'py-1.5' : 'py-2'}`}>
+      <span className={`${compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} shrink-0 rounded-full`} style={{ backgroundColor: ev.source_color_hex }} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm text-slate-200">{ev.title}</span>
+        {ev.location && <span className="block truncate text-xs text-slate-400"><span aria-hidden="true">📍 </span><span>{ev.location}</span></span>}
+      </span>
+      <span className="text-xs text-slate-400">
+        {ev.all_day ? 'All day' : eventStart(ev).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </span>
+    </button>
+  )
+}
+
+/** The details of an event opened from Home, with a way to the Calendar. */
+function HomeEventDetails({ event, onClose }: { event: CalendarEvent | null; onClose: () => void }) {
+  if (!event) return null
+  return (
+    <EventDetails event={event} onClose={onClose}>
+      <Link to="/calendar" className="rounded bg-primary px-4 py-1.5 text-sm text-white">Open the calendar</Link>
+    </EventDetails>
+  )
+}
+
 export function TodaysEvents({ summary }: { summary?: DashboardSummary }) {
+  const [open, setOpen] = useState<CalendarEvent | null>(null)
   if (!summary) return <Card title="Today's Events"><Pending /></Card>
   // The day window is by overlap in UTC; all-day events are dates, so keep
   // only those that fall on today's date.
@@ -45,16 +74,9 @@ export function TodaysEvents({ summary }: { summary?: DashboardSummary }) {
     <Card title="Today's Events" link={{ to: '/calendar', label: 'Calendar' }}>
       {todays.length === 0 && <p className="text-sm text-slate-400">No events scheduled for today.</p>}
       <div className="flex flex-col gap-2">
-        {todays.map((ev) => (
-          <div key={ev.id} className="flex items-center gap-3 rounded bg-slate-700/50 px-3 py-2">
-            <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: ev.source_color_hex }} />
-            <span className="flex-1 truncate text-sm text-slate-200">{ev.title}</span>
-            <span className="text-xs text-slate-400">
-              {ev.all_day ? 'All day' : eventStart(ev).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
-        ))}
+        {todays.map((ev) => <EventRow key={ev.id} ev={ev} onOpen={setOpen} />)}
       </div>
+      <HomeEventDetails event={open} onClose={() => setOpen(null)} />
     </Card>
   )
 }
@@ -71,6 +93,7 @@ export function WeekEvents() {
     return [s, addDays(s, WEEK_DAYS)]
   }, [todayKey])
   const { data: events } = useCalendarEvents(start, end, prefs?.calendar_scope ?? 'family')
+  const [open, setOpen] = useState<CalendarEvent | null>(null)
   const title = 'This Week'
   if (!events) return <Card title={title}><Pending /></Card>
   const days = Array.from({ length: WEEK_DAYS }, (_, i) => addDays(start, i))
@@ -92,13 +115,7 @@ export function WeekEvents() {
                 {list.length === 0 ? <p className="text-sm text-slate-500">Nothing planned</p> : (
                   <ul className="mt-1 space-y-1">
                     {list.slice(0, PER_DAY).map((ev) => (
-                      <li key={`${ev.id}-${key}`} className="flex items-center gap-3 rounded bg-slate-700/50 px-3 py-1.5">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: ev.source_color_hex }} />
-                        <span className="flex-1 truncate text-sm text-slate-200">{ev.title}</span>
-                        <span className="text-xs text-slate-400">
-                          {ev.all_day ? 'All day' : eventStart(ev).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </li>
+                      <li key={`${ev.id}-${key}`}><EventRow ev={ev} onOpen={setOpen} compact /></li>
                     ))}
                     {list.length > PER_DAY && <li className="text-xs text-slate-400">and {list.length - PER_DAY} more</li>}
                   </ul>
@@ -108,6 +125,7 @@ export function WeekEvents() {
           })}
         </ol>
       )}
+      <HomeEventDetails event={open} onClose={() => setOpen(null)} />
     </Card>
   )
 }

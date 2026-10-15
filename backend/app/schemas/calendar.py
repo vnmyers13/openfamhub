@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -79,6 +79,9 @@ class CalendarEventResponse(BaseModel):
     all_day: bool = False
     location: Optional[str] = None
     description: Optional[str] = None
+    url: Optional[str] = None
+    organizer: Optional[str] = None
+    attendees: Optional[List[str]] = None
     created_by: Optional[str] = None
     is_deleted: bool = False
     source_color_hex: Optional[str] = None
@@ -88,6 +91,16 @@ class CalendarEventResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+def _event_link(v: Optional[str]) -> Optional[str]:
+    """A web link on an event: http(s) only; "" clears it."""
+    if v is None:
+        return v
+    v = v.strip()
+    if v and (not v.lower().startswith(("http://", "https://")) or len(v) > 2048 or " " in v):
+        raise ValueError("Use an http:// or https:// link")
+    return v
+
+
 class CreateEventRequest(BaseModel):
     title: str
     start_dt: str
@@ -95,6 +108,12 @@ class CreateEventRequest(BaseModel):
     all_day: bool = False
     location: Optional[str] = None
     description: Optional[str] = None
+    url: Optional[str] = None
+
+    @field_validator("url")
+    @classmethod
+    def link(cls, v: Optional[str]) -> Optional[str]:
+        return _event_link(v)
 
 
 class PatchEventRequest(BaseModel):
@@ -104,6 +123,12 @@ class PatchEventRequest(BaseModel):
     all_day: Optional[bool] = None
     location: Optional[str] = None
     description: Optional[str] = None
+    url: Optional[str] = None  # "" clears it
+
+    @field_validator("url")
+    @classmethod
+    def link(cls, v: Optional[str]) -> Optional[str]:
+        return _event_link(v)
 
 
 class SyncLogResponse(BaseModel):

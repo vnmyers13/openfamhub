@@ -132,6 +132,32 @@ def _cancelled(component: Any) -> bool:
     return str(component.get("STATUS", "")).upper() == "CANCELLED"
 
 
+MAX_ATTENDEES = 50
+
+
+def _web_link(value: Any) -> str | None:
+    link = str(value or "").strip()
+    return link if link.lower().startswith(("http://", "https://")) and len(link) <= 2048 else None
+
+
+def _person(value: Any) -> str | None:
+    """An ORGANIZER/ATTENDEE as people know it: the CN, else the address without mailto:."""
+    if value is None:
+        return None
+    name = str(getattr(value, "params", {}).get("CN", "") or "").strip()
+    if not name:
+        name = str(value).strip()
+        if name.lower().startswith("mailto:"):
+            name = name[len("mailto:"):]
+    return name[:256] or None
+
+
+def _people(value: Any) -> list[str] | None:
+    items = value if isinstance(value, list) else [value] if value is not None else []
+    names = [n for n in (_person(v) for v in items) if n]
+    return names[:MAX_ATTENDEES] or None
+
+
 def _event(component: Any, uid: str, start: datetime, end: datetime, all_day: bool) -> dict:
     return {
         "external_uid": uid,
@@ -141,6 +167,9 @@ def _event(component: Any, uid: str, start: datetime, end: datetime, all_day: bo
         "all_day": all_day,
         "location": str(component.get("LOCATION", "")) or None,
         "description": str(component.get("DESCRIPTION", "")) or None,
+        "url": _web_link(component.get("URL")),
+        "organizer": _person(component.get("ORGANIZER")),
+        "attendees": _people(component.get("ATTENDEE")),
     }
 
 
