@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient, errorDetail } from '../api/client'
 import { useMedia } from '../api/media'
-import { DEFAULT_NOTIFICATIONS, DEFAULT_PREFS, usePreferences, useSavePreferences, type NotificationPrefs, type Preferences } from '../api/prefs'
+import {
+  DEFAULT_NOTIFICATIONS, DEFAULT_PREFS, useNotifyChannels, usePreferences, useSavePreferences, type NotificationPrefs, type Preferences,
+} from '../api/prefs'
 import { pushState, sendTestPush, turnOffPush, turnOnPush, type PushState } from '../lib/push'
 import { WALLPAPERS } from '../lib/dashboard'
 import { AVATARS } from '../lib/avatars'
@@ -97,6 +99,38 @@ const STATE_TEXT: Record<PushState, string> = {
   unsupported: "This browser can't show notifications from OpenFamHub.",
 }
 
+const TOPIC = /^[A-Za-z0-9_-]{1,64}$/
+const EMAIL = /^[^@\s<>,;]+@[^@\s<>,;]+\.[^@\s<>,;]+$/
+
+/** A topic hard to guess: anyone who knows an ntfy topic can read it. */
+function newTopic(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(10))
+  return `ofh-${Array.from(bytes, (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('')}`
+}
+
+/** A text setting saved with its own button: an ntfy topic or an email address. */
+function ChannelField({ label, value, placeholder, valid, invalidText, onSave, extra, children }: {
+  label: string; value: string | null; placeholder: string; valid: (v: string) => boolean; invalidText: string
+  onSave: (v: string | null) => void; extra?: (setDraft: (v: string) => void) => React.ReactNode; children?: React.ReactNode
+}) {
+  const [draft, setDraft] = useState(value ?? '')  // the parent remounts it (key) when the saved value changes
+  const trimmed = draft.trim()
+  const bad = trimmed !== '' && !valid(trimmed)
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <input className="min-w-0 flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white" aria-label={label}
+          placeholder={placeholder} value={draft} onChange={(e) => setDraft(e.target.value)} />
+        {extra?.(setDraft)}
+        <button className="rounded bg-primary px-3 py-1 text-sm text-white disabled:opacity-50" disabled={bad || trimmed === (value ?? '')}
+          onClick={() => onSave(trimmed || null)}>Save {label.toLowerCase()}</button>
+      </div>
+      {bad && <p className="text-xs text-red-300" role="alert">{invalidText}</p>}
+      {children}
+    </div>
+  )
+}
+
 /**
  * Reminders on your devices (Phase 11). Turning them on is per device; which
  * reminders you get is saved with your preferences and applies to all of them.
@@ -122,6 +156,9 @@ function Notifications({ prefs, role, onChange }: {
     }
   }
   const set = (patch: Partial<NotificationPrefs>) => onChange({ ...prefs, ...patch })
+  const { data: channels } = useNotifyChannels()
+  const ntfy = channels?.ntfy ?? null
+  const elsewhere = Boolean((ntfy && prefs.ntfy_topic) || (channels?.email && prefs.email_to))
   const canEdit = role === 'admin' || role === 'member'  // viewers have no pantry or allowance
   const select = 'rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white'
   return (
@@ -133,14 +170,14 @@ function Notifications({ prefs, role, onChange }: {
           <button className="rounded bg-primary px-3 py-2 text-sm text-white disabled:opacity-50" disabled={busy}
             onClick={() => run(async () => { await turnOnPush() })}>Turn on for this device</button>
         )}
+        {(state === 'on' || elsewhere) && (
+          <button className="rounded border border-gray-700 px-3 py-2 text-sm text-gray-200 disabled:opacity-50" disabled={busy}
+            onClick={() => run(async () => ((await sendTestPush()) > 0 ? 'Sent. It should show up in a moment.' : "It didn't go through. Check this device, your ntfy topic or your email address."))}>
+            Send a test</button>
+        )}
         {state === 'on' && (
-          <>
-            <button className="rounded border border-gray-700 px-3 py-2 text-sm text-gray-200 disabled:opacity-50" disabled={busy}
-              onClick={() => run(async () => ((await sendTestPush()) > 0 ? 'Sent. It should show up in a moment.' : "It didn't go through. Try turning notifications off and on again."))}>
-              Send a test</button>
-            <button className="rounded border border-gray-700 px-3 py-2 text-sm text-gray-400 disabled:opacity-50" disabled={busy}
-              onClick={() => run(async () => { await turnOffPush() })}>Turn off</button>
-          </>
+          <button className="rounded border border-gray-700 px-3 py-2 text-sm text-gray-400 disabled:opacity-50" disabled={busy}
+            onClick={() => run(async () => { await turnOffPush() })}>Turn off</button>
         )}
       </div>
       {message && <p className={`text-sm ${message.ok ? 'text-green-300' : 'text-red-300'}`} role={message.ok ? 'status' : 'alert'}>{message.text}</p>}
@@ -192,8 +229,28 @@ function Notifications({ prefs, role, onChange }: {
             Reward requests waiting for a yes
           </label>
         )}
-        <p className="text-xs text-gray-500">These choices apply to every device you've turned on. Nothing is sent during the wall's sleep hours.</p>
+        <p className="text-xs text-gray-500">These choices apply to every device you've turned on{ntfy || channels?.email ? ', your ntfy topic and your email' : ''}. Nothing is sent during the wall's sleep hours.</p>
       </div>
+      {(ntfy || channels?.email) && (
+        <div className="space-y-3 border-t border-gray-800 pt-3 text-sm text-gray-300" aria-label="Other places to get them" role="group">
+          <h3 className="text-sm font-medium text-gray-300">Also send them to</h3>
+          {ntfy && (
+            <ChannelField key={`ntfy:${prefs.ntfy_topic ?? ''}`} label="ntfy topic" value={prefs.ntfy_topic} placeholder="ofh-…" valid={(v) => TOPIC.test(v)}
+              invalidText="Use 1 to 64 letters, digits, - or _." onSave={(v) => set({ ntfy_topic: v })}
+              extra={(setDraft) => (
+                <button className="rounded border border-gray-700 px-3 py-1 text-sm text-gray-200" onClick={() => setDraft(newTopic())}>Make one</button>
+              )}>
+              <p className="text-xs text-gray-500">In the ntfy app, subscribe to this topic on {ntfy}. Anyone who knows the topic can read it, so keep it hard to guess. Leave it empty to stop.</p>
+            </ChannelField>
+          )}
+          {channels?.email && (
+            <ChannelField key={`email:${prefs.email_to ?? ''}`} label="Email address" value={prefs.email_to} placeholder="you@example.com" valid={(v) => EMAIL.test(v)}
+              invalidText="That doesn't look like an email address." onSave={(v) => set({ email_to: v })}>
+              <p className="text-xs text-gray-500">Leave it empty to stop emails.</p>
+            </ChannelField>
+          )}
+        </div>
+      )}
     </section>
   )
 }

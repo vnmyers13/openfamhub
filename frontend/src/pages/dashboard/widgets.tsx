@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCalendarSources } from '../../api/calendar'
+import { useChoreAction, useChoreInstances } from '../../api/chores'
 import { errorDetail } from '../../api/client'
 import {
   useDeleteAnnouncement, usePostAnnouncement, useUpdateAnnouncement, useWeather, type DashboardSummary,
@@ -76,6 +77,49 @@ export function MyDay({ summary }: { summary?: DashboardSummary }) {
           </>
         )}
       </dl>
+    </Card>
+  )
+}
+
+const AVAILABLE_SHOWN = 6
+
+/** Today's family chores anyone can claim, with a Claim button (not for viewers). */
+export function AvailableChores() {
+  const user = useAuthStore((s) => s.user)
+  const { data: chores } = useChoreInstances('available')
+  const act = useChoreAction()
+  const [error, setError] = useState<string | null>(null)
+  const title = 'Chores Up for Grabs'
+  if (!chores) return <Card title={title}><Pending /></Card>
+  const canClaim = user?.role === 'admin' || user?.role === 'member'
+  const claim = async (id: string, choreTitle: string) => {
+    setError(null)
+    try {
+      await act.mutateAsync({ id, action: 'claim', title: choreTitle })
+    } catch (err) {
+      setError(errorDetail(err, "Couldn't claim that chore"))
+    }
+  }
+  return (
+    <Card title={title} link={{ to: '/chores', label: 'Chores' }}>
+      {error && <p role="alert" className="mb-2 text-sm text-red-300">{error}</p>}
+      {chores.length === 0 ? <p className="text-sm text-slate-400">No open chores right now.</p> : (
+        <ul className="space-y-2">
+          {chores.slice(0, AVAILABLE_SHOWN).map((c) => (
+            <li key={c.id} className="flex items-center gap-3 rounded bg-slate-700/50 px-3 py-2">
+              <span className="flex-1 truncate text-sm text-slate-200">{c.title}</span>
+              <span className="text-xs text-amber-300">⭐ {c.points}</span>
+              {canClaim && (
+                <button className="rounded bg-primary px-2 py-1 text-xs text-white disabled:opacity-50" disabled={act.isPending}
+                  aria-label={`Claim: ${c.title}`} onClick={() => claim(c.id, c.title)}>Claim</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {chores.length > AVAILABLE_SHOWN && (
+        <p className="mt-2 text-xs text-slate-400">and {chores.length - AVAILABLE_SHOWN} more on the Chores page</p>
+      )}
     </Card>
   )
 }

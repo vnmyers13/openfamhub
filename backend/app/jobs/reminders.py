@@ -1,7 +1,7 @@
-"""The reminder engine (Phase 11): runs every minute and sends Web Push.
+"""The reminder engine (Phase 11): runs every minute.
 
-For each person with at least one device (push subscription), by their own
-choices (Preferences.notifications):
+For each person with a device (push subscription), an ntfy topic or an email
+address, by their own choices (Preferences.notifications):
 - **Events**: a reminder `event_minutes` before a timed event starts. Off by
   default; "mine" is events they added, "all" is every timed family event
   (feeds included). Never sent once the event has started.
@@ -13,6 +13,9 @@ choices (Preferences.notifications):
 - **Pantry** (members and admins): at `daily_time`, one list of what reaches
   its use-by date today or tomorrow.
 - **Allowance**: their weekly allowance was paid.
+
+Reminders go to every channel the person set up: their devices (Web Push),
+their ntfy topic and their email address (services/notify.py).
 
 Each reminder is sent once (`notifications_sent`, unique per person, kind and
 reference). Quiet hours are the wall's sleep schedule: nothing is sent then;
@@ -38,8 +41,8 @@ from app.models.rewards import AllowanceEntry, Redemption
 from app.models.user import User
 from app.routers.family import sleep_schedule
 from app.schemas.family import SleepSchedule
-from app.schemas.users import NotificationPrefs, Preferences
-from app.services import push as push_svc
+from app.schemas.users import NotificationPrefs
+from app.services import notify
 from app.services.birthdays import age_on, next_birthday
 from app.services.calendar import get_events_in_range
 
@@ -71,11 +74,7 @@ def in_quiet_hours(schedule: SleepSchedule, local: datetime) -> bool:
     return (t >= off or t < on) if off > on else off <= t < on
 
 
-def notification_prefs(user: User) -> NotificationPrefs:
-    try:
-        return Preferences(**((user.settings_json or {}).get("prefs") or {})).notifications
-    except ValueError:
-        return NotificationPrefs()
+notification_prefs = notify.notification_prefs
 
 
 async def _sent(db: AsyncSession, user_id: str, kind: str, ref: str) -> bool:
@@ -91,11 +90,11 @@ async def _record(db: AsyncSession, family_id: str, user_id: str, kind: str, ref
         pass
 
 
-async def _push(db: AsyncSession, family_id: str, user_id: str, kind: str, ref: str, payload: dict) -> bool:
-    if await _sent(db, user_id, kind, ref):
+async def _push(db: AsyncSession, family_id: str, user: User, kind: str, ref: str, payload: dict) -> bool:
+    if await _sent(db, user.id, kind, ref):
         return False
-    if await push_svc.send_to_users(db, [user_id], {**payload, "tag": f"{kind}:{ref}"}) > 0:
-        await _record(db, family_id, user_id, kind, ref)
+    if await notify.deliver(db, user, {**payload, "tag": f"{kind}:{ref}"}) > 0:
+        await _record(db, family_id, user.id, kind, ref)
         return True
     return False
 
@@ -121,7 +120,7 @@ async def _event_reminders(db, family: Family, people: list[User], now: datetime
             when = start.astimezone(zone).strftime("%H:%M")
             payload = {"title": ev.title, "body": f"Starts at {when}" + (f" · {ev.location}" if ev.location else ""),
                        "url": "/calendar"}
-            sent += await _push(db, family.id, user.id, "event", f"{ev.id}@{start.isoformat()}", payload)
+            sent += await _push(db, family.id, user, "event", f"{ev.id}@{start.isoformat()}", payload)
     return sent
 
 
@@ -155,7 +154,7 @@ async def _daily_nudges(db, family: Family, people: list[User], local: datetime)
                   f"{len(todos)} to-do{'s' if len(todos) != 1 else ''}" if todos else ""]
         names = ", ".join([*chores, *todos][:6]) + ("…" if len(chores) + len(todos) > 6 else "")
         payload = {"title": f"Today: {' and '.join(c for c in counts if c)}", "body": names, "url": "/chores"}
-        sent += await _push(db, family.id, user.id, "daily", ref, payload)
+        sent += await _push(db, family.id, user, "daily", ref, payload)
     return sent
 
 
@@ -175,7 +174,7 @@ async def _reward_requests(db, family: Family, people: list[User], now: datetime
         payload = {"title": "Reward request", "body": f"{who} asked for {red.reward_name} ({red.point_cost} points)",
                    "url": "/rewards"}
         for admin in admins:
-            sent += await _push(db, family.id, admin.id, "reward", red.id, payload)
+            sent += await _push(db, family.id, admin, "reward", red.id, payload)
     return sent
 
 
@@ -199,7 +198,7 @@ async def _birthdays(db, family: Family, people: list[User], local: datetime) ->
             prefs = notification_prefs(user)
             if user.id == uid or not prefs.birthdays or not _morning(prefs, local):
                 continue
-            sent += await _push(db, family.id, user.id, "birthday", f"{uid}:{tomorrow.isoformat()}", payload)
+            sent += await _push(db, family.id, user, "birthday", f"{uid}:{tomorrow.isoformat()}", payload)
     return sent
 
 
@@ -223,7 +222,7 @@ async def _pantry(db, family: Family, people: list[User], local: datetime) -> in
                "url": "/meals"}
     sent = 0
     for user in wanted:
-        sent += await _push(db, family.id, user.id, "pantry", ref, payload)
+        sent += await _push(db, family.id, user, "pantry", ref, payload)
     return sent
 
 
@@ -242,7 +241,7 @@ async def _allowance_paid(db, family: Family, people: list[User], now: datetime)
         amount = f"${entry.delta_cents / 100:,.2f}"
         week = f" for the week of {entry.week_start.day} {entry.week_start:%b}" if entry.week_start else ""
         payload = {"title": f"Allowance paid: {amount}", "body": f"Your allowance{week} is in.", "url": "/rewards"}
-        sent += await _push(db, family.id, entry.user_id, "allowance", entry.id, payload)
+        sent += await _push(db, family.id, by_id[entry.user_id], "allowance", entry.id, payload)
     return sent
 
 
@@ -251,10 +250,12 @@ async def remind_family(db: AsyncSession, family: Family, now: datetime) -> int:
     local = now.astimezone(zone)
     if in_quiet_hours(sleep_schedule(family), local):
         return 0
-    people = list((await db.execute(
-        select(User).where(User.family_id == family.id, User.is_deleted == False,  # noqa: E712
-                           User.id.in_(select(PushSubscription.user_id)))
-    )).scalars().all())
+    with_device = set((await db.execute(
+        select(PushSubscription.user_id).where(PushSubscription.family_id == family.id))).scalars().all())
+    members = (await db.execute(
+        select(User).where(User.family_id == family.id, User.is_deleted == False)  # noqa: E712
+    )).scalars().all()
+    people = [u for u in members if u.id in with_device or notify.reachable_without_device(u)]
     if not people:
         return 0
     return (await _event_reminders(db, family, people, now, zone)

@@ -8,6 +8,7 @@ from app.core.security import get_current_user
 from app.models.push import PushSubscription
 from app.models.user import User
 from app.schemas.push import SubscriptionIn, SubscriptionRef
+from app.services import notify
 from app.services import push as svc
 
 router = APIRouter()
@@ -45,12 +46,18 @@ async def unsubscribe(data: SubscriptionRef, db: AsyncSession = Depends(get_db),
     return {"ok": True}
 
 
+@router.get("/channels")
+async def channels(user: User = Depends(get_current_user)):
+    """Which channels besides Web Push the server has set up (NTFY_URL, SMTP_*)."""
+    return {"ntfy": notify.ntfy_server(), "email": notify.email_ready()}
+
+
 @router.post("/test")
 async def test_push(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    """Send yourself a test notification on every device you turned on."""
-    if not await svc.has_device(db, user.id):
-        raise HTTPException(status_code=409, detail="Turn on notifications on this device first")
-    sent = await svc.send_to_users(db, [user.id], {
+    """Send yourself a test notification on every device, ntfy topic and email address you set up."""
+    if not await svc.has_device(db, user.id) and not notify.reachable_without_device(user):
+        raise HTTPException(status_code=409, detail="Turn on notifications on this device, or add an ntfy topic or email address, first")
+    sent = await notify.deliver(db, user, {
         "title": "OpenFamHub", "body": "Notifications are on. You'll get your reminders here.", "url": "/me",
         "tag": "test"})
     return {"sent": sent}

@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.53-blue)
+![Version](https://img.shields.io/badge/version-1.54-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -14,7 +14,7 @@ A self-hosted family calendar and organizer, a home version of a Skylight-style 
 - **Chores, routines and to-dos**: repeating chores assigned to someone or up for grabs, points for finishing them, morning and bedtime routines with a countdown, and a shared to-do list.
 - **Rewards**: spend points on rewards (instantly, or with a parent's yes), badges and streaks, and a weekly allowance.
 - **Meals**: a weekly meal plan, recipes (import from a link, paste, or a photo of the recipe), a shopping list built from the plan (or scanned from a photo of a paper list), and a pantry.
-- **Notifications**: reminders on your phone before events, a morning list of your chores and to-dos, and reward requests for parents (Web Push; see [Notifications](#notifications)).
+- **Notifications**: reminders on your phone, by ntfy or by email: before events, a morning list of your chores and to-dos, birthdays, pantry use-by dates, allowance paid, and reward requests for parents (see [Notifications](#notifications)).
 - **Books, announcements and weather** on Home and the wall.
 - **Works offline**: the app (a PWA, installable on iOS and Android) opens without a connection, and chores, to-dos, the shopping list and the meal plan can be changed offline and sync later.
 - **Photo and video slideshow**: the wall shows family photos and videos when nobody is using it. Location data is removed on upload.
@@ -118,7 +118,8 @@ To retire a display, press **Unpair** under **Admin › Wall displays**; it goes
 
 Each person turns notifications on in **My settings › Notifications** on each phone or computer they want them on, and chooses which reminders they get: before calendar events (off until chosen: events they added, or all family events, 5 to 60 minutes before), a morning list of their chores and to-dos, the morning before someone's birthday, pantry food reaching its use-by date, their weekly allowance being paid, and, for admins, reward requests waiting for a yes. Nothing is sent during the wall's sleep hours.
 
-- They use Web Push, so there's no account to set up: the server makes its own keys. The server must be able to reach the browsers' push services over HTTPS (`fcm.googleapis.com`, `updates.push.services.mozilla.com`, `*.notify.windows.com`, `web.push.apple.com`).
+- **ntfy and email, too:** set `NTFY_URL` (e.g. `https://ntfy.sh` or your own ntfy server, plus `NTFY_TOKEN` if it needs one) and/or `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USERNAME`, `SMTP_PASSWORD` and `SMTP_FROM` in `.env`, then restart. Each person then adds their own ntfy topic or email address in My settings › Notifications; they don't need a phone with notifications turned on.
+- Web Push needs no account: the server makes its own keys. The server must be able to reach the browsers' push services over HTTPS (`fcm.googleapis.com`, `updates.push.services.mozilla.com`, `*.notify.windows.com`, `web.push.apple.com`).
 - The app must be opened over HTTPS (it always is through Caddy).
 - **iPhone and iPad**: iOS 16.4 or later, and only once OpenFamHub is on the Home Screen (Safari › Share › Add to Home Screen) and opened from there.
 

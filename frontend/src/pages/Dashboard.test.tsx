@@ -27,6 +27,9 @@ const summary = (over: object = {}) => ({
   ...over,
 })
 
+const chore = (id: string, title: string) => ({ id, template_id: 't', title, points: 5, due_date: TODAY, status: 'pending',
+  assigned_to: null, claimed_by: null, completed_by: null, completed_at: null, routine_id: null })
+
 function signIn(id: string, role: string) {
   useAuthStore.getState().setUser({ id, display_name: id === 'mom' ? 'Mom' : 'Kid', role } as User)
 }
@@ -38,6 +41,7 @@ function homeApi(extra: Record<string, unknown> = {}) {
     'GET /rewards/progress': [{ user_id: 'kid', display_name: 'Kid', color_hex: '#059669', avatar_value: null,
       points_balance: 42, points_this_week: 7, streak_days: 2, badges: [] }],
     'GET /calendar/sources': [{ id: 's', sync_error: null }],
+    'GET /chores/instances': (params: { scope?: string } | undefined) => (params?.scope === 'available' ? [chore('c1', 'Take out recycling')] : []),
     ...extra,
   })
 }
@@ -77,6 +81,44 @@ describe('Dashboard', () => {
     expect(await screen.findByText('All sources healthy')).toBeTruthy()
   })
 
+  it('lists chores up for grabs and claims one', async () => {
+    signIn('kid', 'member')
+    const calls = homeApi({ 'POST /chores/instances/c1/claim': { ...chore('c1', 'Take out recycling'), status: 'claimed', claimed_by: 'kid' } })
+    renderApp(<Dashboard />)
+    const card = await screen.findByRole('region', { name: 'Chores Up for Grabs' })
+    expect(await within(card).findByText('Take out recycling')).toBeTruthy()
+    expect(within(card).getByText('⭐ 5')).toBeTruthy()
+    fireEvent.click(within(card).getByRole('button', { name: 'Claim: Take out recycling' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url === '/chores/instances/c1/claim')).toBe(true))
+  })
+
+  it('says when no chores are up for grabs, and shows how many more there are', async () => {
+    signIn('kid', 'member')
+    homeApi({ 'GET /chores/instances': [] })
+    renderApp(<Dashboard />)
+    const card = await screen.findByRole('region', { name: 'Chores Up for Grabs' })
+    expect(await within(card).findByText('No open chores right now.')).toBeTruthy()
+  })
+
+  it('shows six chores up for grabs and counts the rest', async () => {
+    signIn('kid', 'member')
+    homeApi({ 'GET /chores/instances': Array.from({ length: 8 }, (_, i) => chore(`c${i}`, `Chore ${i}`)) })
+    renderApp(<Dashboard />)
+    const card = await screen.findByRole('region', { name: 'Chores Up for Grabs' })
+    expect(await within(card).findByText('Chore 5')).toBeTruthy()
+    expect(within(card).queryByText('Chore 6')).toBeNull()
+    expect(within(card).getByText('and 2 more on the Chores page')).toBeTruthy()
+  })
+
+  it("explains a claim that didn't work", async () => {
+    signIn('kid', 'member')
+    homeApi({ 'POST /chores/instances/c1/claim': () => { throw apiError(409, "Someone else has this chore, or it's already done") } })
+    renderApp(<Dashboard />)
+    const card = await screen.findByRole('region', { name: 'Chores Up for Grabs' })
+    fireEvent.click(await within(card).findByRole('button', { name: 'Claim: Take out recycling' }))
+    expect((await within(card).findByRole('alert')).textContent).toMatch(/Someone else has this chore/)
+  })
+
   it('hides personal numbers and admin cards from viewers', async () => {
     signIn('gm', 'viewer')
     homeApi({ 'GET /dashboard/summary': summary({ meals_today: [], birthdays: [], announcements: [] }) })
@@ -88,6 +130,8 @@ describe('Dashboard', () => {
     expect(screen.queryByLabelText('New announcement')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Sync Status' })).toBeNull()
     expect(screen.getByText('Not set up yet.')).toBeTruthy()
+    expect(await screen.findByText('Take out recycling')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Claim: Take out recycling' })).toBeNull()
   })
 
   it('shows the weather, or how to set it up', async () => {

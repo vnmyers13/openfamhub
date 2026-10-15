@@ -182,6 +182,53 @@ describe('MySettings', () => {
       await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ allowance: false }))
     })
 
+    it('adds an ntfy topic and an email address when the server offers them, and tests them without a device', async () => {
+      push.sendTestPush.mockResolvedValue(2)
+      const calls = setup('member', { 'GET /push/channels': { ntfy: 'https://ntfy.example.test', email: true } })
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      expect(await within(section).findByText(/subscribe to this topic on https:\/\/ntfy.example.test/)).toBeTruthy()
+      expect(within(section).queryByRole('button', { name: 'Send a test' })).toBeNull()
+      fireEvent.click(within(section).getByRole('button', { name: 'Make one' }))
+      const topic = (within(section).getByLabelText('ntfy topic') as HTMLInputElement).value
+      expect(topic).toMatch(/^ofh-[a-z2-9]{10}$/)
+      fireEvent.click(within(section).getByRole('button', { name: 'Save ntfy topic' }))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ ntfy_topic: topic }))
+      fireEvent.change(within(section).getByLabelText('Email address'), { target: { value: 'not an address' } })
+      expect(within(section).getByRole('alert').textContent).toMatch(/doesn't look like an email/)
+      expect((within(section).getByRole('button', { name: 'Save email address' }) as HTMLButtonElement).disabled).toBe(true)
+      fireEvent.change(within(section).getByLabelText('Email address'), { target: { value: ' kid@example.com ' } })
+      fireEvent.click(within(section).getByRole('button', { name: 'Save email address' }))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ email_to: 'kid@example.com' }))
+      fireEvent.click(await within(section).findByRole('button', { name: 'Send a test' }))
+      expect(await within(section).findByText('Sent. It should show up in a moment.')).toBeTruthy()
+    })
+
+    it('clears a topic when it is emptied, and refuses a bad one', async () => {
+      const calls = setup('member', {
+        'GET /push/channels': { ntfy: 'https://ntfy.example.test', email: false },
+        'GET /users/me/preferences': { ...PREFS, notifications: { ...DEFAULT_NOTIFICATIONS, ntfy_topic: 'ofh-old' } },
+      })
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      await waitFor(() => expect((within(section).getByLabelText('ntfy topic') as HTMLInputElement).value).toBe('ofh-old'))
+      const input = within(section).getByLabelText('ntfy topic')
+      expect(within(section).queryByLabelText('Email address')).toBeNull()
+      fireEvent.change(input, { target: { value: 'has space' } })
+      expect(within(section).getByRole('alert').textContent).toMatch(/letters, digits/)
+      fireEvent.change(input, { target: { value: '' } })
+      fireEvent.click(within(section).getByRole('button', { name: 'Save ntfy topic' }))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ ntfy_topic: null }))
+    })
+
+    it('shows no other channels when the server has none', async () => {
+      setup('member', { 'GET /push/channels': { ntfy: null, email: false } })
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      await within(section).findByText('Off on this device.')
+      expect(within(section).queryByRole('group', { name: 'Other places to get them' })).toBeNull()
+    })
+
     it('viewers only choose events and birthdays', async () => {
       setup('viewer')
       renderApp(<MySettings />)

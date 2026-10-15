@@ -1,6 +1,7 @@
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
@@ -48,6 +49,15 @@ class Settings(BaseSettings):
     backup_retention_days: int = 30
     backup_time: str = "03:00"
     wall_idle_timeout_seconds: int = 300
+    # Phase 11 notification channels besides Web Push; each is off while empty.
+    ntfy_url: str = ""  # e.g. https://ntfy.sh or your own ntfy server
+    ntfy_token: str = ""  # access token, if the ntfy server needs one
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_security: Literal["starttls", "ssl", "none"] = "starttls"
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""  # e.g. OpenFamHub <hub@example.com>
 
     model_config = {
         "env_file": str(_PROJECT_ROOT / ".env"),

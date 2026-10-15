@@ -104,7 +104,7 @@ class UserResponse(BaseModel):
 
 
 # ---- personal preferences (Phase 8) --------------------------------------------
-WIDGET_KEYS = ("events", "weather", "my-day", "meals", "stars", "announcements", "birthdays", "sync")
+WIDGET_KEYS = ("events", "weather", "my-day", "chores", "meals", "stars", "announcements", "birthdays", "sync")
 WALLPAPERS = ("none", "dusk", "ocean", "forest", "sunrise", "photo")
 
 
@@ -126,6 +126,8 @@ class DashboardPage(BaseModel):
 
 
 _HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+_TOPIC = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_EMAIL = re.compile(r"^[^@\s<>,;]+@[^@\s<>,;]+\.[^@\s<>,;]+$")
 
 
 class NotificationPrefs(BaseModel):
@@ -139,12 +141,33 @@ class NotificationPrefs(BaseModel):
     birthdays: bool = True  # the day before someone's birthday, at daily_time
     pantry: bool = True  # members and admins: food reaching its use-by date, at daily_time
     allowance: bool = True  # their weekly allowance was paid
+    ntfy_topic: Optional[str] = None  # their own topic on the server's ntfy (NTFY_URL)
+    email_to: Optional[str] = None  # where to email them (SMTP_*)
 
     @field_validator("daily_time")
     @classmethod
     def hhmm(cls, v: str) -> str:
         if not _HHMM.match(v):
             raise ValueError("times are HH:MM, 24-hour")
+        return v
+
+    @field_validator("ntfy_topic", "email_to", mode="before")
+    @classmethod
+    def blank_is_none(cls, v):
+        return (v.strip() or None) if isinstance(v, str) else v
+
+    @field_validator("ntfy_topic")
+    @classmethod
+    def topic(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not _TOPIC.match(v):
+            raise ValueError("an ntfy topic is 1 to 64 letters, digits, - or _")
+        return v
+
+    @field_validator("email_to")
+    @classmethod
+    def address(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (len(v) > 254 or not _EMAIL.match(v)):
+            raise ValueError("that doesn't look like an email address")
         return v
 
 

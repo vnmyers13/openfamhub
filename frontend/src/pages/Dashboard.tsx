@@ -8,13 +8,14 @@ import { useAuthStore } from '../stores/auth'
 import CustomizeDashboard from './dashboard/CustomizeDashboard'
 import WallDashboardEditor from './dashboard/WallDashboardEditor'
 import {
-  Announcements, Birthdays, FamilyStars, MealsToday, MyDay, SyncStatus, TodaysEvents, WeatherCard,
+  Announcements, AvailableChores, Birthdays, FamilyStars, MealsToday, MyDay, SyncStatus, TodaysEvents, WeatherCard,
 } from './dashboard/widgets'
 
 const RENDER: Record<WidgetKey, (s?: DashboardSummary) => React.ReactNode> = {
   events: (s) => <TodaysEvents summary={s} />,
   weather: () => <WeatherCard />,
   'my-day': (s) => <MyDay summary={s} />,
+  chores: () => <AvailableChores />,
   meals: (s) => <MealsToday summary={s} />,
   stars: () => <FamilyStars />,
   announcements: (s) => <Announcements summary={s} />,
