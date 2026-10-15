@@ -62,6 +62,36 @@ script locally when you want an answer before the next build.
 3. Tick the phase's **Before starting** item in TODO.md (every phase from 6 on has one as its first item).
 4. Write the phase's tests first, as TODO.md asks.
 
+## CI runs only on Forgejo at .2
+
+The only CI is **Forgejo Actions on the primary**, `http://192.168.10.2:3002` (the
+`forgejo` remote; its footer says Gitea 1.27.3). GitHub (`origin`) and the two mirrors
+run nothing, so a commit that reaches only `origin` is never tested, published, tagged or
+deployed. That happened on 2026-10-15, when builds 1.53 and 1.54 were pushed only to GitHub and
+the `test` VM stayed on 1.52.
+
+- **Push every branch to `forgejo`**, feature branches included: `git push -u forgejo <branch>`.
+  Make it the default once per clone so a bare `git push` goes to .2:
+  `git config remote.pushDefault forgejo`. GitHub gets everything from the push mirrors.
+- **Check that a run started.** Open
+  [Actions](http://192.168.10.2:3002/vernon/OpenFamHub/actions) and find a run for the
+  commit, by its subject, with the branch name next to it. Feature-branch pushes and pull requests run the tests (`backend`,
+  `frontend`, and `version` for pull requests into master). Only a **push to `master`** runs
+  `publish`, `deploy`, `trivy` and `issues`.
+- **Forcing a run:**
+  - *Tests only, any branch:* Actions › **CI** › **Run workflow**, then pick the branch
+    (`workflow_dispatch`). This never publishes or deploys, even on `master`, because
+    those jobs require a `push` event.
+  - *Re-run the same build:* open the run and choose **Re-run all jobs**. A re-run of a
+    `master` push run keeps its `push` event, so it publishes and deploys that build again.
+    Use this after a flaky or infrastructure failure (runner down, registry timeout).
+  - *A new build on master:* make a commit (the pre-commit hook gives it the next build
+    number), for example `git commit --allow-empty -m "chore: trigger build"`, and push it
+    with `git push forgejo master`.
+- **Pull requests test the branch as it is**, not as merged into master. Update a branch
+  that's behind master (`git merge master`) before trusting its run: PR #88 failed on
+  2026-10-15 on a test that master had already fixed.
+
 ## On every push to master
 
 CI runs: tests → `publish` (images + `v<release>` tag) → `deploy` to the `test` VM
@@ -72,12 +102,15 @@ installs the published release into `~/openfamhub`; `.13` is retired and is neve
 release target.
 
 CI builds the newest commit of each push, so to give every commit its own build and
-tag, push after each commit. The push mirrors then copy the tag to the mirrors and
+tag, push after each commit, to `forgejo` (see [above](#ci-runs-only-on-forgejo-at-2)). The push mirrors then copy the tag to the mirrors and
 GitHub ([Mirrors](#mirrors)).
 
 ## Releasing a phase
 
-1. **Ticked and green.** Every item in the phase is ticked in TODO.md and CI is green.
+1. **Ticked and green.** Every item in the phase is ticked in TODO.md, and the phase's last
+   `master` build has a green run on [Forgejo Actions at .2](http://192.168.10.2:3002/vernon/OpenFamHub/actions),
+   all seven jobs. A commit that was only pushed to GitHub hasn't been through CI; push it to `forgejo` first
+   ([CI runs only on Forgejo at .2](#ci-runs-only-on-forgejo-at-2)).
 2. **Issues agree.** `python3 scripts/issues.py triage --strict` passes: no open P0,
    nothing done-but-open, nothing unmentioned. Fix TODO.md or the issues until it does.
    The `issues` job will have closed what the phase completed; `close-done --apply`
@@ -90,7 +123,10 @@ GitHub ([Mirrors](#mirrors)).
      and list the issues it closed (`#N`).
    - `docs/releases/v<release>.md`: what's in it, upgrade notes, issues closed, checks. Use [v1.01.md](releases/v1.01.md) as the template.
    - `docs/deployment.md` **Version notes**: one line for the builds in the release, if upgrading needs anything.
-5. **Push and deploy to test.** Push to the primary: `git push forgejo master`. CI
+5. **Push and deploy to test.** Push to the primary: `git push forgejo master` (never only
+   `origin`). If no run appears in Actions within a minute or two, or it failed for a reason
+   outside the code, force one as described in
+   [CI runs only on Forgejo at .2](#ci-runs-only-on-forgejo-at-2). CI
    tags the build in `publish` (15 minutes or more; builds queue on the one runner),
    then `deploy` must be green and show `scripts/deploy.sh server "$HOME/openfamhub"
    <release>` on the runner at `192.168.10.80`. Do not treat a green `publish` job as

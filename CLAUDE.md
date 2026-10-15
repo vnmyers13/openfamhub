@@ -14,7 +14,7 @@ Read these before changing code:
 
 - **`master` is the product.** Feature work branches from it. CI publishes every `master` push as its own per-commit build (`<release>`, named from the integer in `VERSION`) and deploys it to the `test` VM (see docs/ci.md).
 - **`origin/main` (tagged v0.29) is a different codebase with no shared history.** Use it only as a reference for features to port (Phases 5–10). Never merge, rebase onto or cherry-pick from it. Re-implement each feature on our architecture: our auth, `family_id` scoping, `UTCDateTime`, Alembic migrations, deploy tooling and CI.
-- **Remotes:** `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary; CI runs here) and `origin` (GitHub). Mirrors at `192.168.10.101:3002` and `192.168.10.102:3002` (same path). Push to the primary first, then GitHub and the mirrors. After rebasing onto a moved `master`, run `scripts/renumber origin/master`.
+- **Remotes:** `forgejo` (`http://192.168.10.2:3002/vernon/OpenFamHub.git`, primary; CI runs here) and `origin` (GitHub). Mirrors at `192.168.10.101:3002` and `192.168.10.102:3002` (same path). Push to the primary first, then GitHub and the mirrors (the mirrors copy from the primary on their own). Every branch must reach `forgejo`: GitHub and the mirrors run no CI, so a commit pushed only to `origin` is never tested or deployed. Forcing or re-running a run: [docs/releasing.md › CI runs only on Forgejo at .2](docs/releasing.md#ci-runs-only-on-forgejo-at-2). After rebasing onto a moved `master`, run `scripts/renumber origin/master`.
 
 ## Rules
 

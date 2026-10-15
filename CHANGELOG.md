@@ -12,6 +12,7 @@
 
 ### Fixed
 - **Offline banner:** after resolving one offline change, a background sync finishing late could bring back a change that was just discarded ("1 needs a decision") until the next refresh. Only the latest refresh of the waiting list now updates the screen.
+- **CI:** the wall's sleep-schedule test touched the black screen before the wall was listening for touches, so on a slow runner the touch was lost and the test failed (build 1.55). It now keeps touching until the screen wakes.
 - **CI:** a test compared preferences without the new notification settings, and two frontend tests depended on how fast a cold runner compiles lazy-loaded pages; both fixed.
 - The wall redrew every card on the page each second to tick its countdown, heavy on a Raspberry Pi; now only the countdown does.
 - The Routines card was blank when no routine was on; it says "No routine right now."

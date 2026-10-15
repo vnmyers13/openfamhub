@@ -141,10 +141,13 @@ describe('WallLayout revocation (#10)', () => {
       await bootAt('2026-10-21T03:00:00Z', { enabled: true, off: '22:00', on: '06:30' }, 'America/Detroit')
       expect(await screen.findByTestId('wall-asleep')).toBeTruthy()
       expect(screen.queryByText('configured wall dashboard')).toBeNull()
-      act(() => {
+      // The black screen can reach the DOM before the board's touch listeners
+      // are attached (passive effects run after the commit; on a slow CI runner
+      // a touch sent at once is lost). Touch until it wakes, as a person would.
+      await waitFor(() => {
         window.dispatchEvent(new Event('touchstart'))
+        expect(screen.getByText('configured wall dashboard')).toBeTruthy()
       })
-      expect(await screen.findByText('configured wall dashboard')).toBeTruthy()
     })
 
     it('follows the family timezone, not the device zone', async () => {
