@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import App from './App'
 import { useAuthStore } from './stores/auth'
 import { apiError, mockApi } from './test/api'
@@ -15,6 +15,16 @@ function boot(path: string) {
 }
 
 describe('App boot', () => {
+  // App's pages are lazy-loaded. The first test to open one would wait while
+  // Vite compiles its whole module tree, which on a cold CI runner takes longer
+  // than findBy's 1 s and failed there. Load them once, up front, so each test
+  // measures routing, not compiling.
+  beforeAll(async () => {
+    await Promise.all([
+      import('./pages/SetupWizard'), import('./pages/Dashboard'), import('./pages/admin/WallDisplays'), import('./wall/WallLayout'),
+    ])
+  }, 60_000)
+
   afterEach(() => {
     useAuthStore.getState().clearUser()
     window.history.pushState({}, '', '/')

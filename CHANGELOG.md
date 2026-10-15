@@ -7,6 +7,8 @@
 - **The time is always on the wall:** a header bar shows the family's time and date, with any extra clocks, above every page. A **Clock** card puts a big clock on a page too.
 
 ### Fixed
+- **Offline banner:** after resolving one offline change, a background sync finishing late could bring back a change that was just discarded ("1 needs a decision") until the next refresh. Only the latest refresh of the waiting list now updates the screen.
+- **CI:** a test compared preferences without the new notification settings, and two frontend tests depended on how fast a cold runner compiles lazy-loaded pages; both fixed.
 - The wall redrew every card on the page each second to tick its countdown, heavy on a Raspberry Pi; now only the countdown does.
 - The Routines card was blank when no routine was on; it says "No routine right now."
 

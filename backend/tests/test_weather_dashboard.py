@@ -143,12 +143,14 @@ class TestPreferences:
     async def test_defaults_then_saved_and_read_back(self, client, admin):
         kid = await _member(client, admin)
         res = await client.get("/api/users/me/preferences", headers=_h(kid))
-        assert res.json() == {"nav": "side", "calendar_scope": "family", "wallpaper": "none", "wallpaper_media_id": None, "pages": []}
+        default_notifications = {"events": "off", "event_minutes": 15, "daily": True, "daily_time": "07:00", "rewards": True}
+        assert res.json() == {"nav": "side", "calendar_scope": "family", "wallpaper": "none", "wallpaper_media_id": None, "pages": [],
+                              "notifications": default_notifications}
         prefs = {"nav": "top", "calendar_scope": "mine", "wallpaper": "ocean", "wallpaper_media_id": None,
                  "pages": [{"name": "Home", "widgets": [{"key": "events", "size": "wide"}, {"key": "stars", "size": "normal"}]},
                            {"name": "Food", "widgets": [{"key": "meals", "size": "normal"}]}]}
         assert (await client.put("/api/users/me/preferences", json=prefs, headers=_h(kid))).status_code == 200
-        assert (await client.get("/api/users/me/preferences", headers=_h(kid))).json() == prefs
+        assert (await client.get("/api/users/me/preferences", headers=_h(kid))).json() == {**prefs, "notifications": default_notifications}
         # Each person has their own.
         assert (await client.get("/api/users/me/preferences", headers=_h(admin))).json()["nav"] == "side"
 

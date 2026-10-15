@@ -65,11 +65,18 @@ async function send(write: QueuedWrite) {
   return apiClient[write.method](write.url, write.body, config)
 }
 
+// Refreshes can overlap (a sync finishing while someone resolves the next
+// change). IndexedDB runs them in order, so a later-started read sees newer
+// data; only the latest one may update the screen, or a slow, older read
+// would bring back a change that was just discarded.
+let refreshSeq = 0
+
 export async function refreshPending(): Promise<QueuedWrite[]> {
   if (!queueAvailable()) return []
+  const mine = ++refreshSeq
   try {
     const pending = await allWrites()
-    useOffline.getState().set({ pending })
+    if (mine === refreshSeq) useOffline.getState().set({ pending })
     return pending
   } catch {
     return []  // a broken store shouldn't break the app; writes just won't queue
