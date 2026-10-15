@@ -18,6 +18,7 @@ export const WALL_DASHBOARD_WIDGETS = [
   { key: 'announcements', label: 'Announcements' },
   { key: 'progress', label: 'Family progress' },
   { key: 'birthdays', label: 'Birthdays' },
+  { key: 'home', label: 'Smart home' },
 ] as const
 
 export type WallDashboardWidgetKey = (typeof WALL_DASHBOARD_WIDGETS)[number]['key']

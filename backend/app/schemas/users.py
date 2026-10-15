@@ -104,7 +104,7 @@ class UserResponse(BaseModel):
 
 
 # ---- personal preferences (Phase 8) --------------------------------------------
-WIDGET_KEYS = ("events", "weather", "my-day", "chores", "meals", "stars", "announcements", "birthdays", "sync")
+WIDGET_KEYS = ("events", "weather", "my-day", "chores", "home", "meals", "stars", "announcements", "birthdays", "sync")
 WALLPAPERS = ("none", "dusk", "ocean", "forest", "sunrise", "photo")
 
 

@@ -114,6 +114,15 @@ describe('MySettings', () => {
     expect(useAuthStore.getState().user?.display_name).toBe('Kid')
   })
 
+  it('puts the menu choice near the top, right after the profile', async () => {
+    setup()
+    renderApp(<MySettings />)
+    await screen.findByRole('region', { name: 'Menu' })
+    const order = screen.getAllByRole('region').map((r) => r.getAttribute('aria-label'))
+    expect(order.indexOf('Menu')).toBe(order.indexOf('Profile') + 1)
+    expect(order.indexOf('Menu')).toBeLessThan(order.indexOf('Notifications'))
+  })
+
   describe('Notifications', () => {
     afterEach(() => { push.state = 'off'; vi.clearAllMocks() })
 

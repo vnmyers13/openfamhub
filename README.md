@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.56-blue)
+![Version](https://img.shields.io/badge/version-1.57-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -113,6 +113,17 @@ Any Raspberry Pi with HDMI (a Pi 4 or 5 is smoothest) and a screen, ideally a to
 5. **Arrange what it shows** from any phone: **Home › Customize › Edit family wall** sets the pages, their cards and how long each stays up. Every wall follows the same layout. The time, the sleep schedule and **Other clocks on the wall** are in **Admin › Settings**.
 
 To retire a display, press **Unpair** under **Admin › Wall displays**; it goes back to the pairing screen at its next refresh.
+
+## Home Assistant
+
+To show your Home Assistant on Home and the wall, make a long-lived access token in Home Assistant (your profile › Security › Long-lived access tokens) and add to `.env`:
+
+```
+HA_URL=http://homeassistant.local:8123
+HA_TOKEN=<the token>
+```
+
+Restart, then under **Admin › Settings › Home Assistant** pick up to 24 entities (lights, switches, fans, toggles, scenes, scripts, thermostats, sensors) and, if you like, a scene or script for each routine with a start time. Add the **Smart home** card to a Home page (Customize) or a wall page. Members and admins can switch things from Home; viewers and the wall only see them. The API container must be able to reach `HA_URL`.
 
 ## Notifications
 

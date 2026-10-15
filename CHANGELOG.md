@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+- **Home Assistant** (Phase 12): set `HA_URL` and `HA_TOKEN` (a long-lived access token) in `.env`, then pick entities under **Admin › Settings › Home Assistant**. They show on a new **Smart home** card on Home and the wall: members and parents can switch lights, run scenes and scripts and nudge the thermostat; viewers and the wall only look. A timed routine can start a scene or script at its start time. If Home Assistant is down the card says so.
 - **Notifications on your phone** (Phase 11): turn them on in **My settings › Notifications** and choose reminders before events (events you added, or all family events; off until you choose), a morning list of your chores and to-dos, and, for parents, reward requests waiting for a yes. Nothing is sent during the wall's sleep hours. They use Web Push, with no account to set up; on iPhone and iPad, add OpenFamHub to the Home Screen first (iOS 16.4+).
 - **Wellness reminders** (Phase 11): in **My settings › Notifications › Wellness**, anyone can turn on drink-water reminders (every 1 to 3 hours between two times) and a daily breathing pause. Off until you turn them on; they go to your devices and ntfy, never by email.
 - **Chores up for grabs on Home:** a new dashboard card lists today's family chores anyone can claim, with a **Claim** button (not for viewers). It's on the default page and the Kids template; add it to your own pages with Customize.
@@ -11,6 +12,7 @@
 - **The time is always on the wall:** a header bar shows the family's time and date, with any extra clocks, above every page. A **Clock** card puts a big clock on a page too.
 
 ### Fixed
+- **Menu position is easy to find again:** "Down the side" or "Across the top" is back near the top of My settings (it had ended up below the long Notifications section) and is also in Home › Customize.
 - **Offline banner:** after resolving one offline change, a background sync finishing late could bring back a change that was just discarded ("1 needs a decision") until the next refresh. Only the latest refresh of the waiting list now updates the screen.
 - **CI:** the wall's sleep-schedule test touched the black screen before the wall was listening for touches, so on a slow runner the touch was lost and the test failed (build 1.55). It now keeps touching until the screen wakes.
 - **CI:** a test compared preferences without the new notification settings, and two frontend tests depended on how fast a cold runner compiles lazy-loaded pages; both fixed.

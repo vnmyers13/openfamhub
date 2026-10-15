@@ -21,6 +21,6 @@ describe('dashboard layout', () => {
     expect(moveWidget([...ws], 1, 5)).toEqual([...ws])
   })
   it('lists what a page is missing', () => {
-    expect(missingWidgets(TEMPLATES[3].page, true)).toEqual(['events', 'my-day', 'chores', 'stars', 'birthdays', 'sync'])
+    expect(missingWidgets(TEMPLATES[3].page, true)).toEqual(['events', 'my-day', 'chores', 'home', 'stars', 'birthdays', 'sync'])
   })
 })

@@ -6,6 +6,7 @@ export const WIDGETS = [
   { key: 'weather', label: 'Weather' },
   { key: 'my-day', label: 'My day' },
   { key: 'chores', label: 'Chores up for grabs' },
+  { key: 'home', label: 'Smart home' },
   { key: 'meals', label: "Today's meals" },
   { key: 'stars', label: 'Family stars' },
   { key: 'announcements', label: 'Announcements' },

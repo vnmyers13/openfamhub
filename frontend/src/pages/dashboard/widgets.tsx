@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCalendarSources } from '../../api/calendar'
 import { useChoreAction, useChoreInstances } from '../../api/chores'
+import { useHAAction, useHAStates, type HAActionName, type HAEntity } from '../../api/homeAssistant'
+import HAEntityList from '../../components/HAEntityList'
 import { errorDetail } from '../../api/client'
 import {
   useDeleteAnnouncement, usePostAnnouncement, useUpdateAnnouncement, useWeather, type DashboardSummary,
@@ -120,6 +122,37 @@ export function AvailableChores() {
       {chores.length > AVAILABLE_SHOWN && (
         <p className="mt-2 text-xs text-slate-400">and {chores.length - AVAILABLE_SHOWN} more on the Chores page</p>
       )}
+    </Card>
+  )
+}
+
+/** Home Assistant entities the admin chose (Phase 12). Hidden until Home Assistant is set up. */
+export function SmartHome() {
+  const user = useAuthStore((s) => s.user)
+  const { data } = useHAStates()
+  const act = useHAAction()
+  const [error, setError] = useState<string | null>(null)
+  const title = 'Smart Home'
+  if (!data) return <Card title={title}><Pending /></Card>
+  if (!data.configured) return null
+  const canControl = user?.role === 'admin' || user?.role === 'member'
+  const onAction = async (e: HAEntity, action: HAActionName, temperature?: number) => {
+    setError(null)
+    try {
+      await act.mutateAsync({ entity_id: e.entity_id, action, temperature })
+    } catch (err) {
+      setError(errorDetail(err, "That didn't work"))
+    }
+  }
+  return (
+    <Card title={title}>
+      {error && <p role="alert" className="mb-2 text-sm text-red-300">{error}</p>}
+      {!data.available ? <p className="text-sm text-slate-400">{data.error ?? "Home Assistant isn't reachable right now."}</p>
+        : data.entities.length === 0 ? (
+          <p className="text-sm text-slate-400">
+            {user?.role === 'admin' ? <>Choose what shows here under <Link to="/admin/settings" className="text-primary hover:underline">Settings</Link>.</> : 'Nothing chosen yet.'}
+          </p>
+        ) : <HAEntityList entities={data.entities} onAction={canControl ? onAction : undefined} busy={act.isPending} />}
     </Card>
   )
 }

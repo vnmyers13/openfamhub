@@ -11,6 +11,8 @@ import {
 } from '../api/wall'
 import { eventDayKeys, eventStart } from '../lib/dates'
 import type { WorldClock } from '../api/family'
+import { useWallHAStates } from '../api/homeAssistant'
+import HAEntityList from '../components/HAEntityList'
 import WallBirthdays from './WallBirthdays'
 import WallClock from './WallClock'
 import WallProgress from './WallProgress'
@@ -50,6 +52,14 @@ function MealsCard({ timeZone }: { timeZone: string }) {
   return <WallCard title="Today's meals">{meals.length === 0 ? <Empty text="Nothing planned today." /> : <ul className="space-y-2">{meals.map((m) => (
     <li key={m.slot} className="flex justify-between gap-4 rounded bg-slate-700/60 px-3 py-2 text-lg"><span className="text-slate-400 capitalize">{m.slot}</span><span className="truncate text-white">{m.title}</span></li>
   ))}</ul>}</WallCard>
+}
+
+function HomeCard() {
+  const { data } = useWallHAStates()
+  if (!data) return <WallCard title="Smart home"><Empty text="Loading…" /></WallCard>
+  if (!data.configured) return <WallCard title="Smart home"><Empty text="Home Assistant is not set up." /></WallCard>
+  if (!data.available) return <WallCard title="Smart home"><Empty text={data.error ?? "Home Assistant isn't reachable right now."} /></WallCard>
+  return <WallCard title="Smart home">{data.entities.length === 0 ? <Empty text="Nothing chosen yet." /> : <HAEntityList entities={data.entities} large />}</WallCard>
 }
 
 function WeatherCard() {
@@ -95,6 +105,7 @@ function Widget({ widget, timeZone, clocks }: { widget: WallDashboardWidgetKey; 
   if (widget === 'weather') return <WeatherCard />
   if (widget === 'announcements') return <AnnouncementsCard />
   if (widget === 'progress') return <ProgressCard />
+  if (widget === 'home') return <HomeCard />
   return <BirthdaysCard />
 }
 

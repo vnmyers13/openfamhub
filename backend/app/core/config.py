@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from: str = ""  # e.g. OpenFamHub <hub@example.com>
+    # Phase 12: Home Assistant (off while either is empty).
+    ha_url: str = ""  # e.g. http://homeassistant.local:8123
+    ha_token: str = ""  # a long-lived access token (Home Assistant › Profile › Security)
 
     model_config = {
         "env_file": str(_PROJECT_ROOT / ".env"),

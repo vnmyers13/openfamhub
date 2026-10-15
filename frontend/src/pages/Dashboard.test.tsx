@@ -41,6 +41,7 @@ function homeApi(extra: Record<string, unknown> = {}) {
     'GET /rewards/progress': [{ user_id: 'kid', display_name: 'Kid', color_hex: '#059669', avatar_value: null,
       points_balance: 42, points_this_week: 7, streak_days: 2, badges: [] }],
     'GET /calendar/sources': [{ id: 's', sync_error: null }],
+    'GET /ha/states': { configured: false, available: false, error: null, entities: [] },
     'GET /chores/instances': (params: { scope?: string } | undefined) => (params?.scope === 'available' ? [chore('c1', 'Take out recycling')] : []),
     ...extra,
   })

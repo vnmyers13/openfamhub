@@ -1,5 +1,5 @@
 """The wall's read-only panels (Phase 10): today's chores, the week's meals,
-announcements and the weather for a paired display.
+announcements, the weather and Home Assistant states for a paired display.
 
 v0.29's panels called the member endpoints, so a wall needed someone's login.
 These answer to the display's `wall_token` cookie instead (`get_wall_device`)
@@ -21,6 +21,7 @@ from app.models.family import Family
 from app.models.wall_device import WallDevice
 from app.routers.announcements import recent, to_announcement
 from app.routers.chores import to_instance
+from app.routers.home_assistant import family_states
 from app.routers.meals import _monday, _plan_week, today_for
 from app.routers.wall import get_wall_device
 from app.routers.weather import weather_for
@@ -65,3 +66,9 @@ async def wall_weather(db: AsyncSession = Depends(get_db), device: WallDevice = 
     if family is None:
         raise HTTPException(status_code=404, detail="Family not found")
     return await weather_for(family)
+
+
+@router.get("/home-assistant")
+async def wall_home_assistant(db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device)):
+    """The family's chosen Home Assistant entities, to look at only (Phase 12)."""
+    return await family_states(db, device.family_id)

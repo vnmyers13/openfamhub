@@ -8,7 +8,7 @@ import { useAuthStore } from '../stores/auth'
 import CustomizeDashboard from './dashboard/CustomizeDashboard'
 import WallDashboardEditor from './dashboard/WallDashboardEditor'
 import {
-  Announcements, AvailableChores, Birthdays, FamilyStars, MealsToday, MyDay, SyncStatus, TodaysEvents, WeatherCard,
+  Announcements, AvailableChores, Birthdays, FamilyStars, MealsToday, MyDay, SmartHome, SyncStatus, TodaysEvents, WeatherCard,
 } from './dashboard/widgets'
 
 const RENDER: Record<WidgetKey, (s?: DashboardSummary) => React.ReactNode> = {
@@ -16,6 +16,7 @@ const RENDER: Record<WidgetKey, (s?: DashboardSummary) => React.ReactNode> = {
   weather: () => <WeatherCard />,
   'my-day': (s) => <MyDay summary={s} />,
   chores: () => <AvailableChores />,
+  home: () => <SmartHome />,
   meals: (s) => <MealsToday summary={s} />,
   stars: () => <FamilyStars />,
   announcements: (s) => <Announcements summary={s} />,
@@ -65,6 +66,10 @@ export default function Dashboard() {
   const qc = useQueryClient()
   // Apply each change to the newest saved prefs (the cache is updated at once
   // on save), not to this render's copy, so rapid edits don't undo each other.
+  const setNav = (nav: Preferences['nav']) => {
+    const latest = qc.getQueryData<Preferences>(['preferences']) ?? prefs
+    save.mutate({ ...latest, nav })
+  }
   const savePages = (update: (pages: DashboardPage[]) => DashboardPage[]) => {
     const latest = qc.getQueryData<Preferences>(['preferences']) ?? prefs
     save.mutate({ ...latest, pages: update(effectivePages(latest.pages, isAdmin)) })
@@ -90,6 +95,17 @@ export default function Dashboard() {
         </div>
         {customizing && (
           <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3">
+              <span className="text-sm text-slate-300">Menu</span>
+              <div className="flex gap-1" role="radiogroup" aria-label="Menu position">
+                {(['side', 'top'] as const).map((n) => (
+                  <button key={n} role="radio" aria-checked={prefs.nav === n} onClick={() => setNav(n)}
+                    className={`rounded px-3 py-1 text-sm ${prefs.nav === n ? 'bg-primary text-white' : 'bg-slate-700 text-slate-200 hover:bg-slate-600'}`}>
+                    {n === 'side' ? 'Down the side' : 'Across the top'}</button>
+                ))}
+              </div>
+              <span className="text-xs text-slate-400">Also in My settings. On a phone the menu stays at the bottom.</span>
+            </div>
             <CustomizeDashboard pages={pages} current={current} isAdmin={isAdmin} onSelect={setPageIndex}
               onChange={savePages} saving={save.isPending} />
             {editingWall ? <WallDashboardCustomizer /> : (
@@ -100,7 +116,7 @@ export default function Dashboard() {
         )}
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {page.widgets.map((w) => (
-            <div key={w.key} className={w.size === 'wide' ? 'md:col-span-2' : ''}>{RENDER[w.key](summary)}</div>
+            <div key={w.key} className={`empty:hidden ${w.size === 'wide' ? 'md:col-span-2' : ''}`}>{RENDER[w.key](summary)}</div>
           ))}
         </div>
         {page.widgets.length === 0 && <p className="text-sm text-slate-400">This page is empty. Press Customize to add cards.</p>}

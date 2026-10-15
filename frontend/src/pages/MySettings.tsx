@@ -317,9 +317,6 @@ export default function MySettings() {
         <h1 className="text-2xl font-bold text-white">My settings</h1>
         {save.isError && <p className="rounded bg-red-900/50 px-3 py-2 text-sm text-red-300" role="alert">{errorDetail(save.error, "Couldn't save that")}</p>}
         <Profile />
-        <Notifications prefs={prefs.notifications ?? DEFAULT_NOTIFICATIONS} role={user.role}
-          onChange={(notifications) => set({ notifications })} />
-        {user.role !== 'viewer' && <Birthday userId={user.id} />}
         <section className={box} aria-label="Menu">
           <h2 className="text-sm font-medium text-gray-300">Menu</h2>
           <div className="flex gap-2" role="radiogroup" aria-label="Menu position">
@@ -331,6 +328,9 @@ export default function MySettings() {
           </div>
           <p className="text-xs text-gray-500">On a phone the menu stays at the bottom.</p>
         </section>
+        <Notifications prefs={prefs.notifications ?? DEFAULT_NOTIFICATIONS} role={user.role}
+          onChange={(notifications) => set({ notifications })} />
+        {user.role !== 'viewer' && <Birthday userId={user.id} />}
         <section className={box} aria-label="Calendar">
           <h2 className="text-sm font-medium text-gray-300">Calendar and Home show</h2>
           <div className="flex gap-2" role="radiogroup" aria-label="Whose events">
