@@ -314,6 +314,66 @@ class TestAllowancePaid:
         assert [p for _, p in inbox if p["tag"].startswith("allowance")] == []
 
 
+class TestWellness:
+    def kinds(self, inbox, kind):
+        return [p for _, p in inbox if p["tag"].startswith(kind + ":")]
+
+    async def test_off_by_default(self, client, admin, inbox, run):
+        await device(client, admin)
+        for hh in (9, 11, 15):
+            await run(now=local(hh, 0))
+        assert self.kinds(inbox, "water") == [] and self.kinds(inbox, "mindful") == []
+
+    async def test_water_on_the_chosen_rhythm_between_the_chosen_times(self, client, admin, inbox, run):
+        await device(client, admin)
+        await notify(client, admin, water=True, water_every=120, water_from="09:00", water_until="20:00")
+        await run(now=local(8, 59))
+        assert self.kinds(inbox, "water") == []
+        await run(now=local(9, 0))
+        await run(now=local(9, 5))
+        assert len(self.kinds(inbox, "water")) == 1
+        assert "water" in self.kinds(inbox, "water")[0]["title"].lower()
+        await run(now=local(10, 59))
+        await run(now=local(11, 0))
+        assert len(self.kinds(inbox, "water")) == 2
+        await run(now=local(13, 30))  # missed the 13:00 one by too long: skipped, not sent late
+        assert len(self.kinds(inbox, "water")) == 2
+        await run(now=local(19, 2))
+        assert len(self.kinds(inbox, "water")) == 3
+        await run(now=local(21, 0))  # 21:00 is after 20:00
+        assert len(self.kinds(inbox, "water")) == 3
+
+    async def test_a_breathing_pause_once_a_day(self, client, admin, inbox, run):
+        await device(client, admin)
+        await notify(client, admin, mindful=True, mindful_time="15:00")
+        await run(now=local(14, 59))
+        assert self.kinds(inbox, "mindful") == []
+        await run(now=local(15, 10))
+        await run(now=local(15, 20))
+        await run(now=local(16, 0))
+        assert len(self.kinds(inbox, "mindful")) == 1
+        await run(now=local(15, 0) + timedelta(days=1))
+        assert len(self.kinds(inbox, "mindful")) == 2
+        assert self.kinds(inbox, "mindful")[0]["body"] != ""
+
+    async def test_quiet_hours_skip_them(self, client, admin, inbox, run):
+        await client.patch("/api/family", json={"sleep": {"enabled": True, "off": "13:00", "on": "16:00"}}, headers=_h(admin))
+        await device(client, admin)
+        await notify(client, admin, mindful=True, mindful_time="15:00", water=True, water_every=60,
+                     water_from="15:00", water_until="18:00")
+        await run(now=local(15, 0))
+        await run(now=local(16, 0))  # quiet hours over: the 15:00 pause is too late now, 16:00 water is on time
+        assert self.kinds(inbox, "mindful") == []
+        assert len(self.kinds(inbox, "water")) == 1
+
+    async def test_bad_wellness_choices_are_refused(self, client, admin):
+        current = (await client.get("/api/users/me/preferences", headers=_h(admin))).json()
+        for bad in ({"water_every": 45}, {"water_from": "20:00", "water_until": "09:00"},
+                    {"water_from": "09:00", "water_until": "09:00"}, {"mindful_time": "3pm"}):
+            res = await client.put("/api/users/me/preferences", json={**current, "notifications": bad}, headers=_h(admin))
+            assert res.status_code == 422, bad
+
+
 class TestQuietHoursAndDevices:
     async def test_nothing_during_the_walls_sleep_then_waiting_things_go_out(self, client, admin, inbox, run):
         await client.patch("/api/family", json={"sleep": {"enabled": True, "off": "22:00", "on": "06:30"}}, headers=_h(admin))

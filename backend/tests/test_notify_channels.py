@@ -162,6 +162,18 @@ class TestReminders:
         await self.make_chore(client, admin, kid)
         assert await run(now=local(7, 1)) == 0
 
+    async def test_wellness_reminders_skip_email(self, client, admin, ntfy, mailbox, run):  # noqa: F811
+        kid = await _member(client, admin)
+        await notify(client, kid, ntfy_topic="kid-9q2w", email_to="kid@example.com", daily=False,
+                     water=True, water_every=60, water_from="09:00", water_until="18:00")
+        await run(now=local(10, 0))
+        assert [body(r)["topic"] for r in ntfy] == ["kid-9q2w"] and mailbox == []
+
+    async def test_email_only_people_get_no_wellness_reminders(self, client, admin, mailbox, run):  # noqa: F811
+        kid = await _member(client, admin)
+        await notify(client, kid, email_to="kid@example.com", daily=False, mindful=True, mindful_time="10:00")
+        assert await run(now=local(10, 0)) == 0 and mailbox == []
+
     async def test_device_and_ntfy_both_get_it(self, client, admin, ntfy, run, monkeypatch):  # noqa: F811
         from app.services import push as push_svc
 

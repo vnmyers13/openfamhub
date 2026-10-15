@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.54-blue)
+![Version](https://img.shields.io/badge/version-1.55-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -116,7 +116,7 @@ To retire a display, press **Unpair** under **Admin › Wall displays**; it goes
 
 ## Notifications
 
-Each person turns notifications on in **My settings › Notifications** on each phone or computer they want them on, and chooses which reminders they get: before calendar events (off until chosen: events they added, or all family events, 5 to 60 minutes before), a morning list of their chores and to-dos, the morning before someone's birthday, pantry food reaching its use-by date, their weekly allowance being paid, and, for admins, reward requests waiting for a yes. Nothing is sent during the wall's sleep hours.
+Each person turns notifications on in **My settings › Notifications** on each phone or computer they want them on, and chooses which reminders they get: before calendar events (off until chosen: events they added, or all family events, 5 to 60 minutes before), a morning list of their chores and to-dos, the morning before someone's birthday, pantry food reaching its use-by date, their weekly allowance being paid, and, for admins, reward requests waiting for a yes. Wellness reminders (drink water every few hours, a daily breathing pause) are off until someone turns them on, and never go by email. Nothing is sent during the wall's sleep hours.
 
 - **ntfy and email, too:** set `NTFY_URL` (e.g. `https://ntfy.sh` or your own ntfy server, plus `NTFY_TOKEN` if it needs one) and/or `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USERNAME`, `SMTP_PASSWORD` and `SMTP_FROM` in `.env`, then restart. Each person then adds their own ntfy topic or email address in My settings › Notifications; they don't need a phone with notifications turned on.
 - Web Push needs no account: the server makes its own keys. The server must be able to reach the browsers' push services over HTTPS (`fcm.googleapis.com`, `updates.push.services.mozilla.com`, `*.notify.windows.com`, `web.push.apple.com`).

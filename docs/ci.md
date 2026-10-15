@@ -28,7 +28,8 @@ floor in `backend/.coveragerc`. `frontend` runs `npm run lint`, `npm run test:co
 `VERSION` sequence and runs the script test harnesses in `scripts/tests/`. One of them, `exec-bits-test.sh`, fails if a script under `scripts/` or `.githooks/` is committed without its executable bit (that broke `publish` for build 1).
 
 `publish` builds `linux/amd64` and `linux/arm64` images for `openfamhub-api` and
-`openfamhub-web` and pushes them to the Forgejo registry. `deploy` then runs
+`openfamhub-web` and pushes them to the Forgejo registry. `deploy` then runs **on
+the runner at `192.168.10.80`** (not on the retired `.13` host):
 `scripts/deploy.sh server "$HOME/openfamhub" <release>`, where `<release>` is the
 exact release string computed by the `version` job and used by `publish`. Passing
 it explicitly prevents the deploy from reusing an older `OPENFAMHUB_VERSION` from

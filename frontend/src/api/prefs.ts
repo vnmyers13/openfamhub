@@ -18,10 +18,17 @@ export interface NotificationPrefs {
   allowance: boolean  // their weekly allowance was paid
   ntfy_topic: string | null  // their own topic on the server's ntfy
   email_to: string | null  // where to email them
+  water: boolean  // wellness: devices and ntfy only, never email
+  water_every: 60 | 90 | 120 | 180  // minutes
+  water_from: string  // HH:MM
+  water_until: string  // HH:MM, after water_from
+  mindful: boolean
+  mindful_time: string  // HH:MM
 }
 
 export const DEFAULT_NOTIFICATIONS: NotificationPrefs = { events: 'off', event_minutes: 15, daily: true, daily_time: '07:00', rewards: true,
   birthdays: true, pantry: true, allowance: true, ntfy_topic: null, email_to: null,
+  water: false, water_every: 120, water_from: '09:00', water_until: '20:00', mindful: false, mindful_time: '15:00',
 }
 
 /** Channels besides Web Push that the server has set up (NTFY_URL, SMTP_* on the server). */

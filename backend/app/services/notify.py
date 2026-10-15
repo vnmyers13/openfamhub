@@ -126,14 +126,15 @@ def reachable_without_device(user: User) -> bool:
     return bool((prefs.ntfy_topic and ntfy_server()) or (prefs.email_to and email_ready()))
 
 
-async def deliver(db: AsyncSession, user: User, payload: dict) -> int:
-    """Send to every channel the person set up; how many accepted it."""
+async def deliver(db: AsyncSession, user: User, payload: dict, email: bool = True) -> int:
+    """Send to every channel the person set up; how many accepted it.
+    `email=False` for frequent nudges (wellness) that would flood an inbox."""
     prefs = notification_prefs(user)
     sent = 0
     if await push_svc.has_device(db, user.id):
         sent += await push_svc.send_to_users(db, [user.id], payload)
     if prefs.ntfy_topic and ntfy_server():
         sent += await send_ntfy(prefs.ntfy_topic, payload)
-    if prefs.email_to and email_ready():
+    if email and prefs.email_to and email_ready():
         sent += await send_email(prefs.email_to, payload)
     return sent

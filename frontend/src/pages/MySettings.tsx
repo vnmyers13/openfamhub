@@ -157,6 +157,17 @@ function Notifications({ prefs, role, onChange }: {
   }
   const set = (patch: Partial<NotificationPrefs>) => onChange({ ...prefs, ...patch })
   const { data: channels } = useNotifyChannels()
+  const [waterError, setWaterError] = useState<string | null>(null)
+  const setWater = (patch: Pick<Partial<NotificationPrefs>, 'water_from' | 'water_until'>) => {
+    const next = { ...prefs, ...patch }
+    if (!next.water_from || !next.water_until) return
+    if (next.water_until <= next.water_from) {
+      setWaterError('Water reminders end after they start.')
+      return
+    }
+    setWaterError(null)
+    set(patch)
+  }
   const ntfy = channels?.ntfy ?? null
   const elsewhere = Boolean((ntfy && prefs.ntfy_topic) || (channels?.email && prefs.email_to))
   const canEdit = role === 'admin' || role === 'member'  // viewers have no pantry or allowance
@@ -229,6 +240,42 @@ function Notifications({ prefs, role, onChange }: {
             Reward requests waiting for a yes
           </label>
         )}
+        <div className="space-y-2 border-t border-gray-800 pt-3" role="group" aria-label="Wellness">
+          <h3 className="text-sm font-medium text-gray-300">Wellness</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={prefs.water} onChange={(e) => set({ water: e.target.checked })} />
+              Drink-water reminders
+            </label>
+            {prefs.water && (
+              <>
+                <select className={select} aria-label="How often" value={prefs.water_every}
+                  onChange={(e) => set({ water_every: Number(e.target.value) as NotificationPrefs['water_every'] })}>
+                  {([[60, 'Every hour'], [90, 'Every 1½ hours'], [120, 'Every 2 hours'], [180, 'Every 3 hours']] as const)
+                    .map(([m, text]) => <option key={m} value={m}>{text}</option>)}
+                </select>
+                <span>from</span>
+                <input type="time" className={select} aria-label="Water from" value={prefs.water_from}
+                  onChange={(e) => setWater({ water_from: e.target.value })} />
+                <span>until</span>
+                <input type="time" className={select} aria-label="Water until" value={prefs.water_until}
+                  onChange={(e) => setWater({ water_until: e.target.value })} />
+              </>
+            )}
+          </div>
+          {waterError && <p className="text-xs text-red-300" role="alert">{waterError}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={prefs.mindful} onChange={(e) => set({ mindful: e.target.checked })} />
+              A daily breathing pause
+            </label>
+            {prefs.mindful && (
+              <input type="time" className={select} aria-label="Breathing pause time" value={prefs.mindful_time}
+                onChange={(e) => e.target.value && set({ mindful_time: e.target.value })} />
+            )}
+          </div>
+          <p className="text-xs text-gray-500">Off until you turn them on. They go to your devices{ntfy ? ' and ntfy' : ''}, never by email.</p>
+        </div>
         <p className="text-xs text-gray-500">These choices apply to every device you've turned on{ntfy || channels?.email ? ', your ntfy topic and your email' : ''}. Nothing is sent during the wall's sleep hours.</p>
       </div>
       {(ntfy || channels?.email) && (

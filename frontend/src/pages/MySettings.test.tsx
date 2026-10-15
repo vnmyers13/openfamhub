@@ -229,6 +229,29 @@ describe('MySettings', () => {
       expect(within(section).queryByRole('group', { name: 'Other places to get them' })).toBeNull()
     })
 
+    it('turns on wellness reminders and keeps the water window the right way round', async () => {
+      const calls = setup('viewer')
+      renderApp(<MySettings />)
+      const section = await screen.findByRole('region', { name: 'Notifications' })
+      const wellness = within(section).getByRole('group', { name: 'Wellness' })
+      expect(within(wellness).queryByLabelText('How often')).toBeNull()
+      fireEvent.click(within(wellness).getByLabelText('Drink-water reminders'))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ water: true }))
+      fireEvent.change(await within(wellness).findByLabelText('How often'), { target: { value: '90' } })
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ water_every: 90 }))
+      const saves = calls.length
+      fireEvent.change(within(wellness).getByLabelText('Water until'), { target: { value: '08:00' } })
+      expect(within(wellness).getByRole('alert').textContent).toBe('Water reminders end after they start.')
+      expect(calls.length).toBe(saves)
+      fireEvent.change(within(wellness).getByLabelText('Water from'), { target: { value: '10:00' } })
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ water_from: '10:00' }))
+      expect(within(wellness).queryByRole('alert')).toBeNull()
+      fireEvent.click(within(wellness).getByLabelText('A daily breathing pause'))
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ mindful: true }))
+      fireEvent.change(await within(wellness).findByLabelText('Breathing pause time'), { target: { value: '16:30' } })
+      await waitFor(() => expect(lastPrefs(calls)?.notifications).toMatchObject({ mindful_time: '16:30' }))
+    })
+
     it('viewers only choose events and birthdays', async () => {
       setup('viewer')
       renderApp(<MySettings />)

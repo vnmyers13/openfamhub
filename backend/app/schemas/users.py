@@ -143,13 +143,26 @@ class NotificationPrefs(BaseModel):
     allowance: bool = True  # their weekly allowance was paid
     ntfy_topic: Optional[str] = None  # their own topic on the server's ntfy (NTFY_URL)
     email_to: Optional[str] = None  # where to email them (SMTP_*)
+    # Wellness (off unless chosen; devices and ntfy only, never email)
+    water: bool = False  # a drink of water every `water_every` minutes from `water_from` to `water_until`
+    water_every: Literal[60, 90, 120, 180] = 120
+    water_from: str = "09:00"
+    water_until: str = "20:00"
+    mindful: bool = False  # a short breathing pause once a day
+    mindful_time: str = "15:00"
 
-    @field_validator("daily_time")
+    @field_validator("daily_time", "water_from", "water_until", "mindful_time")
     @classmethod
     def hhmm(cls, v: str) -> str:
         if not _HHMM.match(v):
             raise ValueError("times are HH:MM, 24-hour")
         return v
+
+    @model_validator(mode="after")
+    def water_window(self) -> "NotificationPrefs":
+        if self.water_until <= self.water_from:
+            raise ValueError("water reminders end after they start")
+        return self
 
     @field_validator("ntfy_topic", "email_to", mode="before")
     @classmethod

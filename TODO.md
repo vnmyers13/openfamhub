@@ -26,7 +26,7 @@ Releases are **phases**, not version numbers. Every commit gets its own build nu
 | Phase 8 | Books, announcements, weather, birthdays, dashboard summary and customization, top/side menu (code complete at 1.24) | 1.28 |
 | Phase 9 | Offline sync: queued writes for chores, to-dos and shopping, idempotent replay, conflict choices, offline banner (code complete at 1.28) | 1.28 |
 | Phase 10 | OCR (scan a list, recipe from a photo), wall cycling panels, read-only wall data, extra clocks (code complete at 1.41) | 1.41 |
-| Phase 11 | Notifications and reminders | |
+| Phase 11 | Notifications and reminders: Web Push, ntfy and email; events, daily chores and to-dos, reward requests, birthdays, pantry use-by, allowance paid, wellness; quiet hours from the wall sleep schedule. Also the Home "Chores up for grabs" card (code complete at 1.55) | |
 | Phase 12 | Home Assistant, AI, notes | |
 | Phase 13 | Two-way calendar sync | |
 
@@ -293,7 +293,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
 - [x] Channels: Web Push (PWA), ntfy, and SMTP email, with per-user preferences. Decided 2026-10-14: Web Push first. Done: VAPID keys made by the server, subscriptions per device, RFC 8291/8292 sending with the SSRF guard (`services/push.py`, `test_push.py`), service worker handler (`public/push-sw.js`), My settings › Notifications.
 - [x] ntfy and SMTP email channels (each person picks theirs). Done: the server's ntfy server and SMTP account come from the environment (`NTFY_URL`, `NTFY_TOKEN`, `SMTP_*`; each off while empty), so no passwords in the database or UI; each person adds their own ntfy topic and/or email address in My settings › Notifications, and reminders go to every channel they set up (`services/notify.py`, `GET /api/push/channels`, `test_notify_channels.py`).
 - [x] Quiet hours aware of the Phase 3b sleep schedule. Done: nothing is sent during the wall's sleep schedule; daily lists and waiting requests go out when it ends, event reminders inside it are skipped.
-- [ ] Optional wellness reminders per user (hydration, mindfulness).
+- [x] Optional wellness reminders per user (hydration, mindfulness). Done: off by default; water every 1–3 hours between two chosen times, and a daily breathing pause at a chosen time, with rotating short messages; devices and ntfy only, never email; one missed by more than 15 (water) or 30 (pause) minutes is skipped, not sent late (`_wellness` in `jobs/reminders.py`, `TestWellness`, `MySettings.test.tsx`).
 - Tests first: a reminder fires exactly once; quiet hours suppress delivery; per-user channel preference; timezone/DST correctness. Done: `test_push.py`, `test_reminders.py` (once each, quiet hours incl. across the November DST change, per-person choices, family-timezone daily time), `lib/push.test.ts`, `lib/pushSw.test.ts`, `MySettings.test.tsx`.
 
 ### Phase 12 — Home Assistant, AI, and notes

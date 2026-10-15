@@ -145,7 +145,8 @@ class TestPreferences:
         res = await client.get("/api/users/me/preferences", headers=_h(kid))
         default_notifications = {"events": "off", "event_minutes": 15, "daily": True, "daily_time": "07:00", "rewards": True,
                                  "birthdays": True, "pantry": True, "allowance": True,
-                                 "ntfy_topic": None, "email_to": None}
+                                 "ntfy_topic": None, "email_to": None, "water": False, "water_every": 120,
+                                 "water_from": "09:00", "water_until": "20:00", "mindful": False, "mindful_time": "15:00"}
         assert res.json() == {"nav": "side", "calendar_scope": "family", "wallpaper": "none", "wallpaper_media_id": None, "pages": [],
                               "notifications": default_notifications}
         prefs = {"nav": "top", "calendar_scope": "mine", "wallpaper": "ocean", "wallpaper_media_id": None,

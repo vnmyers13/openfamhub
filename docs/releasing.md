@@ -64,9 +64,12 @@ script locally when you want an answer before the next build.
 
 ## On every push to master
 
-CI runs: tests → `publish` (images + `v<release>` tag) → `deploy` to `test` → `trivy`
-(scan, open and close Trivy issues) and `issues` (close issues TODO.md marks done,
-refresh the Triage report issue). The last two never fail the pipeline; read their logs.
+CI runs: tests → `publish` (images + `v<release>` tag) → `deploy` to the `test` VM
+(`192.168.10.80`) → `trivy` (scan, open and close Trivy issues) and `issues` (close
+issues TODO.md marks done, refresh the Triage report issue). The last two never fail
+the pipeline; read their logs. The CI runner and its `deploy` job run on `.80`, which
+installs the published release into `~/openfamhub`; `.13` is retired and is never a
+release target.
 
 CI builds the newest commit of each push, so to give every commit its own build and
 tag, push after each commit. The push mirrors then copy the tag to the mirrors and
@@ -87,11 +90,14 @@ GitHub ([Mirrors](#mirrors)).
      and list the issues it closed (`#N`).
    - `docs/releases/v<release>.md`: what's in it, upgrade notes, issues closed, checks. Use [v1.01.md](releases/v1.01.md) as the template.
    - `docs/deployment.md` **Version notes**: one line for the builds in the release, if upgrading needs anything.
-5. **Push** to the primary: `git push forgejo master`. CI tags the build in `publish`
-   (15 minutes or more; builds queue on the one runner), and Forgejo's push mirrors
+5. **Push and deploy to test.** Push to the primary: `git push forgejo master`. CI
+   tags the build in `publish` (15 minutes or more; builds queue on the one runner),
+   then `deploy` must be green and show `scripts/deploy.sh server "$HOME/openfamhub"
+   <release>` on the runner at `192.168.10.80`. Do not treat a green `publish` job as
+   a deployed release, and do not deploy releases to `.13`. Forgejo's push mirrors
    copy `master` and the new `v<release>` tag to `forgejo-mirror1`, `forgejo-mirror2`
-   and GitHub (see [Mirrors](#mirrors)). Wait until **Actions** shows that build's
-   `publish` green and the tag is on the mirrors before the next step.
+   and GitHub (see [Mirrors](#mirrors)). Wait until the tag is on the mirrors before
+   the next step.
 6. **Forgejo release** from the notes:
    ```bash
    jq -n --rawfile body docs/releases/v<release>.md '{tag_name:"v<release>",name:"v<release> — Phase N",body:$body}' |
@@ -127,4 +133,3 @@ Before the push mirrors existed (up to 1.41) mirrors were pushed by hand:
 `for r in forgejo-mirror1 forgejo-mirror2 origin; do git push $r master; done`, then
 the tag once `publish` was green (`git fetch forgejo --tags` and push `v<release>`).
 That still works if a mirror's sync is broken.
-

@@ -13,6 +13,10 @@ address, by their own choices (Preferences.notifications):
 - **Pantry** (members and admins): at `daily_time`, one list of what reaches
   its use-by date today or tomorrow.
 - **Allowance**: their weekly allowance was paid.
+- **Wellness** (off unless chosen): a drink of water every 1–3 hours between
+  two times, and a breathing pause once a day. Devices and ntfy only, never
+  email. One missed by more than a few minutes (quiet hours, downtime) is
+  skipped rather than sent late.
 
 Reminders go to every channel the person set up: their devices (Web Push),
 their ntfy topic and their email address (services/notify.py).
@@ -90,10 +94,11 @@ async def _record(db: AsyncSession, family_id: str, user_id: str, kind: str, ref
         pass
 
 
-async def _push(db: AsyncSession, family_id: str, user: User, kind: str, ref: str, payload: dict) -> bool:
+async def _push(db: AsyncSession, family_id: str, user: User, kind: str, ref: str, payload: dict,
+                email: bool = True) -> bool:
     if await _sent(db, user.id, kind, ref):
         return False
-    if await notify.deliver(db, user, {**payload, "tag": f"{kind}:{ref}"}) > 0:
+    if await notify.deliver(db, user, {**payload, "tag": f"{kind}:{ref}"}, email=email) > 0:
         await _record(db, family_id, user.id, kind, ref)
         return True
     return False
@@ -245,6 +250,40 @@ async def _allowance_paid(db, family: Family, people: list[User], now: datetime)
     return sent
 
 
+WATER_GRACE = 15  # minutes: later than this after its time, a water reminder is skipped
+MINDFUL_GRACE = 30
+WATER_LINES = ("A glass of water now keeps you going.", "Time to refill your water bottle.",
+               "Take a few sips: your brain is mostly water.", "Water break! Your future self says thanks.")
+MINDFUL_LINES = ("Breathe in for four, hold for four, out for four. Three times.",
+                 "Drop your shoulders, unclench your jaw, take one slow breath.",
+                 "Look out a window for a minute and notice three things.",
+                 "Close your eyes and listen: what can you hear?",
+                 "Think of one good thing from today.")
+
+
+async def _wellness(db, family: Family, people: list[User], local: datetime) -> int:
+    now_min, today = local.hour * 60 + local.minute, local.date()
+    sent = 0
+    for user in people:
+        prefs = notification_prefs(user)
+        if prefs.water:
+            start, end = _minutes(prefs.water_from), _minutes(prefs.water_until)
+            if start <= now_min <= end:
+                slot = start + (now_min - start) // prefs.water_every * prefs.water_every
+                if now_min - slot <= WATER_GRACE:
+                    line = WATER_LINES[(slot // prefs.water_every) % len(WATER_LINES)]
+                    ref = f"{today.isoformat()}@{slot // 60:02d}:{slot % 60:02d}"
+                    sent += await _push(db, family.id, user, "water", ref,
+                                        {"title": "💧 Time for some water", "body": line, "url": "/"}, email=False)
+        if prefs.mindful:
+            at = _minutes(prefs.mindful_time)
+            if 0 <= now_min - at <= MINDFUL_GRACE:
+                line = MINDFUL_LINES[today.toordinal() % len(MINDFUL_LINES)]
+                sent += await _push(db, family.id, user, "mindful", today.isoformat(),
+                                    {"title": "🧘 A minute to breathe", "body": line, "url": "/"}, email=False)
+    return sent
+
+
 async def remind_family(db: AsyncSession, family: Family, now: datetime) -> int:
     zone = _zone(family.timezone)
     local = now.astimezone(zone)
@@ -263,7 +302,8 @@ async def remind_family(db: AsyncSession, family: Family, now: datetime) -> int:
             + await _reward_requests(db, family, people, now)
             + await _birthdays(db, family, people, local)
             + await _pantry(db, family, people, local)
-            + await _allowance_paid(db, family, people, now))
+            + await _allowance_paid(db, family, people, now)
+            + await _wellness(db, family, people, local))
 
 
 async def run_reminders(now: Optional[datetime] = None) -> int:
