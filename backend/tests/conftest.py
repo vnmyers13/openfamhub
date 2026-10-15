@@ -8,6 +8,16 @@ import app.models  # noqa: F401  — registers tables on Base.metadata for creat
 # Use an in-memory SQLite database for testing to ensure isolation and speed
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
+@pytest.fixture(autouse=True)
+def _fresh_server_settings():
+    """Server settings saved in the app live in memory too; start each test clean."""
+    from app.services import server_config
+
+    server_config.clear()
+    yield
+    server_config.clear()
+
+
 @pytest.fixture(scope="session")
 def db_engine():
     """Creates a single async engine for the entire test session."""

@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+- **Server settings in the app:** Admin › Settings now has sections (Family and wall, Weather, Notifications, Home Assistant, Backups and system). Home Assistant, ntfy, the email account, the backup time and days kept, and the wall's idle timeout can be set there, with **Test connection** and **Send me a test**. Tokens and passwords are stored encrypted and never shown again. Anything already in `.env` keeps working and shows as "Set in .env". Backups now run at their time in the family's timezone.
 - **Event details:** tap an event on Home or in the Calendar to see when and where it is (the place opens in your maps app), its notes with clickable links, its link, organizer and attendees (from calendar feeds), and who added it. Home and the wall now show each event's location. New events can carry a link.
 - **This week on Home:** a new card lists the events for today and the next six days, day by day. Add it with Customize; it's on the default page and the Parents template.
 - **Richer Smart home card** (Phase 12): dim lights with a slider, switch a thermostat between its modes (heat, cool, off…), and see a 24-hour trend line with the low and high under each numeric sensor, on Home and the wall.

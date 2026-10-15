@@ -15,9 +15,9 @@ from app.jobs.home_assistant import register_home_assistant_job
 scheduler = AsyncIOScheduler(timezone=settings.timezone)
 
 
-async def start_scheduler():
+async def start_scheduler(family_timezone: str | None = None):
     register_sync_jobs(scheduler)
-    register_backup_job(scheduler)
+    register_backup_job(scheduler, family_timezone)
     register_chore_job(scheduler)
     register_allowance_job(scheduler)
     register_shopping_reset_job(scheduler)

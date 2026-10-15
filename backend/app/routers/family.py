@@ -76,6 +76,10 @@ async def update_settings(
         family.name = data.name
     if data.timezone is not None:
         family.timezone = data.timezone
+        from app.jobs.backup import reschedule_backup
+
+        await db.flush()
+        await reschedule_backup(db)
     if data.sleep is not None:
         # Reassign the dict so SQLAlchemy sees the JSON column change.
         family.settings_json = {**(family.settings_json or {}), "sleep": data.sleep.model_dump()}

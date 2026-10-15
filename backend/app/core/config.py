@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # Baked into published images (OPENFAMHUB_BUILD / OPENFAMHUB_COMMIT env).
     openfamhub_build: str = ""
     openfamhub_commit: str = ""
-    family_name: str = "OpenFamHub"
+    family_name: str = "OpenFamHub"  # unused (the family name lives in the app); kept so old .env files still load
     timezone: str = "UTC"
     secret_key: str
     database_url: str = "sqlite+aiosqlite:////data/db/homehub.db"
@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     backup_retention_days: int = 30
     backup_time: str = "03:00"
     wall_idle_timeout_seconds: int = 300
+    # These and the backup/wall settings above can also be set in Admin › Settings
+    # (services/server_config.py); a value here wins and locks the field there.
     # Phase 11 notification channels besides Web Push; each is off while empty.
     ntfy_url: str = ""  # e.g. https://ntfy.sh or your own ntfy server
     ntfy_token: str = ""  # access token, if the ntfy server needs one

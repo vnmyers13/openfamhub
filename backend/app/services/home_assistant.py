@@ -14,7 +14,7 @@ from typing import Any, Optional
 
 import httpx
 
-from app.core.config import settings
+from app.services import server_config as cfg
 
 log = logging.getLogger(__name__)
 
@@ -41,11 +41,11 @@ class Unavailable(Exception):
 
 
 def configured() -> bool:
-    return bool((settings.ha_url or "").strip() and (settings.ha_token or "").strip())
+    return bool((cfg.get("ha_url") or "").strip() and (cfg.get("ha_token") or "").strip())
 
 
 def _base() -> str:
-    return settings.ha_url.strip().rstrip("/")
+    return cfg.get("ha_url").strip().rstrip("/")
 
 
 def _transport() -> Optional[httpx.AsyncBaseTransport]:
@@ -55,7 +55,7 @@ def _transport() -> Optional[httpx.AsyncBaseTransport]:
 async def _request(method: str, path: str, body: Optional[dict] = None) -> Any:
     if not configured():
         raise Unavailable("Home Assistant isn't set up on this server.")
-    headers = {"Authorization": f"Bearer {settings.ha_token.strip()}"}
+    headers = {"Authorization": f"Bearer {cfg.get("ha_token").strip()}"}
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT, transport=_transport()) as client:
             res = await client.request(method, _base() + path, headers=headers, json=body)
@@ -63,7 +63,7 @@ async def _request(method: str, path: str, body: Optional[dict] = None) -> Any:
         log.warning("home assistant: %s", type(exc).__name__)
         raise Unavailable("Home Assistant isn't reachable right now.") from exc
     if res.status_code in (401, 403):
-        raise Unavailable("Home Assistant refused the access token (check HA_TOKEN).")
+        raise Unavailable("Home Assistant refused the access token; check the token.")
     if res.status_code == 404:
         return None
     if res.status_code >= 300:

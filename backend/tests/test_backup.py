@@ -99,6 +99,9 @@ def test_job_runs_at_backup_time(monkeypatch):
     added = {}
 
     class FakeScheduler:
+        def get_job(self, job_id):
+            return None
+
         def add_job(self, fn, trigger, **kw):
             added.update(fn=fn, trigger=trigger, **kw)
 

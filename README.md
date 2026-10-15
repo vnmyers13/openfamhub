@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.60-blue)
+![Version](https://img.shields.io/badge/version-1.61-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -116,20 +116,20 @@ To retire a display, press **Unpair** under **Admin › Wall displays**; it goes
 
 ## Home Assistant
 
-To show your Home Assistant on Home and the wall, make a long-lived access token in Home Assistant (your profile › Security › Long-lived access tokens) and add to `.env`:
+To show your Home Assistant on Home and the wall, make a long-lived access token in Home Assistant (your profile › Security › Long-lived access tokens), then enter its address and the token under **Admin › Settings › Home Assistant** and press **Test connection**. Or put them in `.env` (a value there wins and locks the field in the app):
 
 ```
 HA_URL=http://homeassistant.local:8123
 HA_TOKEN=<the token>
 ```
 
-Restart, then under **Admin › Settings › Home Assistant** pick up to 24 entities (lights, switches, fans, toggles, scenes, scripts, thermostats, sensors) and, if you like, a scene or script for each routine with a start time. Add the **Smart home** card to a Home page (Customize) or a wall page. Members and admins can switch things from Home (on/off, brightness, run a scene, thermostat temperature and mode); viewers and the wall only see them. Numeric sensors show a 24-hour trend line. The API container must be able to reach `HA_URL`.
+Then, on the same page, pick up to 24 entities (lights, switches, fans, toggles, scenes, scripts, thermostats, sensors) and, if you like, a scene or script for each routine with a start time. Add the **Smart home** card to a Home page (Customize) or a wall page. Members and admins can switch things from Home (on/off, brightness, run a scene, thermostat temperature and mode); viewers and the wall only see them. Numeric sensors show a 24-hour trend line. The API container must be able to reach `HA_URL`.
 
 ## Notifications
 
 Each person turns notifications on in **My settings › Notifications** on each phone or computer they want them on, and chooses which reminders they get: before calendar events (off until chosen: events they added, or all family events, 5 to 60 minutes before), a morning list of their chores and to-dos, the morning before someone's birthday, pantry food reaching its use-by date, their weekly allowance being paid, and, for admins, reward requests waiting for a yes. Wellness reminders (drink water every few hours, a daily breathing pause) are off until someone turns them on, and never go by email. Nothing is sent during the wall's sleep hours.
 
-- **ntfy and email, too:** set `NTFY_URL` (e.g. `https://ntfy.sh` or your own ntfy server, plus `NTFY_TOKEN` if it needs one) and/or `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USERNAME`, `SMTP_PASSWORD` and `SMTP_FROM` in `.env`, then restart. Each person then adds their own ntfy topic or email address in My settings › Notifications; they don't need a phone with notifications turned on.
+- **ntfy and email, too:** set them up under **Admin › Settings › Notifications** (with **Send me a test**), or set `NTFY_URL` (e.g. `https://ntfy.sh` or your own ntfy server, plus `NTFY_TOKEN` if it needs one) and/or `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USERNAME`, `SMTP_PASSWORD` and `SMTP_FROM` in `.env`, then restart. Each person then adds their own ntfy topic or email address in My settings › Notifications; they don't need a phone with notifications turned on.
 - Web Push needs no account: the server makes its own keys. The server must be able to reach the browsers' push services over HTTPS (`fcm.googleapis.com`, `updates.push.services.mozilla.com`, `*.notify.windows.com`, `web.push.apple.com`).
 - The app must be opened over HTTPS (it always is through Caddy).
 - **iPhone and iPad**: iOS 16.4 or later, and only once OpenFamHub is on the Home Screen (Safari › Share › Add to Home Screen) and opened from there.

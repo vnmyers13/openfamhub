@@ -4,7 +4,10 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sqlalchemy import select
+
 from app.core.config import settings
+from app.services import server_config as cfg
 
 # Docker sets DATA_PATH=/data; outside Docker default to <repo>/data.
 _DATA_ROOT = Path(os.environ.get("DATA_PATH", Path(__file__).resolve().parents[3] / "data"))
@@ -36,7 +39,7 @@ async def daily_backup() -> None:
         logger.error(f"Backup failed: {exc}")
         return
 
-    retention = getattr(settings, "backup_retention_days", 30)
+    retention = cfg.get("backup_retention_days")
     cutoff = datetime.now(timezone.utc).timestamp() - retention * 86400
     for f in sorted(_BACKUPS_DIR.glob("homehub_*.db")):
         try:
@@ -50,16 +53,36 @@ async def daily_backup() -> None:
             continue
 
 
-def register_backup_job(scheduler):
+def register_backup_job(scheduler, timezone_name: str | None = None):
+    """Daily at the backup time (Admin › Settings or BACKUP_TIME) in the family's
+    timezone; TIMEZONE only before a family exists."""
     try:
-        hour, minute = settings.backup_time.split(":")
+        hour, minute = cfg.get("backup_time").split(":")
     except (AttributeError, ValueError):
         hour, minute = "03", "00"
+    # A scheduler that hasn't started keeps duplicates; replace explicitly.
+    while scheduler.get_job("daily_backup") is not None:
+        scheduler.remove_job("daily_backup")
     scheduler.add_job(
         daily_backup,
         "cron",
         hour=int(hour),
         minute=int(minute),
+        timezone=timezone_name or settings.timezone,
         id="daily_backup",
         replace_existing=True,
     )
+
+
+async def family_timezone(db) -> str | None:
+    from app.models.family import Family
+
+    family = (await db.execute(select(Family).where(Family.is_deleted == False))).scalars().first()  # noqa: E712
+    return family.timezone if family else None
+
+
+async def reschedule_backup(db) -> None:
+    """After the backup time or the family timezone changes."""
+    from app.jobs.scheduler import scheduler
+
+    register_backup_job(scheduler, await family_timezone(db))

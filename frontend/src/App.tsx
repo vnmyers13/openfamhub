@@ -94,6 +94,7 @@ function AppRoutes() {
             <Route path="/admin/calendars" element={<CalendarSettings />} />
             <Route path="/admin/wall" element={<WallDisplays />} />
             <Route path="/admin/settings" element={<FamilySettings />} />
+            <Route path="/admin/settings/:section" element={<FamilySettings />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>

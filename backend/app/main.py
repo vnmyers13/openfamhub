@@ -40,9 +40,17 @@ async def lifespan(app: FastAPI):
         await media_service.fail_interrupted(db)
         await db.commit()
 
+    # Server settings saved in Admin › Settings (secrets decrypted in memory).
+    from app.jobs.backup import family_timezone
+    from app.services import server_config
+
+    async with AsyncSessionLocal() as db:
+        await server_config.load(db)
+        zone = await family_timezone(db)
+
     from app.jobs.scheduler import start_scheduler, stop_scheduler
 
-    await start_scheduler()
+    await start_scheduler(zone)
 
     yield
 
@@ -79,7 +87,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # which check who is asking. (Before 0.84 all of data/photos was public here.)
 from app.routers import (
     announcements, auth, books, calendar, chores, dashboard, family, imports, integrations, meals, media, rewards,
-    home_assistant, push, routines, todos, users, wall, wall_panels, weather,
+    home_assistant, push, routines, server_settings, todos, users, wall, wall_panels, weather,
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
@@ -101,6 +109,7 @@ app.include_router(announcements.router, prefix="/api/announcements", tags=["ann
 app.include_router(weather.router, prefix="/api/weather", tags=["weather"])
 app.include_router(push.router, prefix="/api/push", tags=["push"])
 app.include_router(home_assistant.router, prefix="/api/ha", tags=["home-assistant"])
+app.include_router(server_settings.router, prefix="/api/admin/server-settings", tags=["settings"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 
 

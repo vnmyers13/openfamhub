@@ -20,12 +20,12 @@ export default function HomeAssistantSettings() {
   const { data: entities, error: listError } = useHAEntities(Boolean(status?.reachable))
   return (
     <section className={box} aria-label="Home Assistant">
-      <h2 className="text-lg font-semibold text-white">Home Assistant</h2>
+      <h2 className="text-lg font-semibold text-white">What the family sees</h2>
       {!status ? <p className="text-sm text-gray-400">Checking…</p>
         : !status.configured ? (
           <p className="text-sm text-gray-400">
-            Not set up. Put <code>HA_URL</code> (for example <code>http://homeassistant.local:8123</code>) and <code>HA_TOKEN</code> (a
-            long-lived access token from your Home Assistant profile, under Security) in the server's <code>.env</code>, then restart.
+            Not set up yet. Add Home Assistant's address and a long-lived access token under Connection (or <code>HA_URL</code> and{' '}
+            <code>HA_TOKEN</code> in the server's <code>.env</code>).
           </p>
         ) : !status.reachable ? <p className="text-sm text-red-300" role="alert">{status.error}</p>
           : <p className="text-sm text-green-300">Connected.</p>}

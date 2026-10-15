@@ -21,6 +21,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.services import server_config as cfg
 from app.models.user import User
 from app.schemas.users import NotificationPrefs, Preferences
 from app.services import push as push_svc
@@ -38,11 +39,11 @@ def notification_prefs(user: User) -> NotificationPrefs:
 
 
 def ntfy_server() -> Optional[str]:
-    return (settings.ntfy_url or "").strip().rstrip("/") or None
+    return (cfg.get("ntfy_url") or "").strip().rstrip("/") or None
 
 
 def email_ready() -> bool:
-    return bool((settings.smtp_host or "").strip() and (settings.smtp_from or "").strip())
+    return bool((cfg.get("smtp_host") or "").strip() and (cfg.get("smtp_from") or "").strip())
 
 
 def app_link(path: str) -> Optional[str]:
@@ -71,7 +72,7 @@ async def send_ntfy(topic: str, payload: dict) -> bool:
     link = app_link(payload.get("url") or "/")
     if link:
         message["click"] = link
-    headers = {"Authorization": f"Bearer {settings.ntfy_token}"} if settings.ntfy_token else {}
+    headers = {"Authorization": f"Bearer {cfg.get("ntfy_token")}"} if cfg.get("ntfy_token") else {}
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT, transport=_transport()) as client:
             res = await client.post(server + "/", json=message, headers=headers)
@@ -86,7 +87,7 @@ async def send_ntfy(topic: str, payload: dict) -> bool:
 
 def _deliver_email(msg: EmailMessage) -> None:
     """Blocking SMTP send; run in a thread. SMTP_SECURITY: starttls, ssl or none."""
-    host, port, security = settings.smtp_host, settings.smtp_port, settings.smtp_security
+    host, port, security = cfg.get("smtp_host"), cfg.get("smtp_port"), cfg.get("smtp_security")
     context = ssl.create_default_context()
     if security == "ssl":
         server = smtplib.SMTP_SSL(host, port, timeout=TIMEOUT, context=context)
@@ -95,8 +96,8 @@ def _deliver_email(msg: EmailMessage) -> None:
     with server:
         if security == "starttls":
             server.starttls(context=context)
-        if settings.smtp_username:
-            server.login(settings.smtp_username, settings.smtp_password)
+        if cfg.get("smtp_username"):
+            server.login(cfg.get("smtp_username"), cfg.get("smtp_password"))
         server.send_message(msg)
 
 
@@ -111,7 +112,7 @@ async def send_email(to: str, payload: dict) -> bool:
     try:
         msg = EmailMessage()
         msg["Subject"] = _one_line(payload.get("title", "OpenFamHub"))
-        msg["From"] = settings.smtp_from
+        msg["From"] = cfg.get("smtp_from")
         msg["To"] = to
         msg.set_content(text.strip())
         await asyncio.to_thread(_deliver_email, msg)

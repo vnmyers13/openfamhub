@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.services import server_config
 from app.core.database import AsyncSessionLocal, get_db
 from app.core.security import require_role
 from app.models.family import Family
@@ -184,7 +185,7 @@ async def session(
     return {
         "device": device.name,
         "family_name": family.name if family else None,
-        "idle_timeout_seconds": settings.wall_idle_timeout_seconds,
+        "idle_timeout_seconds": server_config.get("wall_idle_timeout_seconds"),
         # The wall evaluates its sleep schedule in the family timezone.
         "timezone": family.timezone if family else "UTC",
         "sleep": (sleep_schedule(family) if family else SleepSchedule()).model_dump(),
