@@ -10,6 +10,8 @@ export interface HAEntity {
   unit?: string
   device_class?: string
   brightness?: number  // lights, 0-100
+  dimmable?: boolean
+  hvac_modes?: string[]  // climate
   current_temperature?: number  // climate
   target_temperature?: number
   min_temp?: number
@@ -18,7 +20,9 @@ export interface HAEntity {
 export interface HAStates { configured: boolean; available: boolean; error: string | null; entities: HAEntity[] }
 export interface HAStatus { configured: boolean; reachable: boolean; error: string | null }
 export interface HAConfig { entities: string[]; routine_scenes: Record<string, string> }
-export type HAActionName = 'toggle' | 'turn_on' | 'turn_off' | 'set_temperature'
+export type HAActionName = 'toggle' | 'turn_on' | 'turn_off' | 'set_temperature' | 'set_brightness' | 'set_hvac_mode'
+export interface HAActionExtra { temperature?: number; brightness?: number; hvac_mode?: string }
+export interface HAHistory { entity_id: string; unit?: string | null; points: [string, number][]; low: number | null; high: number | null }
 
 export const SWITCHABLE = new Set(['light', 'switch', 'fan', 'input_boolean'])
 export const RUNNABLE = new Set(['scene', 'script'])
@@ -50,13 +54,27 @@ export function useWallHAStates() {
 export function useHAAction() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { entity_id: string; action: HAActionName; temperature?: number }) =>
+    mutationFn: async (body: { entity_id: string; action: HAActionName } & HAActionExtra) =>
       (await apiClient.post('/ha/action', body)).data as HAEntity,
     onSuccess: (entity) => {
       qc.setQueryData<HAStates>(['ha-states'], (old) =>
         old ? { ...old, entities: old.entities.map((e) => (e.entity_id === entity.entity_id ? entity : e)) } : old)
     },
   })
+}
+
+/** A sensor's last day (`wall`: through the paired display's endpoint). */
+export function useHAHistory(entityId: string, wall = false) {
+  return useQuery({
+    queryKey: [wall ? 'wall-ha-history' : 'ha-history', entityId],
+    queryFn: async () => (await apiClient.get(`${wall ? '/wall/home-assistant' : '/ha'}/history/${entityId}`)).data as HAHistory,
+    refetchInterval: 10 * 60_000,
+    staleTime: 5 * 60_000,
+  })
+}
+
+export const HVAC_LABEL: Record<string, string> = {
+  off: 'Off', heat: 'Heat', cool: 'Cool', auto: 'Auto', heat_cool: 'Heat/cool', dry: 'Dry', fan_only: 'Fan',
 }
 
 export function useHAStatus() {

@@ -8,6 +8,8 @@ SSRF-checked. Every call has a short timeout and failures raise
 `Unavailable` with a sentence a person can read.
 """
 import logging
+import math
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import httpx
@@ -20,13 +22,13 @@ TIMEOUT = 6  # seconds
 
 # What OpenFamHub can show, and what each kind can be told to do.
 CONTROLS: dict[str, set[str]] = {
-    "light": {"toggle", "turn_on", "turn_off"},
+    "light": {"toggle", "turn_on", "turn_off", "set_brightness"},
     "switch": {"toggle", "turn_on", "turn_off"},
     "fan": {"toggle", "turn_on", "turn_off"},
     "input_boolean": {"toggle", "turn_on", "turn_off"},
     "scene": {"turn_on"},
     "script": {"turn_on"},
-    "climate": {"set_temperature"},
+    "climate": {"set_temperature", "set_hvac_mode"},
     "sensor": set(),
     "binary_sensor": set(),
 }
@@ -96,13 +98,18 @@ def view(raw: dict) -> dict:
         out["unit"] = attrs["unit_of_measurement"]
     if attrs.get("device_class"):
         out["device_class"] = attrs["device_class"]
-    if domain == "light" and isinstance(attrs.get("brightness"), (int, float)):
-        out["brightness"] = round(attrs["brightness"] / 255 * 100)
+    if domain == "light":
+        modes = attrs.get("supported_color_modes")
+        out["dimmable"] = any(m != "onoff" for m in modes) if isinstance(modes, list) and modes else "brightness" in attrs
+        if isinstance(attrs.get("brightness"), (int, float)):
+            out["brightness"] = round(attrs["brightness"] / 255 * 100)
     if domain == "climate":
         for key, name in (("current_temperature", "current_temperature"), ("temperature", "target_temperature"),
                           ("min_temp", "min_temp"), ("max_temp", "max_temp")):
             if attrs.get(key) is not None:
                 out[name] = attrs[key]
+        if isinstance(attrs.get("hvac_modes"), list):
+            out["hvac_modes"] = [str(m) for m in attrs["hvac_modes"]]
         out["unit"] = attrs.get("temperature_unit") or out.get("unit")
         if out["unit"] is None:
             del out["unit"]
@@ -129,3 +136,26 @@ async def state_of(entity_id: str) -> dict:
 
 async def call(entity_id: str, service: str, **data: Any) -> None:
     await _request("POST", f"/api/services/{domain_of(entity_id)}/{service}", {"entity_id": entity_id, **data})
+
+
+HISTORY_POINTS = 48
+
+
+async def history(entity_id: str, hours: int = 24) -> dict:
+    """A numeric sensor's last `hours`, thinned to at most HISTORY_POINTS [time, value] pairs."""
+    start = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    params = f"?filter_entity_id={entity_id}&minimal_response&no_attributes"
+    rows = await _request("GET", f"/api/history/period/{start}{params}") or []
+    series = rows[0] if rows and isinstance(rows[0], list) else []
+    points: list[list] = []
+    for row in series:
+        try:
+            value = float(row.get("state"))
+        except (TypeError, ValueError):
+            continue  # "unavailable", "unknown"
+        if math.isfinite(value):
+            points.append([row.get("last_changed") or row.get("last_updated"), value])
+    values = [v for _, v in points]
+    step = max(1, math.ceil(len(points) / HISTORY_POINTS))
+    return {"entity_id": entity_id, "points": points[::step][:HISTORY_POINTS],
+            "low": min(values) if values else None, "high": max(values) if values else None}

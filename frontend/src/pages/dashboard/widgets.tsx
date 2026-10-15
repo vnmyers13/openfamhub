@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useCalendarSources } from '../../api/calendar'
+import { useCalendarEvents, useCalendarSources } from '../../api/calendar'
+import { usePreferences } from '../../api/prefs'
 import { useChoreAction, useChoreInstances } from '../../api/chores'
-import { useHAAction, useHAStates, type HAActionName, type HAEntity } from '../../api/homeAssistant'
+import { useHAAction, useHAStates, type HAActionExtra, type HAActionName, type HAEntity } from '../../api/homeAssistant'
 import HAEntityList from '../../components/HAEntityList'
 import { errorDetail } from '../../api/client'
 import {
@@ -11,6 +11,8 @@ import {
 import { useFamilyProgress } from '../../api/rewards'
 import Avatar from '../../components/Avatar'
 import FamilyProgress from '../../components/FamilyProgress'
+import { addDays, format, parseISO, startOfDay } from 'date-fns'
+import { useMemo, useState } from 'react'
 import { eventDayKeys, eventStart } from '../../lib/dates'
 import { formatCents } from '../../lib/money'
 import { useAuthStore } from '../../stores/auth'
@@ -53,6 +55,59 @@ export function TodaysEvents({ summary }: { summary?: DashboardSummary }) {
           </div>
         ))}
       </div>
+    </Card>
+  )
+}
+
+const WEEK_DAYS = 7
+const PER_DAY = 4
+
+/** Today and the next six days, grouped by day; follows "Everyone's events / Just mine". */
+export function WeekEvents() {
+  const { data: prefs } = usePreferences()
+  const todayKey = format(new Date(), 'yyyy-MM-dd')
+  const [start, end] = useMemo(() => {
+    const s = startOfDay(parseISO(todayKey))
+    return [s, addDays(s, WEEK_DAYS)]
+  }, [todayKey])
+  const { data: events } = useCalendarEvents(start, end, prefs?.calendar_scope ?? 'family')
+  const title = 'This Week'
+  if (!events) return <Card title={title}><Pending /></Card>
+  const days = Array.from({ length: WEEK_DAYS }, (_, i) => addDays(start, i))
+  const byDay = new Map(days.map((d) => [format(d, 'yyyy-MM-dd'), [] as typeof events]))
+  for (const ev of [...events].sort((a, b) => Number(!a.all_day) - Number(!b.all_day) || eventStart(a).getTime() - eventStart(b).getTime())) {
+    for (const key of eventDayKeys(ev)) byDay.get(key)?.push(ev)
+  }
+  const dayName = (d: Date, i: number) => (i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : format(d, 'EEE d MMM'))
+  return (
+    <Card title={title} link={{ to: '/calendar', label: 'Calendar' }}>
+      {events.length === 0 ? <p className="text-sm text-slate-400">Nothing on the calendar this week.</p> : (
+        <ol className="space-y-3">
+          {days.map((d, i) => {
+            const key = format(d, 'yyyy-MM-dd')
+            const list = byDay.get(key) ?? []
+            return (
+              <li key={key} aria-label={dayName(d, i)}>
+                <h3 className={`text-xs font-semibold uppercase tracking-wider ${i === 0 ? 'text-primary' : 'text-slate-400'}`}>{dayName(d, i)}</h3>
+                {list.length === 0 ? <p className="text-sm text-slate-500">Nothing planned</p> : (
+                  <ul className="mt-1 space-y-1">
+                    {list.slice(0, PER_DAY).map((ev) => (
+                      <li key={`${ev.id}-${key}`} className="flex items-center gap-3 rounded bg-slate-700/50 px-3 py-1.5">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: ev.source_color_hex }} />
+                        <span className="flex-1 truncate text-sm text-slate-200">{ev.title}</span>
+                        <span className="text-xs text-slate-400">
+                          {ev.all_day ? 'All day' : eventStart(ev).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </li>
+                    ))}
+                    {list.length > PER_DAY && <li className="text-xs text-slate-400">and {list.length - PER_DAY} more</li>}
+                  </ul>
+                )}
+              </li>
+            )
+          })}
+        </ol>
+      )}
     </Card>
   )
 }
@@ -136,10 +191,10 @@ export function SmartHome() {
   if (!data) return <Card title={title}><Pending /></Card>
   if (!data.configured) return null
   const canControl = user?.role === 'admin' || user?.role === 'member'
-  const onAction = async (e: HAEntity, action: HAActionName, temperature?: number) => {
+  const onAction = async (e: HAEntity, action: HAActionName, extra: HAActionExtra = {}) => {
     setError(null)
     try {
-      await act.mutateAsync({ entity_id: e.entity_id, action, temperature })
+      await act.mutateAsync({ entity_id: e.entity_id, action, ...extra })
     } catch (err) {
       setError(errorDetail(err, "That didn't work"))
     }

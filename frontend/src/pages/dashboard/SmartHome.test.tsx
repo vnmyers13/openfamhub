@@ -107,14 +107,67 @@ describe('Smart home card', () => {
   })
 })
 
+describe('richer smart-home controls', () => {
+  afterEach(() => useAuthStore.getState().clearUser())
+  const RICH: HAEntity[] = [
+    { ...light(), dimmable: true, brightness: 50 },
+    { entity_id: 'light.porch', name: 'Porch light', domain: 'light', state: 'on', dimmable: false },
+    { entity_id: 'climate.hall', name: 'Hall thermostat', domain: 'climate', state: 'heat', current_temperature: 20.5,
+      target_temperature: 21, hvac_modes: ['off', 'heat', 'cool'] },
+    { entity_id: 'sensor.outside', name: 'Outside', domain: 'sensor', state: '12.3', unit: '°C' },
+    { entity_id: 'sensor.mode', name: 'House mode', domain: 'sensor', state: 'away' },
+  ]
+  const HISTORY = { entity_id: 'sensor.outside', unit: '°C', low: 9, high: 14,
+    points: [['2026-10-14T12:00:00+00:00', 9], ['2026-10-14T18:00:00+00:00', 14], ['2026-10-15T06:00:00+00:00', 11]] }
+
+  it('dims a light once the slider stops, and changes the thermostat mode', async () => {
+    const calls = setup('member', live(RICH), {
+      'POST /ha/action': (body: { entity_id: string; brightness?: number; hvac_mode?: string }) => (
+        body.entity_id === 'light.kitchen' ? { ...RICH[0], brightness: body.brightness } : { ...RICH[2], state: body.hvac_mode }),
+      'GET /ha/history/sensor.outside': HISTORY,
+    })
+    renderApp(<Dashboard />)
+    const card = await loaded()
+    expect(within(card).queryByLabelText('Brightness: Porch light')).toBeNull()  // not dimmable
+    const slider = within(card).getByLabelText('Brightness: Kitchen light')
+    fireEvent.change(slider, { target: { value: '40' } })
+    fireEvent.change(slider, { target: { value: '30' } })
+    expect(within(card).getByText('30%')).toBeTruthy()
+    await waitFor(() => expect(calls.filter((c) => c.method === 'POST').map((c) => c.body)).toEqual(
+      [{ entity_id: 'light.kitchen', action: 'set_brightness', brightness: 30 }]))
+    const mode = within(card).getByLabelText('Mode: Hall thermostat') as HTMLSelectElement
+    expect([...mode.options].map((o) => o.textContent)).toEqual(['Off', 'Heat', 'Cool'])
+    await waitFor(() => expect(mode.disabled).toBe(false))
+    fireEvent.change(mode, { target: { value: 'cool' } })
+    await waitFor(() => expect(calls.filter((c) => c.method === 'POST').at(-1)?.body).toEqual(
+      { entity_id: 'climate.hall', action: 'set_hvac_mode', hvac_mode: 'cool' }))
+    expect(await within(card).findByText('20.5° · cool')).toBeTruthy()
+  })
+
+  it('draws a day of a numeric sensor for everyone, without controls for viewers', async () => {
+    const calls = setup('viewer', live(RICH), { 'GET /ha/history/sensor.outside': HISTORY })
+    renderApp(<Dashboard />)
+    const card = await loaded()
+    expect(await within(card).findByRole('img', { name: 'Outside, last 24 hours: low 9 °C, high 14 °C' })).toBeTruthy()
+    expect(within(card).getByText('9–14 °C')).toBeTruthy()
+    expect(calls.some((c) => c.url === '/ha/history/sensor.mode')).toBe(false)  // not a number
+    expect(within(card).queryByLabelText('Brightness: Kitchen light')).toBeNull()
+    expect(within(card).queryByLabelText('Mode: Hall thermostat')).toBeNull()
+  })
+})
+
 describe('the wall Smart home card', () => {
   const page = { name: 'Home', duration_seconds: 30, widgets: [{ key: 'home' as const, size: 'normal' as const }] }
 
-  it('shows states with no controls', async () => {
-    mockApi({ 'GET /wall/home-assistant': live() })
+  it('shows states and trends with no controls', async () => {
+    const calls = mockApi({ 'GET /wall/home-assistant': live(), 'GET /wall/home-assistant/history/sensor.outside': {
+      entity_id: 'sensor.outside', unit: '°C', low: 9, high: 14, points: [['2026-10-14T12:00:00+00:00', 9], ['2026-10-15T06:00:00+00:00', 14]] } })
     renderApp(<WallDashboardPageView page={page} timeZone="America/Detroit" />)
     expect(await screen.findByText('Kitchen light')).toBeTruthy()
+    expect(await screen.findByRole('img', { name: /Outside, last 24 hours/ })).toBeTruthy()
     expect(screen.queryAllByRole('button')).toEqual([])
+    expect(screen.queryByRole('slider')).toBeNull()
+    expect(calls.some((c) => c.url.startsWith('/ha/'))).toBe(false)
   })
 
   it('says when it is not set up or not reachable', async () => {

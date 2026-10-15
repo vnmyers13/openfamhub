@@ -22,12 +22,15 @@ HA = "http://homeassistant.local:8123"
 ZONE = ZoneInfo(SETUP["timezone"])
 
 STATES = [
-    {"entity_id": "light.kitchen", "state": "on", "attributes": {"friendly_name": "Kitchen light", "brightness": 128}},
+    {"entity_id": "light.kitchen", "state": "on", "attributes": {"friendly_name": "Kitchen light", "brightness": 128,
+                                                                 "supported_color_modes": ["brightness"]}},
+    {"entity_id": "light.porch", "state": "off", "attributes": {"friendly_name": "Porch light", "supported_color_modes": ["onoff"]}},
     {"entity_id": "switch.coffee", "state": "off", "attributes": {"friendly_name": "Coffee maker"}},
     {"entity_id": "scene.movie_night", "state": "scening", "attributes": {"friendly_name": "Movie night"}},
     {"entity_id": "script.good_morning", "state": "off", "attributes": {"friendly_name": "Good morning"}},
     {"entity_id": "climate.hall", "state": "heat", "attributes": {
-        "friendly_name": "Hall thermostat", "current_temperature": 20.5, "temperature": 21, "min_temp": 7, "max_temp": 35}},
+        "friendly_name": "Hall thermostat", "current_temperature": 20.5, "temperature": 21, "min_temp": 7, "max_temp": 35,
+        "hvac_modes": ["off", "heat", "cool", "auto"]}},
     {"entity_id": "sensor.outside", "state": "12.3", "attributes": {"friendly_name": "Outside", "unit_of_measurement": "°C"}},
     {"entity_id": "binary_sensor.front_door", "state": "off", "attributes": {"friendly_name": "Front door", "device_class": "door"}},
     {"entity_id": "automation.lights_off", "state": "on", "attributes": {"friendly_name": "Lights off at night"}},
@@ -42,6 +45,8 @@ class FakeHA:
         self.states = {s["entity_id"]: json.loads(json.dumps(s)) for s in STATES}
         self.calls: list[tuple[str, dict, str]] = []
         self.down = False
+        self.history: dict[str, list[dict]] = {}
+        self.history_requests: list[httpx.URL] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         if self.down:
@@ -57,6 +62,10 @@ class FakeHA:
         if path.startswith("/api/states/"):
             entity = self.states.get(path.removeprefix("/api/states/"))
             return httpx.Response(200, json=entity) if entity else httpx.Response(404, json={"message": "Entity not found."})
+        if path.startswith("/api/history/period/"):
+            self.history_requests.append(request.url)
+            wanted = request.url.params.get("filter_entity_id")
+            return httpx.Response(200, json=[self.history.get(wanted, [])] if wanted in self.history else [])
         if path.startswith("/api/services/"):
             domain, service = path.removeprefix("/api/services/").split("/")
             body = json.loads(request.content or b"{}")
@@ -66,6 +75,10 @@ class FakeHA:
                 entity["state"] = {"toggle": "off" if entity["state"] == "on" else "on", "turn_on": "on", "turn_off": "off"}[service]
             if entity and service == "set_temperature":
                 entity["attributes"]["temperature"] = body["temperature"]
+            if entity and domain == "light" and "brightness_pct" in body:
+                entity["state"], entity["attributes"]["brightness"] = "on", round(body["brightness_pct"] * 255 / 100)
+            if entity and service == "set_hvac_mode":
+                entity["state"] = body["hvac_mode"]
             return httpx.Response(200, json=[])
         return httpx.Response(404)
 
@@ -269,3 +282,70 @@ class TestRoutineScenes:
         monkeypatch.setattr(settings, "ha_url", "")
         assert await job(now=self.at(7, 0)) == 0
         assert ha.calls == []
+
+
+class TestRicherCards:
+    """Phase 12, smart-home widgets: dimming, thermostat modes, sensor history."""
+
+    async def test_cards_know_what_each_entity_can_do(self, client, admin, ha):
+        await choose(client, admin, ["light.kitchen", "light.porch", "climate.hall"])
+        kitchen, porch, hall = (await client.get("/api/ha/states", headers=_h(admin))).json()["entities"]
+        assert kitchen["dimmable"] is True and porch["dimmable"] is False
+        assert hall["hvac_modes"] == ["off", "heat", "cool", "auto"]
+
+    async def test_members_dim_a_light_within_1_to_100(self, client, admin, ha):
+        await choose(client, admin, ["light.kitchen", "light.porch", "switch.coffee"])
+        kid = await _member(client, admin)
+        res = await client.post("/api/ha/action", json={"entity_id": "light.kitchen", "action": "set_brightness", "brightness": 30},
+                                headers=_h(kid))
+        assert res.status_code == 200 and res.json()["brightness"] == 30
+        assert ha.calls[-1][:2] == ("light.turn_on", {"entity_id": "light.kitchen", "brightness_pct": 30})
+        for body in ({"entity_id": "light.kitchen", "action": "set_brightness", "brightness": 0},
+                     {"entity_id": "light.kitchen", "action": "set_brightness", "brightness": 101},
+                     {"entity_id": "light.kitchen", "action": "set_brightness"},
+                     {"entity_id": "light.porch", "action": "set_brightness", "brightness": 50},  # not dimmable
+                     {"entity_id": "switch.coffee", "action": "set_brightness", "brightness": 50}):
+            assert (await client.post("/api/ha/action", json=body, headers=_h(kid))).status_code in (400, 422), body
+        assert len(ha.calls) == 1
+
+    async def test_a_thermostat_mode_must_be_one_it_offers(self, client, admin, ha):
+        await choose(client, admin, ["climate.hall"])
+        res = await client.post("/api/ha/action", json={"entity_id": "climate.hall", "action": "set_hvac_mode", "hvac_mode": "cool"},
+                                headers=_h(admin))
+        assert res.status_code == 200 and res.json()["state"] == "cool"
+        assert ha.calls[-1][:2] == ("climate.set_hvac_mode", {"entity_id": "climate.hall", "hvac_mode": "cool"})
+        res = await client.post("/api/ha/action", json={"entity_id": "climate.hall", "action": "set_hvac_mode", "hvac_mode": "dry"},
+                                headers=_h(admin))
+        assert res.status_code == 400 and len(ha.calls) == 1
+
+    async def test_a_numeric_sensor_has_a_day_of_history_thinned_out(self, client, admin, ha):
+        await choose(client, admin, ["sensor.outside", "light.kitchen"])
+        base = datetime(2026, 10, 15, 0, 0, tzinfo=timezone.utc)
+        ha.history["sensor.outside"] = [
+            {"state": str(10 + (i % 7)), "last_changed": (base + timedelta(minutes=5 * i)).isoformat()} for i in range(200)
+        ] + [{"state": "unavailable", "last_changed": (base + timedelta(minutes=1001)).isoformat()}]
+        viewer = await _member(client, admin, name="Grandma", pin="1111", role="viewer")
+        got = (await client.get("/api/ha/history/sensor.outside", headers=_h(viewer))).json()
+        assert got["unit"] == "°C" and len(got["points"]) <= 48
+        values = [p[1] for p in got["points"]]
+        assert min(values) >= 10 and max(values) <= 16 and got["low"] == 10 and got["high"] == 16
+        assert got["points"][0][0] == base.isoformat()
+        assert ha.history_requests[-1].params["filter_entity_id"] == "sensor.outside"
+        assert "minimal_response" in ha.history_requests[-1].params
+
+    async def test_history_only_for_chosen_numeric_sensors(self, client, admin, ha):
+        await choose(client, admin, ["light.kitchen", "sensor.outside"])
+        assert (await client.get("/api/ha/history/light.kitchen", headers=_h(admin))).status_code == 400
+        assert (await client.get("/api/ha/history/sensor.indoor", headers=_h(admin))).status_code == 404
+        ha.history["sensor.outside"] = [{"state": "on", "last_changed": "2026-10-15T00:00:00+00:00"}]
+        got = (await client.get("/api/ha/history/sensor.outside", headers=_h(admin))).json()
+        assert got["points"] == [] and got["low"] is None
+        ha.down = True
+        assert (await client.get("/api/ha/history/sensor.outside", headers=_h(admin))).status_code == 502
+
+    async def test_the_wall_reads_sensor_history_too(self, client, admin, ha):
+        await choose(client, admin, ["sensor.outside"])
+        ha.history["sensor.outside"] = [{"state": "12", "last_changed": "2026-10-15T00:00:00+00:00"}]
+        _, wall = await _pair(client, admin)
+        got = (await client.get("/api/wall/home-assistant/history/sensor.outside", headers=wall)).json()
+        assert got["points"] == [["2026-10-15T00:00:00+00:00", 12.0]]

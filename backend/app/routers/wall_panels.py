@@ -21,7 +21,7 @@ from app.models.family import Family
 from app.models.wall_device import WallDevice
 from app.routers.announcements import recent, to_announcement
 from app.routers.chores import to_instance
-from app.routers.home_assistant import family_states
+from app.routers.home_assistant import family_history, family_states
 from app.routers.meals import _monday, _plan_week, today_for
 from app.routers.wall import get_wall_device
 from app.routers.weather import weather_for
@@ -72,3 +72,9 @@ async def wall_weather(db: AsyncSession = Depends(get_db), device: WallDevice = 
 async def wall_home_assistant(db: AsyncSession = Depends(get_db), device: WallDevice = Depends(get_wall_device)):
     """The family's chosen Home Assistant entities, to look at only (Phase 12)."""
     return await family_states(db, device.family_id)
+
+
+@router.get("/home-assistant/history/{entity_id}")
+async def wall_home_assistant_history(entity_id: str, db: AsyncSession = Depends(get_db),
+                                      device: WallDevice = Depends(get_wall_device)):
+    return await family_history(db, device.family_id, entity_id)

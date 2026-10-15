@@ -59,7 +59,7 @@ function HomeCard() {
   if (!data) return <WallCard title="Smart home"><Empty text="Loading…" /></WallCard>
   if (!data.configured) return <WallCard title="Smart home"><Empty text="Home Assistant is not set up." /></WallCard>
   if (!data.available) return <WallCard title="Smart home"><Empty text={data.error ?? "Home Assistant isn't reachable right now."} /></WallCard>
-  return <WallCard title="Smart home">{data.entities.length === 0 ? <Empty text="Nothing chosen yet." /> : <HAEntityList entities={data.entities} large />}</WallCard>
+  return <WallCard title="Smart home">{data.entities.length === 0 ? <Empty text="Nothing chosen yet." /> : <HAEntityList entities={data.entities} large wall />}</WallCard>
 }
 
 function WeatherCard() {

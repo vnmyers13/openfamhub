@@ -1,6 +1,6 @@
 # OpenFamHub
 
-![Version](https://img.shields.io/badge/version-1.57-blue)
+![Version](https://img.shields.io/badge/version-1.58-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A self-hosted family calendar and organizer, a home version of a Skylight-style wall calendar. It runs in Docker on a small Linux server, VM or NAS. The family uses it from their phones (it installs as an app), and a Raspberry Pi drives a wall display.
@@ -123,7 +123,7 @@ HA_URL=http://homeassistant.local:8123
 HA_TOKEN=<the token>
 ```
 
-Restart, then under **Admin › Settings › Home Assistant** pick up to 24 entities (lights, switches, fans, toggles, scenes, scripts, thermostats, sensors) and, if you like, a scene or script for each routine with a start time. Add the **Smart home** card to a Home page (Customize) or a wall page. Members and admins can switch things from Home; viewers and the wall only see them. The API container must be able to reach `HA_URL`.
+Restart, then under **Admin › Settings › Home Assistant** pick up to 24 entities (lights, switches, fans, toggles, scenes, scripts, thermostats, sensors) and, if you like, a scene or script for each routine with a start time. Add the **Smart home** card to a Home page (Customize) or a wall page. Members and admins can switch things from Home (on/off, brightness, run a scene, thermostat temperature and mode); viewers and the wall only see them. Numeric sensors show a 24-hour trend line. The API container must be able to reach `HA_URL`.
 
 ## Notifications
 

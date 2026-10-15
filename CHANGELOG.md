@@ -1,6 +1,8 @@
 ## [Unreleased]
 
 ### Added
+- **This week on Home:** a new card lists the events for today and the next six days, day by day. Add it with Customize; it's on the default page and the Parents template.
+- **Richer Smart home card** (Phase 12): dim lights with a slider, switch a thermostat between its modes (heat, cool, off…), and see a 24-hour trend line with the low and high under each numeric sensor, on Home and the wall.
 - **Home Assistant** (Phase 12): set `HA_URL` and `HA_TOKEN` (a long-lived access token) in `.env`, then pick entities under **Admin › Settings › Home Assistant**. They show on a new **Smart home** card on Home and the wall: members and parents can switch lights, run scenes and scripts and nudge the thermostat; viewers and the wall only look. A timed routine can start a scene or script at its start time. If Home Assistant is down the card says so.
 - **Notifications on your phone** (Phase 11): turn them on in **My settings › Notifications** and choose reminders before events (events you added, or all family events; off until you choose), a morning list of your chores and to-dos, and, for parents, reward requests waiting for a yes. Nothing is sent during the wall's sleep hours. They use Web Push, with no account to set up; on iPhone and iPad, add OpenFamHub to the Home Screen first (iOS 16.4+).
 - **Wellness reminders** (Phase 11): in **My settings › Notifications › Wellness**, anyone can turn on drink-water reminders (every 1 to 3 hours between two times) and a daily breathing pause. Off until you turn them on; they go to your devices and ntfy, never by email.

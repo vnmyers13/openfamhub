@@ -20,6 +20,7 @@ function setup(saved: object = prefs(), role = 'member') {
     'GET /weather': { configured: false },
     'GET /rewards/progress': [],
     'GET /calendar/sources': [],
+    'GET /calendar/events': [],
     'GET /ha/states': { configured: false, available: false, error: null, entities: [] },
   })
 }
@@ -47,7 +48,7 @@ describe('Dashboard customization', () => {
     const calls = setup()
     renderApp(<Dashboard />)
     fireEvent.click(await screen.findByRole('button', { name: 'Customize' }))
-    expect(cards()).toEqual(["Today's events", 'Weather', 'My day', 'Chores up for grabs', 'Smart home', "Today's meals", 'Family stars', 'Announcements', 'Birthdays'])
+    expect(cards()).toEqual(["Today's events", 'This week', 'Weather', 'My day', 'Chores up for grabs', 'Smart home', "Today's meals", 'Family stars', 'Announcements', 'Birthdays'])
     fireEvent.click(screen.getByRole('button', { name: 'Move down: Weather' }))
     fireEvent.click(screen.getByRole('button', { name: "Make wide: Today's events" }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove: Birthdays' }))
@@ -56,7 +57,7 @@ describe('Dashboard customization', () => {
     await waitFor(() => expect(puts(calls)).toHaveLength(4))
     const last = puts(calls)[3].pages as { name: string; widgets: { key: string; size: string }[] }[]
     expect(last[0].widgets.map((w) => `${w.key}:${w.size}`)).toEqual([
-      'events:wide', 'my-day:normal', 'weather:normal', 'chores:normal', 'home:normal', 'meals:normal', 'stars:normal', 'announcements:normal', 'birthdays:normal'])
+      'events:wide', 'week:normal', 'my-day:normal', 'weather:normal', 'chores:normal', 'home:normal', 'meals:normal', 'stars:normal', 'announcements:normal', 'birthdays:normal'])
     expect(screen.queryByLabelText('Card to add')).toBeNull()  // every card is on the page again
   })
 

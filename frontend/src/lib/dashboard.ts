@@ -3,6 +3,7 @@ import type { DashboardPage, DashboardWidget, Wallpaper } from '../api/prefs'
 /** Dashboard cards, in their default order. */
 export const WIDGETS = [
   { key: 'events', label: "Today's events" },
+  { key: 'week', label: 'This week' },
   { key: 'weather', label: 'Weather' },
   { key: 'my-day', label: 'My day' },
   { key: 'chores', label: 'Chores up for grabs' },
@@ -24,7 +25,7 @@ const w = (key: WidgetKey, size: DashboardWidget['size'] = 'normal'): DashboardW
 export const TEMPLATES: { name: string; description: string; page: DashboardPage }[] = [
   { name: 'Everything', description: 'Every card', page: { name: 'Home', widgets: WIDGETS.map((x) => w(x.key)) } },
   { name: 'Kids', description: 'Stars, my day, chores and birthdays', page: { name: 'Kids', widgets: [w('stars', 'wide'), w('my-day'), w('chores'), w('birthdays'), w('events')] } },
-  { name: 'Parents', description: 'Schedule, meals and notes', page: { name: 'Parents', widgets: [w('events', 'wide'), w('meals'), w('weather'), w('announcements'), w('sync')] } },
+  { name: 'Parents', description: 'Today, the week, meals and notes', page: { name: 'Parents', widgets: [w('events', 'wide'), w('week', 'wide'), w('meals'), w('weather'), w('announcements'), w('sync')] } },
   { name: 'Kitchen', description: 'Meals, weather and notes', page: { name: 'Kitchen', widgets: [w('meals', 'wide'), w('weather'), w('announcements')] } },
 ]
 

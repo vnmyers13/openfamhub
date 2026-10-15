@@ -53,8 +53,10 @@ class HAConfig(BaseModel):
 
 class HAAction(BaseModel):
     entity_id: str
-    action: Literal["toggle", "turn_on", "turn_off", "set_temperature"]
+    action: Literal["toggle", "turn_on", "turn_off", "set_temperature", "set_brightness", "set_hvac_mode"]
     temperature: Optional[float] = None
+    brightness: Optional[int] = Field(default=None, ge=1, le=100)  # percent
+    hvac_mode: Optional[str] = Field(default=None, max_length=32)
 
 
 def family_config(family: Optional[Family]) -> HAConfig:
@@ -136,7 +138,23 @@ async def action(data: HAAction, db: AsyncSession = Depends(get_db), user: User 
         raise HTTPException(status_code=404, detail="That isn't one of the family's chosen entities")
     if data.action not in ha.CONTROLS.get(ha.domain_of(data.entity_id), set()):
         raise HTTPException(status_code=400, detail="That can't be done to this entity")
-    extra = {}
+    extra: dict = {}
+    service = data.action
+    if data.action in ("set_brightness", "set_hvac_mode"):
+        try:
+            current = await ha.state_of(data.entity_id)
+        except ha.Unavailable as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+        if data.action == "set_brightness":
+            if data.brightness is None:
+                raise HTTPException(status_code=400, detail="Give a brightness from 1 to 100")
+            if not current.get("dimmable"):
+                raise HTTPException(status_code=400, detail="That light can't be dimmed")
+            service, extra = "turn_on", {"brightness_pct": data.brightness}
+        else:
+            if data.hvac_mode not in (current.get("hvac_modes") or []):
+                raise HTTPException(status_code=400, detail="That thermostat doesn't have that mode")
+            extra = {"hvac_mode": data.hvac_mode}
     if data.action == "set_temperature":
         if data.temperature is None:
             raise HTTPException(status_code=400, detail="Give a temperature")
@@ -149,7 +167,27 @@ async def action(data: HAAction, db: AsyncSession = Depends(get_db), user: User 
             raise HTTPException(status_code=400, detail=f"Choose between {low:g} and {high:g}")
         extra["temperature"] = data.temperature
     try:
-        await ha.call(data.entity_id, data.action, **extra)
+        await ha.call(data.entity_id, service, **extra)
         return await ha.state_of(data.entity_id)
     except ha.Unavailable as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+
+
+async def family_history(db: AsyncSession, family_id: str, entity_id: str) -> dict:
+    if not ha.configured():
+        raise HTTPException(status_code=409, detail="Home Assistant isn't set up on this server.")
+    if entity_id not in family_config(await _family(db, family_id)).entities:
+        raise HTTPException(status_code=404, detail="That isn't one of the family's chosen entities")
+    if ha.domain_of(entity_id) != "sensor":
+        raise HTTPException(status_code=400, detail="History is for sensors")
+    try:
+        state = await ha.state_of(entity_id)
+        return {**await ha.history(entity_id), "unit": state.get("unit")}
+    except ha.Unavailable as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@router.get("/history/{entity_id}")
+async def history(entity_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    """A chosen sensor's last day, for its trend line."""
+    return await family_history(db, user.family_id, entity_id)

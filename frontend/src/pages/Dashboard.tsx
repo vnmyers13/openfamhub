@@ -9,10 +9,12 @@ import CustomizeDashboard from './dashboard/CustomizeDashboard'
 import WallDashboardEditor from './dashboard/WallDashboardEditor'
 import {
   Announcements, AvailableChores, Birthdays, FamilyStars, MealsToday, MyDay, SmartHome, SyncStatus, TodaysEvents, WeatherCard,
+  WeekEvents,
 } from './dashboard/widgets'
 
 const RENDER: Record<WidgetKey, (s?: DashboardSummary) => React.ReactNode> = {
   events: (s) => <TodaysEvents summary={s} />,
+  week: () => <WeekEvents />,
   weather: () => <WeatherCard />,
   'my-day': (s) => <MyDay summary={s} />,
   chores: () => <AvailableChores />,
