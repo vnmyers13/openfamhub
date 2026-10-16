@@ -36,8 +36,9 @@ async def admin(client):
 
 
 @pytest.fixture(autouse=True)
-def _no_env(monkeypatch):
+def _no_env(monkeypatch, tmp_path):
     """As if nothing were set in .env (CI only sets SECRET_KEY)."""
+    monkeypatch.setattr(cfg, "ENV_FILE", tmp_path / ".env")
     for name in ("ha_url", "ha_token", "ntfy_url", "ntfy_token", "smtp_host", "smtp_username", "smtp_password", "smtp_from"):
         monkeypatch.setattr(settings, name, "")
     monkeypatch.setattr(settings, "smtp_port", 587)
@@ -98,44 +99,49 @@ class TestReadingAndSaving:
 
 
 class TestSecrets:
-    async def test_secrets_never_come_back_and_are_stored_encrypted(self, client, admin, setup_db, caplog):
+    async def test_secrets_never_come_back_or_reach_the_database(self, client, admin, setup_db, caplog):
         caplog.set_level(logging.DEBUG)
         await put(client, admin, {"ha_token": "super-secret-token", "smtp_password": "hunter2-password", "ntfy_token": "tk_secret_ntfy"})
         res = await client.get(URL, headers=_h(admin))
         assert "super-secret-token" not in res.text and "hunter2-password" not in res.text and "tk_secret_ntfy" not in res.text
         from app.models.server_setting import ServerSetting
         rows = {r.key: r for r in (await setup_db.execute(select(ServerSetting))).scalars().all()}
-        assert rows["ha_token"].secret and "super-secret-token" not in rows["ha_token"].value
+        assert "ha_token" not in rows
         assert "hunter2-password" not in rows["smtp_password"].value
+        assert "HA_TOKEN=super-secret-token" in cfg.ENV_FILE.read_text()
         for record in caplog.records:
             text = record.getMessage()
             assert "super-secret-token" not in text and "hunter2-password" not in text and "tk_secret_ntfy" not in text
 
-    async def test_a_changed_secret_key_means_re_entering_them(self, client, admin, setup_db, monkeypatch):
-        await put(client, admin, {"ha_url": "http://ha.local:8123", "ha_token": "tok-123"})
+    async def test_a_changed_secret_key_means_re_entering_database_secrets(self, client, admin, setup_db, monkeypatch):
+        await put(client, admin, {"ntfy_token": "tok-123"})
         original = settings.secret_key
         monkeypatch.setattr(settings, "secret_key", "a-different-secret-key-0123456789abcdef")
         cfg.clear()
         await cfg.load(setup_db)
-        assert cfg.get("ha_token") == "" and cfg.get("ha_url") == "http://ha.local:8123"
+        assert cfg.get("ntfy_token") == ""
         monkeypatch.setattr(settings, "secret_key", original)  # sign-ins use it too; keep the admin signed in
         got = (await client.get(URL, headers=_h(admin))).json()
-        assert got["ha_token"] == {"is_set": False, "locked": False, "unreadable": True}
+        assert got["ntfy_token"] == {"is_set": False, "locked": False, "unreadable": True}
 
 
 class TestEnvWins:
-    async def test_a_value_in_env_overrides_and_locks_the_field(self, client, admin, monkeypatch):
+    async def test_home_assistant_values_in_env_can_be_replaced_by_an_admin(self, client, admin, monkeypatch, tmp_path):
+        env_file = tmp_path / ".env"
+        env_file.write_text("HA_URL=http://from-env:8123\nHA_TOKEN=env-token\nOTHER=value\n")
+        monkeypatch.setattr(cfg, "ENV_FILE", env_file, raising=False)
         await put(client, admin, {"ha_url": "http://from-app:8123", "smtp_port": 2525})
         monkeypatch.setattr(settings, "ha_url", "http://from-env:8123")
         monkeypatch.setattr(settings, "ha_token", "env-token")
         monkeypatch.setattr(settings, "smtp_port", 465)
         got = (await client.get(URL, headers=_h(admin))).json()
-        assert got["ha_url"] == {"value": "http://from-env:8123", "locked": True}
-        assert got["ha_token"] == {"is_set": True, "locked": True}
+        assert got["ha_url"] == {"value": "http://from-env:8123", "locked": False}
+        assert got["ha_token"] == {"is_set": True, "locked": False}
         assert got["smtp_port"] == {"value": 465, "locked": True}
         assert cfg.get("ha_url") == "http://from-env:8123" and cfg.get("smtp_port") == 465
-        res = await client.put(URL, json={"ha_url": "http://other:8123"}, headers=_h(admin))
-        assert res.status_code == 409 and "ha_url" in res.json()["detail"]
+        await put(client, admin, {"ha_url": "http://other:8123", "ha_token": "replacement"})
+        assert cfg.get("ha_url") == "http://other:8123" and cfg.get("ha_token") == "replacement"
+        assert env_file.read_text() == "HA_URL=http://other:8123\nHA_TOKEN=replacement\nOTHER=value\n"
 
 
 class TestWhoMayChange:

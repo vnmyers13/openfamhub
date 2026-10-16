@@ -1,23 +1,26 @@
-"""Server settings an admin can change in the app (Admin › Settings), with
-`.env` still in charge where it says something.
+"""Server settings an admin can change in the app (Admin › Settings).
 
 `get(name)` is what the rest of the code reads:
-  1. a value from the environment / `.env` wins: a non-empty string, or a
-     number or choice different from its default. The field is then "locked"
-     in the app;
-  2. otherwise the value saved in the app (`server_settings`, loaded into
-     memory at startup and after each save);
-  3. otherwise the default.
+   1. except for Home Assistant, a value from the environment / `.env` wins: a non-empty string, or a
+   number or choice different from its default. The field is then "locked"
+   in the app;
+   2. Home Assistant values are written to `.env` by an unlocked admin;
+   3. otherwise the value saved in the app (`server_settings`, loaded into
+   memory at startup and after each save);
+   4. otherwise the default.
 
-Secrets (tokens, the email password) are stored encrypted with a key derived
-from SECRET_KEY, never returned by the API, and never logged. If SECRET_KEY
-changes they can't be read any more and have to be entered again.
+Database secrets (tokens, the email password) are stored encrypted with a key
+derived from SECRET_KEY. Home Assistant's token stays in `.env`. Secrets are
+never returned by the API or logged.
 """
 import base64
 import json
 import logging
+import os
 import re
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -26,7 +29,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from app.core.config import _PROJECT_ROOT, settings
 from app.models.server_setting import ServerSetting
 
 log = logging.getLogger(__name__)
@@ -91,6 +94,8 @@ FIELDS: dict[str, Field] = {
     "backup_retention_days": Field(_int(1, 3650)),
     "wall_idle_timeout_seconds": Field(_int(30, 86400)),
 }
+HA_FIELDS = {"ha_url", "ha_token"}
+ENV_FILE = _PROJECT_ROOT / ".env"
 
 _stored: dict[str, Any] = {}  # what the app saved, secrets decrypted
 _unreadable: set[str] = set()  # secrets that wouldn't decrypt (SECRET_KEY changed)
@@ -111,16 +116,54 @@ def _env_value(name: str) -> Any:
 
 
 def locked(name: str) -> bool:
+    if name in HA_FIELDS:
+        return False
     return _env_value(name) is not None
 
 
 def get(name: str) -> Any:
+    if name in HA_FIELDS:
+        return getattr(settings, name)
     env = _env_value(name)
     if env is not None:
         return env
     if name in _stored:
         return _stored[name]
     return _default(name)
+
+
+def save_home_assistant_to_env(changes: dict[str, Any]) -> None:
+    """Persist Home Assistant connection settings in .env and use them now."""
+    values = {name: changes[name] for name in HA_FIELDS & changes.keys()}
+    if not values:
+        return
+    existing = ENV_FILE.read_text(encoding="utf-8") if ENV_FILE.exists() else ""
+    lines = existing.splitlines(keepends=True)
+    replaced: set[str] = set()
+    rendered: list[str] = []
+    for line in lines:
+        for name, value in values.items():
+            env_name = name.upper()
+            if re.match(rf"^\s*(?:export\s+)?{re.escape(env_name)}\s*=", line):
+                rendered.append(f"{env_name}={value}\n")
+                replaced.add(name)
+                break
+        else:
+            rendered.append(line)
+    if rendered and not rendered[-1].endswith(("\n", "\r")):
+        rendered[-1] += "\n"
+    for name, value in values.items():
+        if name not in replaced:
+            rendered.append(f"{name.upper()}={value}\n")
+    ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
+    mode = ENV_FILE.stat().st_mode if ENV_FILE.exists() else 0o600
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=ENV_FILE.parent, delete=False) as tmp:
+        tmp.writelines(rendered)
+        tmp_path = Path(tmp.name)
+    os.chmod(tmp_path, mode)
+    os.replace(tmp_path, ENV_FILE)
+    for name, value in values.items():
+        setattr(settings, name, value)
 
 
 def _fernet() -> Fernet:

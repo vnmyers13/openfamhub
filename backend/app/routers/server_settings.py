@@ -37,8 +37,11 @@ async def change(changes: dict[str, Any] = Body(...), db: AsyncSession = Depends
     fixed = sorted(name for name in clean if cfg.locked(name))
     if fixed:
         raise HTTPException(status_code=409, detail=f"Set in .env, change it there: {', '.join(fixed)}")
-    await cfg.save(db, clean)
-    if BACKUP_FIELDS & clean.keys():
+    cfg.save_home_assistant_to_env(clean)
+    stored = {name: value for name, value in clean.items() if name not in cfg.HA_FIELDS}
+    if stored:
+        await cfg.save(db, stored)
+    if BACKUP_FIELDS & stored.keys():
         await reschedule_backup(db)
     return cfg.describe()
 
