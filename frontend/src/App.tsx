@@ -24,6 +24,7 @@ const MealsPage = lazy(() => import('./pages/meals/MealsPage'))
 const BooksPage = lazy(() => import('./pages/books/BooksPage'))
 const MySettings = lazy(() => import('./pages/MySettings'))
 const FamilySettings = lazy(() => import('./pages/admin/FamilySettings'))
+const NotesPage = lazy(() => import('./pages/NotesPage'))
 
 // Paths an authenticated user should be moved off of after boot.
 const ENTRY_PATHS = new Set(['/', '/login', '/setup'])
@@ -89,6 +90,7 @@ function AppRoutes() {
           <Route path="/books" element={<BooksPage />} />
           <Route path="/me" element={<MySettings />} />
           <Route path="/photos" element={<PhotosPage />} />
+          <Route path="/notes" element={<NotesPage />} />
           <Route element={<RequireAdmin />}>
             <Route path="/admin/users" element={<ManageUsers />} />
             <Route path="/admin/calendars" element={<CalendarSettings />} />

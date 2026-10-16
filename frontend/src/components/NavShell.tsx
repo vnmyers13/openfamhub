@@ -17,6 +17,7 @@ const navItems = [
   { to: '/meals', label: 'Meals', icon: '🍽️' },
   { to: '/books', label: 'Books', icon: '📚' },
   { to: '/photos', label: 'Photos', icon: '🖼️' },
+  { to: '/notes', label: 'Notes', icon: '📝' },
 ]
 
 const adminItems = [
