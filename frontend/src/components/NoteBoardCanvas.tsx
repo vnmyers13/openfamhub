@@ -1,9 +1,15 @@
 import type { NoteBoard, NoteItemUnion } from '../api/notes'
+import type { PointerEvent } from 'react'
 
 export type { NoteBoard, NoteItemUnion }
 
-export default function NoteBoardCanvas({ board, imageUrl, readOnly = false }: { board: NoteBoard; imageUrl: (id: string) => string; readOnly?: boolean }) {
-  return <svg viewBox="0 0 1000 700" className="h-auto w-full rounded-xl bg-amber-50" aria-label={readOnly ? 'Family notes board' : undefined}>
+export default function NoteBoardCanvas({ board, imageUrl, readOnly = false, onDraw }: { board: NoteBoard; imageUrl: (id: string) => string; readOnly?: boolean; onDraw?: (points: { x: number; y: number }[]) => void }) {
+  let points: { x: number; y: number }[] = []
+  const point = (event: PointerEvent<SVGSVGElement>) => { const box = event.currentTarget.getBoundingClientRect(); return { x: Math.round((event.clientX - box.left) * 1000 / box.width), y: Math.round((event.clientY - box.top) * 700 / box.height) } }
+  return <svg viewBox="0 0 1000 700" className="h-auto w-full rounded-xl bg-amber-50" aria-label={readOnly ? 'Family notes board' : undefined}
+    onPointerDown={onDraw ? (event) => { points = [point(event)]; event.currentTarget.setPointerCapture(event.pointerId) } : undefined}
+    onPointerMove={onDraw ? (event) => { if (points.length) points.push(point(event)) } : undefined}
+    onPointerUp={onDraw ? () => { if (points.length > 1) onDraw(points); points = [] } : undefined}>
     {board.items.map((item) => <Item key={item.id} item={item} imageUrl={imageUrl} />)}
   </svg>
 }

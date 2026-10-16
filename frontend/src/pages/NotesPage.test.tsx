@@ -22,7 +22,7 @@ describe('NotesPage', () => {
     signIn('viewer')
     mockApi({ 'GET /notes/board': emptyBoard })
     renderApp(<NotesPage />)
-    await screen.findByText('Family notes')
+    await screen.findByRole('heading', { name: 'Family notes' })
     expect(screen.queryByRole('button', { name: 'Add note' })).toBeNull()
   })
 
@@ -30,7 +30,7 @@ describe('NotesPage', () => {
     signIn('member')
     mockApi({ 'GET /notes/board': emptyBoard })
     renderApp(<NotesPage />)
-    await screen.findByText('Family notes')
+    await screen.findByLabelText('Board title')
     expect(screen.getByRole('button', { name: 'Add sticker' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Add sketch' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Export PNG' })).toBeTruthy()

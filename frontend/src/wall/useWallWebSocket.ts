@@ -12,6 +12,7 @@ const REFRESH: Record<string, string[]> = {
   meals_updated: ['wall-meals'],
   announcements_updated: ['wall-announcements'],
   rewards_updated: ['wall-progress'],
+  notes_updated: ['wall-notes'],
 }
 
 /**
