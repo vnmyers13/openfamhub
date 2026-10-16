@@ -85,7 +85,17 @@ async def test_wall_session_includes_dashboard_config(client, admin):
     assert session["dashboard"] == dashboard
 
 
-@pytest.mark.parametrize("path", ["/api/wall/chores", "/api/wall/meals", "/api/wall/announcements", "/api/wall/weather"])
+async def test_paired_wall_reads_its_family_notes_board(client, admin):
+    _, wall = await _pair(client, admin)
+
+    response = await client.get("/api/wall/notes/board", headers=wall)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["title"] == "Family notes"
+    assert response.json()["items"] == []
+
+
+@pytest.mark.parametrize("path", ["/api/wall/chores", "/api/wall/meals", "/api/wall/announcements", "/api/wall/weather", "/api/wall/notes/board"])
 async def test_wall_read_only_endpoints_require_pairing(client, admin, path):
     assert (await client.get(path)).status_code == 401
 

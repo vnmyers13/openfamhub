@@ -38,6 +38,8 @@ from app.schemas.rewards import ProgressRow
 from app.services import rewards as rewards_svc
 from app.services import birthdays as birthdays_svc
 from app.schemas.family_info import UpcomingBirthday
+from app.schemas.notes import NoteBoardResponse
+from app.routers.notes import board_for, response as note_board_response
 
 router = APIRouter()
 
@@ -79,6 +81,11 @@ async def get_wall_device(
     db: AsyncSession = Depends(get_db),
 ) -> WallDevice:
     return await _device_for_token(db, wall_token)
+
+
+@router.get("/notes/board", response_model=NoteBoardResponse)
+async def wall_notes_board(device: WallDevice = Depends(get_wall_device), db: AsyncSession = Depends(get_db)):
+    return note_board_response(await board_for(db, device.family_id))
 
 
 # ---- admin: manage devices -------------------------------------------------
