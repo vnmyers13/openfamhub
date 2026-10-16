@@ -1,4 +1,10 @@
 @import 'react-big-calendar/lib/css/react-big-calendar.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #4F46E5;
+  --color-primary-dark: #3730A3;
+  --font-display: monospace;
+}
