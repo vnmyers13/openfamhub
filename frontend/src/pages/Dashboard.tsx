@@ -7,6 +7,7 @@ import { effectivePages, WALLPAPERS, type WidgetKey } from '../lib/dashboard'
 import { useAuthStore } from '../stores/auth'
 import CustomizeDashboard from './dashboard/CustomizeDashboard'
 import WallDashboardEditor from './dashboard/WallDashboardEditor'
+import VoiceAssistant from '../components/VoiceAssistant'
 import {
   Announcements, AvailableChores, Birthdays, FamilyStars, MealsToday, MyDay, SmartHome, SyncStatus, TodaysEvents, WeatherCard,
   WeekEvents,
@@ -83,6 +84,7 @@ export default function Dashboard() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Greeting />
           <div className="flex items-center gap-2">
+            <VoiceAssistant />
             {pages.length > 1 && (
               <div className="flex gap-1 rounded-lg bg-slate-900/70 p-1" role="tablist" aria-label="Dashboard pages">
                 {pages.map((p, i) => (

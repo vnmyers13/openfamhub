@@ -12,6 +12,7 @@ const SETTINGS = {
   ntfy_url: plain('https://ntfy.sh'), ntfy_token: secret(true),
   smtp_host: plain(''), smtp_port: plain(587), smtp_security: plain('starttls'), smtp_username: plain(''),
   smtp_password: secret(false), smtp_from: plain(''),
+  ollama_url: plain(''), ollama_model: plain(''),
   backup_time: plain('03:00'), backup_retention_days: plain(30), wall_idle_timeout_seconds: plain(300),
 }
 const FAMILY = { name: 'Myers', timezone: 'America/Detroit', sleep: { enabled: false, off: '22:00', on: '06:30' }, clocks: [] }
@@ -37,7 +38,7 @@ describe('Admin › Settings sections', () => {
     open()
     const nav = screen.getByRole('navigation', { name: 'Settings sections' })
     expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(
-      ['Family and wall', 'Weather', 'Notifications', 'Home Assistant', 'Backups and system'])
+      ['Family and wall', 'Weather', 'Notifications', 'Home Assistant', 'Local AI', 'Backups and system'])
     expect(within(nav).getByRole('link', { name: 'Family and wall' }).getAttribute('aria-current')).toBe('page')
     expect(await screen.findByLabelText('Family name')).toBeTruthy()
     fireEvent.click(within(nav).getByRole('link', { name: 'Notifications' }))
@@ -46,6 +47,8 @@ describe('Admin › Settings sections', () => {
     fireEvent.click(within(nav).getByRole('link', { name: 'Home Assistant' }))
     expect(await screen.findByRole('form', { name: 'Connection' })).toBeTruthy()
     expect(await screen.findByText(/Not set up yet/)).toBeTruthy()
+    fireEvent.click(within(nav).getByRole('link', { name: 'Local AI' }))
+    expect(await screen.findByRole('form', { name: 'Local Ollama' })).toBeTruthy()
     fireEvent.click(within(nav).getByRole('link', { name: 'Backups and system' }))
     expect(await screen.findByRole('form', { name: 'Backups' })).toBeTruthy()
     expect(screen.getByRole('form', { name: 'Wall displays' })).toBeTruthy()

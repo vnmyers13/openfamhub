@@ -29,7 +29,7 @@ async def _context(db: AsyncSession, user: User) -> dict:
 async def create_draft(data: DraftRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     context = await _context(db, user)
     try:
-        result = await ai.draft(data.request, context)
+        result = await ai.draft(data.request, context, data.audio_base64)
     except ai.Unavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     allowed = {kind: {item["id"] for item in context[f"{kind}s"]} for kind in ("event", "chore", "todo")}

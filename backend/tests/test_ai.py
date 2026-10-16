@@ -1,5 +1,6 @@
 """Local-only AI draft endpoint: it must be safe before it is helpful."""
 import json
+import base64
 
 import httpx
 import pytest
@@ -16,7 +17,7 @@ async def admin(client):
 
 class TestDrafts:
     async def _configure(self, client, admin):
-        res = await client.put("/api/admin/server-settings", json={"ollama_url": "http://ollama.lan:11434", "ollama_model": "qwen3"}, headers=_h(admin))
+        res = await client.put("/api/admin/server-settings", json={"ollama_url": "http://192.168.10.91:11434", "ollama_model": "llama3.1:8b"}, headers=_h(admin))
         assert res.status_code == 200, res.text
 
     async def test_draft_is_unavailable_until_an_admin_configures_a_local_model(self, client, admin):
@@ -58,7 +59,32 @@ class TestDrafts:
 
         assert res.status_code == 200, res.text
         assert res.json() == reply
-        assert sent["url"] == "http://ollama.lan:11434/api/chat"
+        assert sent["url"] == "http://192.168.10.91:11434/api/chat"
         assert sent["json"]["stream"] is False and sent["json"]["options"] == {"temperature": 0}
         prompt = sent["json"]["messages"][1]["content"]
         assert "Add soccer practice tomorrow" in prompt and "family_id" in prompt
+
+    async def test_admin_cannot_configure_a_hosted_model_endpoint(self, client, admin):
+        res = await client.put("/api/admin/server-settings", json={"ollama_url": "https://ollama.com", "ollama_model": "qwen"}, headers=_h(admin))
+
+        assert res.status_code == 422
+        assert "private LAN" in res.json()["detail"]
+
+    async def test_audio_draft_passes_wav_bytes_to_the_local_model(self, client, admin, monkeypatch):
+        await self._configure(client, admin)
+        sent = {}
+        reply = {"action": {"kind": "todo", "operation": "create", "fields": {"title": "Buy milk"}}, "summary": "Add Buy milk."}
+
+        class Model:
+            async def __aenter__(self): return self
+            async def __aexit__(self, *_): pass
+            async def post(self, _url, **kwargs):
+                sent.update(kwargs)
+                return type("Response", (), {"raise_for_status": lambda self: None, "json": lambda self: {"message": {"content": json.dumps(reply)}}})()
+
+        monkeypatch.setattr(httpx, "AsyncClient", lambda **_: Model())
+        audio = base64.b64encode(b"RIFF\x00\x00\x00\x00WAVE").decode()
+        res = await client.post("/api/ai/draft", json={"request": "", "audio_base64": audio}, headers=_h(admin))
+
+        assert res.status_code == 200, res.text
+        assert sent["json"]["messages"][1]["images"] == [audio]

@@ -15,6 +15,7 @@ never returned by the API or logged.
 """
 import base64
 import json
+import ipaddress
 import logging
 import os
 import re
@@ -22,6 +23,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
@@ -40,6 +42,21 @@ def _web_url(v: Any) -> str:
     if v and (not re.match(r"^https?://[^\s/]+", v, re.I) or len(v) > 2048):
         raise ValueError("use an http:// or https:// address")
     return v.rstrip("/")
+
+
+def _local_web_url(v: Any) -> str:
+    """Ollama must stay on the LAN; accept a private IP or mDNS hostname."""
+    url = _web_url(v)
+    if not url:
+        return url
+    host = urlparse(url).hostname or ""
+    try:
+        if not ipaddress.ip_address(host).is_private:
+            raise ValueError("use a private LAN address or .local hostname")
+    except ValueError:
+        if not host.lower().endswith(".local"):
+            raise ValueError("use a private LAN address or .local hostname")
+    return url
 
 
 def _text(limit: int, spaces: bool = False) -> Callable[[Any], str]:
@@ -82,7 +99,7 @@ class Field:
 FIELDS: dict[str, Field] = {
     "ha_url": Field(_web_url),
     "ha_token": Field(_text(4096), secret=True),
-    "ollama_url": Field(_web_url),
+    "ollama_url": Field(_local_web_url),
     "ollama_model": Field(_text(256)),
     "ntfy_url": Field(_web_url),
     "ntfy_token": Field(_text(1024), secret=True),

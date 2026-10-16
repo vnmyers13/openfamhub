@@ -16,7 +16,7 @@ def configured() -> bool:
     return bool(cfg.get("ollama_url") and cfg.get("ollama_model"))
 
 
-async def draft(request: str, context: dict) -> DraftResponse:
+async def draft(request: str, context: dict, audio_base64: str | None = None) -> DraftResponse:
     if not configured():
         raise Unavailable("Local AI isn't set up yet. Ask an admin to add the Ollama address and model.")
     prompt = (
@@ -31,7 +31,7 @@ async def draft(request: str, context: dict) -> DraftResponse:
                 json={"model": cfg.get("ollama_model"), "stream": False, "format": DraftResponse.model_json_schema(),
                       "options": {"temperature": 0},
                       "messages": [{"role": "system", "content": "You create safe family-organizer drafts."},
-                                   {"role": "user", "content": prompt}]},
+                                   {"role": "user", "content": prompt, **({"images": [audio_base64]} if audio_base64 else {})}]},
             )
             response.raise_for_status()
             content = response.json()["message"]["content"]

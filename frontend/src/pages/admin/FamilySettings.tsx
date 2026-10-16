@@ -12,6 +12,7 @@ const SETTINGS_SECTIONS = [
   { key: 'weather', label: 'Weather' },
   { key: 'notifications', label: 'Notifications' },
   { key: 'home-assistant', label: 'Home Assistant' },
+  { key: 'local-ai', label: 'Local AI' },
   { key: 'system', label: 'Backups and system' },
 ] as const
 
@@ -33,6 +34,12 @@ const HA: FieldDef[] = [
     help: 'As the OpenFamHub server reaches it; an IP address is safest.' },
   { name: 'ha_token', label: 'Long-lived access token', kind: 'secret',
     help: 'In Home Assistant: your profile › Security › Long-lived access tokens.' },
+]
+const LOCAL_AI: FieldDef[] = [
+  { name: 'ollama_url', label: 'Ollama address', kind: 'url', placeholder: 'http://192.168.10.91:11434',
+    help: 'A private LAN address or .local hostname only. This server sends requests directly to it.' },
+  { name: 'ollama_model', label: 'Model', kind: 'text', placeholder: 'gemma4:12b',
+    help: 'The installed local model to use for reviewed event, chore, and to-do drafts.' },
 ]
 const BACKUPS: FieldDef[] = [
   { name: 'backup_time', label: 'Daily backup at', kind: 'time', help: "In the family's timezone." },
@@ -96,6 +103,9 @@ function Section({ which }: { which: (typeof SETTINGS_SECTIONS)[number]['key'] }
           <HomeAssistantSettings />
         </>
       )
+    case 'local-ai':
+      return <ServerSettingsForm title="Local Ollama" fields={LOCAL_AI}
+        intro={<p className="text-sm text-gray-400">OpenFamHub sends requests only to this local endpoint. Every suggested change needs a member’s confirmation.</p>} />
     case 'system':
       return (
         <>
