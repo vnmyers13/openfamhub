@@ -7,6 +7,7 @@ import type { SleepSchedule } from '../lib/sleep'
 import type { ChoreInstance, RoutineRun } from './chores'
 import type { ProgressRow } from './rewards'
 import type { Announcement, UpcomingBirthday, Weather } from './home'
+import type { NoteBoard } from './notes'
 
 export const WALL_DASHBOARD_WIDGETS = [
   { key: 'clock', label: 'Clock' },
@@ -19,6 +20,7 @@ export const WALL_DASHBOARD_WIDGETS = [
   { key: 'progress', label: 'Family progress' },
   { key: 'birthdays', label: 'Birthdays' },
   { key: 'home', label: 'Smart home' },
+  { key: 'notes', label: 'Notes' },
 ] as const
 
 export type WallDashboardWidgetKey = (typeof WALL_DASHBOARD_WIDGETS)[number]['key']
@@ -144,6 +146,10 @@ export function useWallAnnouncements() {
     queryFn: async () => (await apiClient.get('/wall/announcements')).data as Announcement[],
     refetchInterval: 5 * 60 * 1000,
   })
+}
+
+export function useWallNotes() {
+  return useQuery({ queryKey: ['wall-notes'], queryFn: async () => (await apiClient.get('/wall/notes/board')).data as NoteBoard, refetchInterval: 5 * 60 * 1000 })
 }
 
 export function useWallWeather() {

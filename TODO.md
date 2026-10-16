@@ -311,7 +311,7 @@ Ordering is by dependency: rewards spends the points ledger chores introduced (P
   - **Stays in `.env`:** `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_ORIGINS`, `DATA_PATH`, Caddy and ports, `REGISTRY`/`OPENFAMHUB_VERSION`; off-host backups stay `scripts/backup-offhost.sh`. `FAMILY_NAME` is gone from the templates; the unused setting stays in `config.py` so old `.env` files still load.
   - Tests: `test_server_settings.py` (secrets never returned or logged and stored encrypted, `.env` overrides and locks, a changed `SECRET_KEY`, backup rescheduling, who may change them, the tests), `ServerSettings.test.tsx`.
 - [x] AI voice agent, local-first (local STT + LLM; cloud optional and opt-in): add/edit events, chores and to-dos conversationally. Done 2026-10-16: Admin › Settings › Local AI configures a private-LAN Ollama endpoint and model; Home › Ask local assistant accepts text or WAV/MP3 audio, receives a family-scoped structured draft, and writes only after explicit confirmation through the existing domain API.
-- [ ] Notes: family note board with photos, stickers and sketching; export as an image; wall panel.
+- [x] Notes: family note board with photos, stickers and sketching; export as an image; wall panel. Done 2026-10-16: family-scoped board with member editing, private media photos, SVG notes/stickers/sketches, local PNG export, and paired-wall panel.
 - Tests first: HA outage degrades gracefully; voice intent parsing fixtures for add/edit; notes render and export.
 
 ### Phase 13 — Two-way calendar sync

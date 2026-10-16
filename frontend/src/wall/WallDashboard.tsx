@@ -17,6 +17,7 @@ import WallBirthdays from './WallBirthdays'
 import WallClock from './WallClock'
 import WallProgress from './WallProgress'
 import WallRoutines from './WallRoutines'
+import WallNotes from './WallNotes'
 import { familyDayRange } from './wallDashboardDates'
 
 const card = 'rounded-2xl bg-slate-800/80 p-5 shadow-lg ring-1 ring-white/5'
@@ -91,6 +92,10 @@ function BirthdaysCard() {
   return <WallCard title="Birthdays"><WallBirthdays /></WallCard>
 }
 
+function NotesCard() {
+  return <WallCard title="Notes"><WallNotes /></WallCard>
+}
+
 function WallCard({ title: heading, children }: { title: string; children: ReactNode }) {
   return <section className={card} aria-label={heading}><h2 className={title}>{heading}</h2>{children}</section>
 }
@@ -109,6 +114,7 @@ function Widget({ widget, timeZone, clocks }: { widget: WallDashboardWidgetKey; 
   if (widget === 'announcements') return <AnnouncementsCard />
   if (widget === 'progress') return <ProgressCard />
   if (widget === 'home') return <HomeCard />
+  if (widget === 'notes') return <NotesCard />
   return <BirthdaysCard />
 }
 

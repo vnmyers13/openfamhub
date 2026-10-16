@@ -207,6 +207,10 @@ All under `/api/rewards` (`routers/rewards.py`, rules in `services/rewards.py`).
 
 `POST /api/ai/draft` accepts an authenticated member's typed request and optional WAV/MP3 recording. The configured Ollama endpoint must be a private LAN IP or `.local` hostname; the model receives only the caller's family-scoped candidate records. Its structured response is a draft only. The Home assistant's confirmation invokes existing event, chore, or to-do APIs, so their normal permissions and validation remain authoritative.
 
+## Family Notes board
+
+Each family has one lazily-created Notes board (`note_boards`). Members and admins can save bounded text notes, stickers, private media-photo references, and freehand strokes; viewers and paired walls can only read it. `/notes` renders the shared SVG board and exports it locally as PNG. `/api/wall/notes/board` and the `notes` wall-dashboard card use the paired wall cookie and wall-scoped media URLs.
+
 ## Realtime
 
 Changes call `queue_event(db, "calendar_updated" | "media_updated" | "settings_updated" | "chores_updated" | "rewards_updated" | "meals_updated" | "books_updated" | "announcements_updated", …)`, and the notice is published only after the transaction commits. The WebSocket hub (`/api/wall/ws`, which only accepts paired displays) forwards it to every connected wall, which then re-fetches its events. Each wall opens one socket (`wall/useWallWebSocket.ts`, which reconnects after a drop and stops cleanly on unmount) and refetches the matching data; walls also poll every 15 minutes.
