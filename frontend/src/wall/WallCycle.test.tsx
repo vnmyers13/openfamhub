@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import WallCycle from './WallCycle'
+import WallCycle from './WallCycle.tsx'
 import type { WallDashboardConfig } from '../api/wall'
 
 let pageRenders = 0
