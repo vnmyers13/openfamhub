@@ -25,6 +25,7 @@ import app.models.chores
 import app.models.rewards
 import app.models.meals
 import app.models.family_info
+import app.models.note
 
 config = context.config
 if config.config_file_name is not None:

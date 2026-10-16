@@ -14,3 +14,4 @@ from app.models.meals import MealPlanEntry, PantryItem, Recipe, ShoppingItem
 from app.models.family_info import Announcement, Book
 from app.models.push import NotificationSent, PushKeys, PushSubscription
 from app.models.server_setting import ServerSetting
+from app.models.note import NoteBoard
