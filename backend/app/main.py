@@ -87,7 +87,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # which check who is asking. (Before 0.84 all of data/photos was public here.)
 from app.routers import (
     announcements, auth, books, calendar, chores, dashboard, family, imports, integrations, meals, media, rewards,
-    ai, home_assistant, push, routines, server_settings, todos, users, wall, wall_panels, weather,
+    ai, home_assistant, notes, push, routines, server_settings, todos, users, wall, wall_panels, weather,
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
@@ -106,6 +106,7 @@ app.include_router(meals.router, prefix="/api/meals", tags=["meals"])
 app.include_router(imports.router, prefix="/api/import", tags=["import"])
 app.include_router(books.router, prefix="/api/books", tags=["books"])
 app.include_router(announcements.router, prefix="/api/announcements", tags=["announcements"])
+app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
 app.include_router(weather.router, prefix="/api/weather", tags=["weather"])
 app.include_router(push.router, prefix="/api/push", tags=["push"])
 app.include_router(home_assistant.router, prefix="/api/ha", tags=["home-assistant"])
