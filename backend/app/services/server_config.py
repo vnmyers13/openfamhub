@@ -82,6 +82,8 @@ class Field:
 FIELDS: dict[str, Field] = {
     "ha_url": Field(_web_url),
     "ha_token": Field(_text(4096), secret=True),
+    "ollama_url": Field(_web_url),
+    "ollama_model": Field(_text(256)),
     "ntfy_url": Field(_web_url),
     "ntfy_token": Field(_text(1024), secret=True),
     "smtp_host": Field(_text(253)),

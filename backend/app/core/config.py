@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # Phase 12: Home Assistant (off while either is empty).
     ha_url: str = ""  # e.g. http://homeassistant.local:8123
     ha_token: str = ""  # a long-lived access token (Home Assistant › Profile › Security)
+    # Phase 12: local-only Ollama-compatible model endpoint (off while either is empty).
+    ollama_url: str = ""
+    ollama_model: str = ""
 
     model_config = {
         "env_file": str(_PROJECT_ROOT / ".env"),
