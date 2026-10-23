@@ -68,7 +68,10 @@ def test_app_boots_migrates_and_registers_jobs(tmp_path):
         out = json.loads(lines[-1][len("PROBE"):])
 
         assert out["health"] == 200, boot
-        assert out["jobs"] == ["allowance", "calendar_sync_all_due", "chore_generator", "daily_backup", "ha_routine_scenes", "reminders", "shopping_reset"], boot
+        assert out["jobs"] == [
+            "allowance", "calendar_subscriptions_publish_due", "calendar_sync_all_due",
+            "chore_generator", "daily_backup", "ha_routine_scenes", "reminders", "shopping_reset",
+        ], boot
         assert out["revision"] == out["head"], boot
         # Every model column exists after migrations alone, so a model change
         # without its Alembic migration fails here.

@@ -12,6 +12,7 @@ from app.models.calendar_event import CalendarEvent
 from app.models.family import Family
 from app.models.calendar_source import CalendarSource
 from app.models.calendar_sync_log import SyncLog
+from app.services.calendar_subscriptions import mark_family_subscriptions_dirty
 
 
 def describe_sync_error(exc: Exception) -> str:
@@ -101,6 +102,9 @@ async def sync_source(source: CalendarSource, db: AsyncSession) -> str | None:
     )
     db.add(log)
     await db.flush()
+
+    if error_msg is None:
+        await mark_family_subscriptions_dirty(db, source.family_id)
 
     # Tell paired walls to re-fetch. Queued, so it is published only after the
     # caller commits (get_db for API requests, sync_all_due for the scheduler).

@@ -28,6 +28,7 @@ from app.services.calendar import (
 )
 from app.jobs.calendar_sync import sync_source as run_source_sync
 from app.core.events import discard_queued, queue_event
+from app.services.calendar_subscriptions import mark_family_subscriptions_dirty
 
 router = APIRouter()
 
@@ -97,6 +98,7 @@ async def create_event(
     )
     db.add(event)
     await db.flush()
+    await mark_family_subscriptions_dirty(db, current_user.family_id)
     queue_event(db, "calendar_updated", {"source_id": source.id})
     return event_to_response(event, source.color_hex)
 
@@ -145,6 +147,7 @@ async def update_event(
         raise HTTPException(status_code=400, detail="end_dt must be after start_dt")
     await db.flush()
     await db.refresh(event)
+    await mark_family_subscriptions_dirty(db, current_user.family_id)
     queue_event(db, "calendar_updated", {"source_id": event.source_id})
     return event_to_response(event, color_hex)
 
@@ -161,6 +164,7 @@ async def delete_event(
     _check_can_edit(current_user, event, provider)
     event.is_deleted = True
     await db.flush()
+    await mark_family_subscriptions_dirty(db, current_user.family_id)
     queue_event(db, "calendar_updated", {"source_id": event.source_id})
     return {"ok": True}
 
@@ -238,6 +242,7 @@ async def update_source(
     # updated_at is set by the database (onupdate), which expires it; load
     # it now; the response can't lazy-load outside the async context.
     await db.refresh(source)
+    await mark_family_subscriptions_dirty(db, current_user.family_id)
     # Walls and other screens repaint with the new name or color.
     queue_event(db, "calendar_updated", {"source_id": source.id})
     return source
@@ -264,6 +269,7 @@ async def delete_source(
     source.enabled = False
     source.is_deleted = True
     await db.flush()
+    await mark_family_subscriptions_dirty(db, current_user.family_id)
     queue_event(db, "calendar_updated", {"source_id": source.id})
     return {"ok": True}
 

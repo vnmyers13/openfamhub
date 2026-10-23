@@ -2,25 +2,90 @@
 
 The publication horizon matches iCal ingestion: 90 days back, 365 days ahead,
 using strict overlap. Computed birthdays and other non-event data aren't feeds.
-This module never fetches source URLs or calls the relay.
+Publication never fetches source URLs; only the background coordinator sends
+stored-event snapshots to the relay.
 """
 import json
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from cryptography.fernet import InvalidToken
 from icalendar import Calendar, Event, vCalAddress, vText
-from sqlalchemy import select
+from sqlalchemy import String, cast, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.integrations.calendar_relay import RelayFeed
+from app.integrations import calendar_relay
 from app.integrations.ical_feed import WINDOW_FUTURE, WINDOW_PAST
 from app.models.calendar_event import CalendarEvent
 from app.models.calendar_source import CalendarSource
 from app.models.calendar_subscription import CalendarSubscription
 from app.services import server_config
+
+
+async def mark_family_subscriptions_dirty(db: AsyncSession, family_id: str) -> None:
+    """Durable outbox marker, committed/rolled back with the calendar mutation.
+
+    Advance the generation even if already pending: a delivery in flight must
+    not acknowledge a newer change. No network I/O or transaction commit here.
+    """
+    rows = (await db.execute(select(CalendarSubscription).where(
+        CalendarSubscription.family_id == family_id,
+        CalendarSubscription.active == True,
+    ))).scalars().all()
+    now = datetime.now(timezone.utc)
+    for row in rows:
+        row.publication_pending = True
+        row.updated_at = max(now, row.updated_at + timedelta(microseconds=1))
+    await db.flush()
+
+
+async def publish_subscription(db: AsyncSession, subscription: CalendarSubscription) -> None:
+    """Deliver one committed pending feed from a fresh background session.
+
+    The coordinator owns this session, never a request's uncommitted changes.
+    Keep the durable marker until success; a crash after sending simply retries
+    the same full replacement. A compare-and-set preserves edits during I/O.
+    """
+    if not subscription.active or not subscription.publication_pending:
+        return
+    subscription_id, family_id = subscription.id, subscription.family_id
+    generation, relay_id = subscription.updated_at, subscription.relay_id
+    try:
+        raw = await render_ics(db, family_id, subscription.kind)
+        # End the snapshot's read transaction before waiting for the network.
+        await db.commit()
+        await calendar_relay.replace_feed(relay_id, raw)
+    except Exception:
+        # Never persist/log provider exceptions (URLs or credentials may occur).
+        values = {"last_error": "Could not reach the calendar relay"}
+    else:
+        values = {
+            "publication_pending": False,
+            "last_published_at": datetime.now(timezone.utc),
+            "last_error": None,
+        }
+    # Avoid SQLite's second-resolution func.now(): it also writes a different
+    # text representation from UTCDateTime, which would break the next CAS.
+    values["updated_at"] = max(datetime.now(timezone.utc), generation + timedelta(microseconds=1))
+    same_generation = CalendarSubscription.updated_at == generation
+    if generation.microsecond == 0:
+        # Lifecycle writes may still use the model's CURRENT_TIMESTAMP default.
+        # Match its exact second-only spelling too, without dropping precision
+        # from dirty markers (which distinguish changes within the same second).
+        same_generation = or_(same_generation, cast(CalendarSubscription.updated_at, String) ==
+                              generation.strftime("%Y-%m-%d %H:%M:%S"))
+    await db.execute(update(CalendarSubscription).where(
+        CalendarSubscription.id == subscription_id,
+        CalendarSubscription.family_id == family_id,
+        CalendarSubscription.relay_id == relay_id,
+        CalendarSubscription.active == True,
+        CalendarSubscription.publication_pending == True,
+        same_generation,
+    ).values(**values).execution_options(synchronize_session=False))
+    await db.flush()
 
 
 def encrypt_relay_url(url: str) -> str:

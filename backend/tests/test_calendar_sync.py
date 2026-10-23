@@ -7,6 +7,9 @@ from sqlalchemy import event, select
 from app.integrations.ical_feed import WINDOW_PAST
 from app.models.calendar_event import CalendarEvent
 from tests.test_phase2 import SETUP, _cookie, _h
+from tests.test_calendar_subscriptions import (
+    active_feeds, feed_states, publication_db, relay_recorder, run_publication,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -266,3 +269,62 @@ class TestScheduledSync:
 
         register_sync_jobs(FakeScheduler())
         assert (added["trigger"], added["minutes"], added["id"]) == ("interval", 15, "calendar_sync_all_due")
+
+
+@pytest.mark.parametrize("scheduled", [False, True])
+@pytest.mark.parametrize("failed", [False, True])
+async def test_only_successful_sync_dirties_committed_subscriptions(
+    publication_db, relay_recorder, monkeypatch, scheduled, failed,
+):
+    from app.jobs import calendar_sync
+
+    client, factory, headers, family_id = publication_db
+    res = await client.post("/api/calendar/sources", headers=headers, json={
+        "display_name": "School", "ics_url": "https://example.test/s.ics",
+    })
+    assert res.status_code == 201
+    source_id = res.json()["id"]
+    await active_feeds(factory, family_id)
+
+    async def fetch(url, **kwargs):
+        if failed:
+            raise ValueError("Could not fetch school calendar")
+        return [_ev("concert", NOW, title="School concert")]
+
+    monkeypatch.setattr(calendar_sync, "fetch_and_parse", fetch)
+    if scheduled:
+        monkeypatch.setattr(calendar_sync, "AsyncSessionLocal", factory)
+        await calendar_sync.sync_all_due()
+    else:
+        res = await client.post(f"/api/calendar/sources/{source_id}/sync", headers=headers)
+        assert res.status_code == 200 and res.json()["ok"] is not failed
+    assert all(row.publication_pending is not failed for row in (await feed_states(factory)).values())
+    assert relay_recorder.documents == {}
+    await run_publication(factory, monkeypatch)
+    if failed:
+        assert relay_recorder.documents == {}
+    else:
+        assert b"School concert" in relay_recorder.documents["full"]
+
+
+async def test_failed_source_url_savepoint_does_not_dirty_subscriptions(publication_db, relay_recorder, monkeypatch):
+    from app.jobs import calendar_sync
+
+    client, factory, headers, family_id = publication_db
+    res = await client.post("/api/calendar/sources", headers=headers, json={
+        "display_name": "School", "ics_url": "https://example.test/old.ics",
+    })
+    source_id = res.json()["id"]
+    await active_feeds(factory, family_id)
+
+    async def broken(url, **kwargs):
+        raise ValueError("Feed unavailable")
+
+    monkeypatch.setattr(calendar_sync, "fetch_and_parse", broken)
+    res = await client.patch(f"/api/calendar/sources/{source_id}", headers=headers, json={
+        "ics_url": "https://example.test/new.ics", "display_name": "Not saved",
+    })
+    assert res.status_code == 400
+    assert all(not row.publication_pending for row in (await feed_states(factory)).values())
+    await run_publication(factory, monkeypatch)
+    assert relay_recorder.documents == {}
