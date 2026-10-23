@@ -42,3 +42,16 @@ class CalendarSubscriptionDetailResponse(BaseModel):
     subscription_url: str
 
     model_config = {"from_attributes": True}
+
+
+class CalendarSubscriptionAuditLogEntry(BaseModel):
+    """An audit entry for a subscription lifecycle action."""
+
+    id: str
+    subscription_id: str
+    family_id: str
+    action: str
+    actor_user_id: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

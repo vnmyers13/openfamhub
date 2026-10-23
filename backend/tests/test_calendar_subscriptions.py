@@ -1097,3 +1097,62 @@ async def test_audit_entries_record_all_actions(
     actions = [a.action for a in audits]
     assert actions == ["created", "revealed", "rotated", "revoked"]
     assert all(a.actor_user_id == password_admin["id"] for a in audits)
+
+
+async def test_audit_log_endpoint_returns_entries_ordered_desc(
+    client, password_admin, subscription_recorder,
+):
+    """The audit-log endpoint returns entries ordered by created_at DESC."""
+    await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    await client.post("/api/calendar/subscriptions/titles/reveal", headers=_h(password_admin))
+    await client.post("/api/calendar/subscriptions/titles/rotate", headers=_h(password_admin))
+    await client.delete("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+
+    res = await client.get("/api/calendar/subscriptions/audit-log", headers=_h(password_admin))
+    assert res.status_code == 200
+    entries = res.json()
+    assert len(entries) == 4
+    # Must be ordered by created_at DESC (newest first)
+    assert entries[0]["action"] == "revoked"
+    assert entries[-1]["action"] == "created"
+    # No subscription URLs in audit entries
+    for entry in entries:
+        assert "subscription_url" not in entry
+        assert "relay_url" not in entry
+
+
+async def test_audit_log_endpoint_restricted_to_family(
+    client, password_admin, subscription_recorder,
+):
+    """The audit-log endpoint only returns entries for the current family."""
+    await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+
+    res = await client.get("/api/calendar/subscriptions/audit-log", headers=_h(password_admin))
+    assert res.status_code == 200
+    entries = res.json()
+    assert all(e["family_id"] == password_admin["family_id"] for e in entries)
+
+
+async def test_audit_log_endpoint_requires_admin(
+    client, admin, subscription_recorder,
+):
+    """Non-admin users get 403 on the audit-log endpoint."""
+    from tests.test_phase2 import _member
+
+    member = await _member(client, admin)
+    res = await client.get("/api/calendar/subscriptions/audit-log", headers=_h(member))
+    assert res.status_code == 403
+
+    pin_admin = await _pin_admin(client, admin)
+    res = await client.get("/api/calendar/subscriptions/audit-log", headers=_h(pin_admin))
+    assert res.status_code == 403
+    assert res.json()["detail"] == "password_required"
+
+
+async def test_audit_log_empty_when_no_subscriptions(
+    client, password_admin,
+):
+    """An empty family returns an empty audit log list."""
+    res = await client.get("/api/calendar/subscriptions/audit-log", headers=_h(password_admin))
+    assert res.status_code == 200
+    assert res.json() == []

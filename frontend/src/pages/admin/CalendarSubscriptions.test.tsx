@@ -157,4 +157,30 @@ describe('CalendarSubscriptions', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Create full subscription' }))
     expect(await screen.findByText(/Subscription not found/)).toBeTruthy()
   })
+
+  it('renders the audit log section when entries exist', async () => {
+    mockApi({
+      'GET /calendar/subscriptions': [],
+      'GET /calendar/subscriptions/audit-log': [
+        { id: 'a1', subscription_id: 't1', family_id: 'family', action: 'created', actor_user_id: 'admin1', created_at: '2026-10-23T10:00:00+00:00' },
+        { id: 'a2', subscription_id: 't1', family_id: 'family', action: 'revoked', actor_user_id: 'admin2', created_at: '2026-10-23T11:00:00+00:00' },
+      ],
+    })
+    renderPage()
+    expect(await screen.findByText('Audit Log')).toBeTruthy()
+    expect(await screen.findByText('Created')).toBeTruthy()
+    expect(await screen.findByText('Revoked')).toBeTruthy()
+    expect(screen.getByText('by admin1')).toBeTruthy()
+    expect(screen.getByText('by admin2')).toBeTruthy()
+  })
+
+  it('shows "No audit entries yet" when the audit log is empty', async () => {
+    mockApi({
+      'GET /calendar/subscriptions': [],
+      'GET /calendar/subscriptions/audit-log': [],
+    })
+    renderPage()
+    expect(await screen.findByText('Audit Log')).toBeTruthy()
+    expect(await screen.findByText('No audit entries yet.')).toBeTruthy()
+  })
 })

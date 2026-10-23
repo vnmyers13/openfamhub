@@ -24,6 +24,7 @@ from app.models.calendar_subscription import (
     CalendarSubscriptionAudit,
 )
 from app.schemas.calendar_subscription import (
+    CalendarSubscriptionAuditLogEntry,
     CalendarSubscriptionDetailResponse,
     CalendarSubscriptionListResponse,
 )
@@ -311,3 +312,26 @@ async def revoke_subscription(
     await mark_family_subscriptions_dirty(db, admin.family_id)
     await db.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Audit Log
+# ---------------------------------------------------------------------------
+
+@router.get("/audit-log", response_model=list[CalendarSubscriptionAuditLogEntry])
+async def audit_log(
+    db: AsyncSession = Depends(get_db),
+    _admin: object = Depends(require_role("admin")),
+):
+    """Return audit entries for all subscriptions in the current family.
+
+    Ordered by creation time descending so the newest entries appear
+    first.  No subscription URLs or tokens are included — only the
+    action, actor, and timestamps.
+    """
+    result = await db.execute(
+        select(CalendarSubscriptionAudit).where(
+            CalendarSubscriptionAudit.family_id == _admin.family_id,
+        ).order_by(CalendarSubscriptionAudit.created_at.desc()),
+    )
+    return list(result.scalars().all())

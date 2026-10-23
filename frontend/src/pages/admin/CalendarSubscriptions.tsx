@@ -5,17 +5,16 @@ import {
   useRevealCalendarSubscription,
   useRotateCalendarSubscription,
   useRevokeCalendarSubscription,
+  useSubscriptionAuditLog,
   type SubscriptionKind,
   type CalendarSubscriptionListItem,
+  type AuditLogEntry,
 } from '../../api/calendarSubscriptions'
 import { errorDetail } from '../../api/client'
 
 type DialogState =
   | { kind: 'none' }
-  | { kind: 'create'; kindType: SubscriptionKind }
   | { kind: 'reveal'; kindType: SubscriptionKind; url: string }
-  | { kind: 'rotate'; kindType: SubscriptionKind; url: string }
-  | { kind: 'error'; message: string }
 
 /** A single subscription card in the list. */
 function SubscriptionCard({
@@ -120,8 +119,43 @@ function ErrorToast({ message, onClose }: { message: string; onClose: () => void
   )
 }
 
+/** Format an audit action as a label. */
+function actionLabel(action: string): string {
+  const labels: Record<string, string> = {
+    created: 'Created',
+    revealed: 'Revealed',
+    rotated: 'Rotated',
+    revoked: 'Revoked',
+  }
+  return labels[action] || action
+}
+
+/** Audit log viewer: shows entries ordered by most recent first. */
+function AuditLogViewer({ entries }: { entries: AuditLogEntry[] }) {
+  if (entries.length === 0) {
+    return <p className="text-gray-400 text-sm">No audit entries yet.</p>
+  }
+
+  return (
+    <div className="space-y-2">
+      {entries.map((entry) => (
+        <div key={entry.id} className="bg-gray-900 rounded-lg px-4 py-2 border border-gray-800 text-sm">
+          <span className="text-white font-medium">{actionLabel(entry.action)}</span>
+          <span className="text-gray-400 ml-2">
+            by {entry.actor_user_id}
+          </span>
+          <span className="text-gray-500 ml-2">
+            {new Date(entry.created_at).toLocaleString()}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function CalendarSubscriptions() {
   const { data: subscriptions = [] } = useCalendarSubscriptions()
+  const { data: auditEntries = [] } = useSubscriptionAuditLog()
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' })
 
   const { mutateAsync: createSub, error: createError } = useCreateCalendarSubscription()
@@ -198,6 +232,12 @@ export default function CalendarSubscriptions() {
             ))}
           </div>
         )}
+
+        {/* Audit log section */}
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-white mb-3">Audit Log</h2>
+          <AuditLogViewer entries={auditEntries} />
+        </section>
 
         {/* URL dialog */}
         {dialog.kind === 'reveal' && (
