@@ -289,8 +289,23 @@ Settings live in `.env`: in the repo root for build-from-source, or in `~/openfa
 | `HTTP_PORT` / `HTTPS_PORT` | `80`/`443` (source), `8080`/`8443` (server) | Host ports for Caddy. |
 | `REGISTRY` | `forgejo.vernonmyers.cloud/vernon` | Registry and owner the images are pushed to and pulled from. |
 | `OPENFAMHUB_VERSION` | `0.<VERSION from VERSION>` | Image tag to build, push or run. |
+| `CALENDAR_RELAY_URL` | *(optional)* | The managed relay Worker HTTPS origin only, without a path. Leave empty to keep subscriptions off. |
+| `CALENDAR_RELAY_TOKEN` | *(optional)* | The managed relay API token (not an OpenFamHub user token). Both must be set together. |
 
 These are also read from the environment of `deploy.sh`: `PLATFORMS` (publish), `PUBLIC_URL` and `REMOTE_DIR` (remote).
+
+### Managed calendar relay: privacy review gate
+
+Before enabling the outbound calendar relay (`CALENDAR_RELAY_URL` + `CALENDAR_RELAY_TOKEN`), review the provider's privacy policy and data-processing agreement (DPA). Key considerations:
+
+- **What is stored:** the relay holds two ICS feed snapshots (titles and full) per family. These are deterministic exports of stored calendar events only (no user credentials, no upstream source URLs, no family identifiers in clear text — UIDs are locally hashed).
+- **Retention:** the operator controls the relay's retention policy. At retirement, the operator must revoke or delete all feeds, or the data persists.
+- **Subprocessors:** review any subprocessors the relay uses (hosting, logging, backups) and confirm they comply with your data-protection requirements.
+- **Data location:** confirm where the relay stores data geographically, if that matters for your compliance obligations.
+- **Client refresh interval:** the subscription URL delivers the latest snapshot on each client fetch. The client's refresh interval determines how often new data appears at the subscriber. There is no push mechanism; the relay only serves GET requests.
+- **Feed lifecycle:** creation, reveal, rotation, and revocation are all managed through OpenFamHub's password-gated admin API. The operator creates feeds, reveals URLs to subscribers, rotates them (revoking the old, creating a new one), and revokes them entirely. At retirement, all feeds must be revoked or deleted at the relay.
+
+> **Required review:** Do not enable the relay until you have reviewed the provider's privacy policy, DPA, retention policy, and subprocessor list. The relay is outbound-only; OpenFamHub never fetches from user URLs it provides.
 
 ---
 
