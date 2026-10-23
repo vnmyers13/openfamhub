@@ -39,7 +39,7 @@ async def admin(client):
 def _no_env(monkeypatch, tmp_path):
     """As if nothing were set in .env (CI only sets SECRET_KEY)."""
     monkeypatch.setattr(cfg, "ENV_FILE", tmp_path / ".env")
-    for name in ("ha_url", "ha_token", "ntfy_url", "ntfy_token", "smtp_host", "smtp_username", "smtp_password", "smtp_from"):
+    for name in ("ha_url", "ha_token", "ntfy_url", "ntfy_token", "smtp_host", "smtp_username", "smtp_password", "smtp_from", "calendar_relay_url", "calendar_relay_token"):
         monkeypatch.setattr(settings, name, "")
     monkeypatch.setattr(settings, "smtp_port", 587)
     monkeypatch.setattr(settings, "smtp_security", "starttls")
@@ -99,6 +99,37 @@ class TestReadingAndSaving:
 
 
 class TestSecrets:
+    async def test_relay_settings_are_encrypted_and_never_returned(self, client, admin, setup_db, caplog):
+        from app.models.server_setting import ServerSetting
+
+        caplog.set_level(logging.DEBUG)
+        values = {"calendar_relay_url": "https://relay.example", "calendar_relay_token": "relay-management-secret"}
+        saved = await put(client, admin, values)
+        res = await client.get(URL, headers=_h(admin))
+        for name, value in values.items():
+            assert saved[name] == {"is_set": True, "locked": False}
+            assert res.json()[name] == {"is_set": True, "locked": False}
+            row = await setup_db.get(ServerSetting, name)
+            assert row.secret and value not in row.value
+            assert value not in res.text and value not in caplog.text
+        cfg.clear()
+        await cfg.load(setup_db)
+        assert {name: cfg.get(name) for name in values} == values
+        await put(client, admin, {"calendar_relay_token": ""})
+        assert cfg.get("calendar_relay_token") == ""
+
+    @pytest.mark.parametrize("url", ["http://relay.example", "https://u:p@relay.example", "https://relay.example?x=y", "https://relay.example#x", "https://relay.example:bad", "https://relay.example/path"])
+    async def test_relay_rejects_unsafe_endpoints(self, client, admin, url):
+        await put(client, admin, {"calendar_relay_url": url}, status=422)
+
+    async def test_relay_env_settings_are_masked_and_locked(self, client, admin, monkeypatch):
+        monkeypatch.setattr(settings, "calendar_relay_url", "https://relay.example")
+        monkeypatch.setattr(settings, "calendar_relay_token", "env-private-token")
+        got = (await client.get(URL, headers=_h(admin))).json()
+        for name in ("calendar_relay_url", "calendar_relay_token"):
+            assert got[name] == {"is_set": True, "locked": True}
+            await put(client, admin, {name: ""}, status=409)
+
     async def test_secrets_never_come_back_or_reach_the_database(self, client, admin, setup_db, caplog):
         caplog.set_level(logging.DEBUG)
         await put(client, admin, {"ha_token": "super-secret-token", "smtp_password": "hunter2-password", "ntfy_token": "tk_secret_ntfy"})

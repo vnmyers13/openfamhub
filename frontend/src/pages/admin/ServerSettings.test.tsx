@@ -13,6 +13,7 @@ const SETTINGS = {
   smtp_host: plain(''), smtp_port: plain(587), smtp_security: plain('starttls'), smtp_username: plain(''),
   smtp_password: secret(false), smtp_from: plain(''),
   ollama_url: plain(''), ollama_model: plain(''),
+  calendar_relay_url: secret(false), calendar_relay_token: secret(false),
   backup_time: plain('03:00'), backup_retention_days: plain(30), wall_idle_timeout_seconds: plain(300),
 }
 const FAMILY = { name: 'Myers', timezone: 'America/Detroit', sleep: { enabled: false, off: '22:00', on: '06:30' }, clocks: [] }
@@ -38,7 +39,7 @@ describe('Admin › Settings sections', () => {
     open()
     const nav = screen.getByRole('navigation', { name: 'Settings sections' })
     expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(
-      ['Family and wall', 'Weather', 'Notifications', 'Home Assistant', 'Local AI', 'Backups and system'])
+      ['Family and wall', 'Weather', 'Notifications', 'Home Assistant', 'Local AI', 'Calendar relay', 'Backups and system'])
     expect(within(nav).getByRole('link', { name: 'Family and wall' }).getAttribute('aria-current')).toBe('page')
     expect(await screen.findByLabelText('Family name')).toBeTruthy()
     fireEvent.click(within(nav).getByRole('link', { name: 'Notifications' }))
@@ -111,6 +112,29 @@ describe('Admin › Settings sections', () => {
     fireEvent.change(within(backups).getByLabelText('Keep backups for (days)'), { target: { value: '0' } })
     fireEvent.click(within(backups).getByRole('button', { name: 'Save' }))
     expect((await within(backups).findByRole('alert')).textContent).toMatch(/1 to 3650/)
+  })
+
+  it('saves masked relay settings without a mutating connection test', async () => {
+    const calls = mockApi({
+      'GET /admin/server-settings': SETTINGS,
+      'PUT /admin/server-settings': { ...SETTINGS, calendar_relay_url: secret(true), calendar_relay_token: secret(true) },
+    })
+    open('calendar-relay')
+    const form = await screen.findByRole('form', { name: 'Calendar relay' })
+    const address = within(form).getByLabelText('Relay HTTPS address') as HTMLInputElement
+    const token = within(form).getByLabelText('Relay API token') as HTMLInputElement
+    expect(address.type).toBe('password')
+    expect(token.type).toBe('password')
+    expect(within(form).getAllByRole('button').map((b) => b.textContent)).toEqual(['Save'])
+    fireEvent.change(address, { target: { value: 'https://relay.example' } })
+    fireEvent.change(token, { target: { value: 'private-token' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({
+      calendar_relay_url: 'https://relay.example', calendar_relay_token: 'private-token',
+    }))
+    await waitFor(() => expect((screen.getByLabelText('Relay API token') as HTMLInputElement).value).toBe(''))
+    expect((screen.getByLabelText('Relay HTTPS address') as HTMLInputElement).value).toBe('')
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
   })
 
   it('warns when a saved secret can no longer be read', async () => {

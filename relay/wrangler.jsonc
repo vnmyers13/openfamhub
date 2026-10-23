@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "openfamhub-calendar-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-23",
+  "durable_objects": {
+    "bindings": [{ "name": "FEEDS", "class_name": "FeedStore" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FeedStore"] }],
+  "observability": { "enabled": false },
+  "send_metrics": false
+}

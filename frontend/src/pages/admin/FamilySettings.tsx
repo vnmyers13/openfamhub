@@ -13,6 +13,7 @@ const SETTINGS_SECTIONS = [
   { key: 'notifications', label: 'Notifications' },
   { key: 'home-assistant', label: 'Home Assistant' },
   { key: 'local-ai', label: 'Local AI' },
+  { key: 'calendar-relay', label: 'Calendar relay' },
   { key: 'system', label: 'Backups and system' },
 ] as const
 
@@ -44,6 +45,12 @@ const LOCAL_AI: FieldDef[] = [
 const BACKUPS: FieldDef[] = [
   { name: 'backup_time', label: 'Daily backup at', kind: 'time', help: "In the family's timezone." },
   { name: 'backup_retention_days', label: 'Keep backups for (days)', kind: 'number' },
+]
+const CALENDAR_RELAY: FieldDef[] = [
+  { name: 'calendar_relay_url', label: 'Relay HTTPS address', kind: 'secret',
+    help: 'The managed Worker HTTPS origin only, without a path. Saved encrypted and never shown again.' },
+  { name: 'calendar_relay_token', label: 'Relay API token', kind: 'secret',
+    help: 'The managed relay credential, not an OpenFamHub user token.' },
 ]
 const WALL: FieldDef[] = [
   { name: 'wall_idle_timeout_seconds', label: 'Idle screen after (seconds)', kind: 'number',
@@ -114,6 +121,9 @@ function Section({ which }: { which: (typeof SETTINGS_SECTIONS)[number]['key'] }
           <ServerSettingsForm title="Wall displays" fields={WALL} />
         </>
       )
+    case 'calendar-relay':
+      return <ServerSettingsForm title="Calendar relay" fields={CALENDAR_RELAY}
+        intro={<p className="text-sm text-gray-400">An outbound-only service for read-only calendar subscriptions. Leave unset to disable it. Review the provider’s privacy and data-processing terms before enabling it.</p>} />
     default:
       return data ? <SettingsForm initial={data} /> : <p className="text-gray-400">Loading…</p>
   }

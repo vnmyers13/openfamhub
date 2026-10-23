@@ -59,6 +59,42 @@ def _local_web_url(v: Any) -> str:
     return url
 
 
+def _relay_url(v: Any) -> str:
+    """A Worker HTTPS origin, never credentials, query parameters or a path."""
+    value = str(v).strip()
+    if not value:
+        return ""
+    try:
+        parsed = urlparse(value)
+        valid = (parsed.scheme == "https" and parsed.hostname and parsed.port != 0
+                 and not parsed.username and not parsed.password
+                 and parsed.path in ("", "/") and not parsed.params
+                 and not parsed.query and not parsed.fragment
+                 and not re.search(r"[\x00-\x20\x7f\\?#@]", value) and len(value) <= 2048)
+    except ValueError:
+        valid = False
+    if not valid:
+        raise ValueError("use an https:// origin without credentials, a path, query or fragment")
+    # Match URL.origin in the Worker (case-folded host, no default HTTPS port).
+    try:
+        host = parsed.hostname.lower()
+        if ":" in host:
+            host = "[" + ipaddress.IPv6Address(host).compressed + "]"
+        else:
+            host = host.encode("idna").decode("ascii")
+    except ValueError:
+        raise ValueError("use a valid HTTPS hostname") from None
+    port = f":{parsed.port}" if parsed.port not in (None, 443) else ""
+    return "https://" + host + port
+
+
+def _relay_token(v: Any) -> str:
+    value = str(v).strip()
+    if value and (len(value) > 4096 or not re.fullmatch(r"[A-Za-z0-9._~+/-]+=*", value)):
+        raise ValueError("use a bearer token, up to 4096 characters")
+    return value
+
+
 def _text(limit: int, spaces: bool = False) -> Callable[[Any], str]:
     def check(v: Any) -> str:
         v = str(v).strip()
@@ -101,6 +137,8 @@ FIELDS: dict[str, Field] = {
     "ha_token": Field(_text(4096), secret=True),
     "ollama_url": Field(_local_web_url),
     "ollama_model": Field(_text(256)),
+    "calendar_relay_url": Field(_relay_url, secret=True),
+    "calendar_relay_token": Field(_relay_token, secret=True),
     "ntfy_url": Field(_web_url),
     "ntfy_token": Field(_text(1024), secret=True),
     "smtp_host": Field(_text(253)),
