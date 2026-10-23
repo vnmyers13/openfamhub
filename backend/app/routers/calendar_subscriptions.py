@@ -6,13 +6,13 @@ create / reveal / rotate responses carry the encrypted-at-rest URL
 decrypted for the requesting admin.
 """
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Callable, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import AsyncSessionLocal, get_db
 from app.core.security import require_role
 from app.integrations.calendar_relay import (
     RelayUnavailable,
@@ -29,11 +29,14 @@ from app.schemas.calendar_subscription import (
 )
 from app.services.calendar_subscriptions import (
     decrypt_relay_url,
-    encrypt_relay_url,
     mark_family_subscriptions_dirty,
     render_ics,
     set_relay_feed,
 )
+
+# Session factory for network calls; default is production's AsyncSessionLocal.
+# Tests can monkeypatch this to use the test database.
+_network_session_factory: Callable = AsyncSessionLocal
 
 router = APIRouter()
 
@@ -107,60 +110,64 @@ async def create_subscription(
     it is replaced atomically: the old feed is revoked, the new one
     takes its place, and the subscription row is updated.
     """
-    existing = (await db.execute(
-        select(CalendarSubscription).where(
-            CalendarSubscription.family_id == admin.family_id,
-            CalendarSubscription.kind == kind,
-        ),
-    )).scalar_one_or_none()
-
     # Render the ICS snapshot to send to the relay.
     raw = await render_ics(db, admin.family_id, kind)
     await db.commit()  # close read transaction before network I/O
 
-    # Create the relay feed.
-    try:
-        feed = await create_feed(kind, raw)
-    except RelayUnavailable:
-        raise HTTPException(
-            status_code=502,
-            detail="Could not reach the calendar relay",
+    # Use an independent session for network calls and writes, so that
+    # production's expire_on_commit=True does not invalidate objects.
+    async with _network_session_factory() as net_db:
+        # Create the relay feed.
+        try:
+            feed = await create_feed(kind, raw)
+        except RelayUnavailable:
+            raise HTTPException(
+                status_code=502,
+                detail="Could not reach the calendar relay",
+            )
+
+        # Re-query the subscription in the new session.
+        sub_result = await net_db.execute(
+            select(CalendarSubscription).where(
+                CalendarSubscription.family_id == admin.family_id,
+                CalendarSubscription.kind == kind,
+            ),
         )
+        sub = sub_result.scalar_one_or_none()
 
-    if existing is not None:
-        # Revoke the old feed if it had one.
-        if existing.relay_id:
-            try:
-                await revoke_feed(existing.relay_id)
-            except RelayUnavailable:
-                # Safe remediation: keep the new feed active; the old
-                # one is orphaned but its URL is no longer valid.
-                pass
-        # Update the existing row.
-        set_relay_feed(existing, feed)
-        existing.active = True
-        existing.publication_pending = True
-        existing.last_error = None
-        _audit(db, existing, "created", admin.id)
-        await mark_family_subscriptions_dirty(db, admin.family_id)
-        await db.flush()
-        await db.refresh(existing)
-        return _detail_response(existing)
+        if sub is not None:
+            # Revoke the old feed if it had one.
+            if sub.relay_id:
+                try:
+                    await revoke_feed(sub.relay_id)
+                except RelayUnavailable:
+                    # Safe remediation: keep the new feed active; the old
+                    # one is orphaned but its URL is no longer valid.
+                    pass
+            # Update the existing row.
+            set_relay_feed(sub, feed)
+            sub.active = True
+            sub.publication_pending = True
+            sub.last_error = None
+            _audit(net_db, sub, "created", admin.id)
+            await mark_family_subscriptions_dirty(net_db, admin.family_id)
+            await net_db.commit()
+            return _detail_response(sub)
 
-    # Create a new subscription row.
-    sub = CalendarSubscription(
-        family_id=admin.family_id,
-        kind=kind,
-    )
-    set_relay_feed(sub, feed)
-    sub.active = True
-    sub.publication_pending = True
-    db.add(sub)
-    await db.flush()
-    await db.refresh(sub)
-    _audit(db, sub, "created", admin.id)
-    await mark_family_subscriptions_dirty(db, admin.family_id)
-    return _detail_response(sub)
+        # Create a new subscription row.
+        sub = CalendarSubscription(
+            family_id=admin.family_id,
+            kind=kind,
+        )
+        set_relay_feed(sub, feed)
+        sub.active = True
+        sub.publication_pending = True
+        net_db.add(sub)
+        await net_db.commit()
+        _audit(net_db, sub, "created", admin.id)
+        await mark_family_subscriptions_dirty(net_db, admin.family_id)
+        await net_db.commit()
+        return _detail_response(sub)
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +199,7 @@ async def reveal_subscription(
         raise HTTPException(status_code=400, detail="Subscription is not active; create it first")
 
     _audit(db, sub, "revealed", admin.id)
-    await db.flush()
+    await db.commit()
     return _detail_response(sub)
 
 
@@ -228,31 +235,41 @@ async def rotate_subscription(
     raw = await render_ics(db, admin.family_id, kind)
     await db.commit()
 
-    try:
-        new_feed = await create_feed(kind, raw)
-    except RelayUnavailable:
-        raise HTTPException(
-            status_code=502,
-            detail="Could not reach the calendar relay",
-        )
-
-    old_id = sub.relay_id
-    set_relay_feed(sub, new_feed)
-    sub.publication_pending = True
-    sub.last_error = None
-
-    # Revoke the old feed (best effort).
-    if old_id:
+    # Use an independent session for network calls and writes.
+    async with _network_session_factory() as net_db:
         try:
-            await revoke_feed(old_id)
+            new_feed = await create_feed(kind, raw)
         except RelayUnavailable:
-            pass  # new feed is safe; old one is orphaned
+            raise HTTPException(
+                status_code=502,
+                detail="Could not reach the calendar relay",
+            )
 
-    _audit(db, sub, "rotated", admin.id)
-    await mark_family_subscriptions_dirty(db, admin.family_id)
-    await db.flush()
-    await db.refresh(sub)
-    return _detail_response(sub)
+        # Re-create the subscription object in the new session.
+        sub_result = await net_db.execute(
+            select(CalendarSubscription).where(
+                CalendarSubscription.family_id == admin.family_id,
+                CalendarSubscription.kind == kind,
+            ),
+        )
+        sub = sub_result.scalar_one_or_none()
+        old_id = sub.relay_id
+        set_relay_feed(sub, new_feed)
+        sub.active = True
+        sub.publication_pending = True
+        sub.last_error = None
+
+        # Revoke the old feed (best effort).
+        if old_id:
+            try:
+                await revoke_feed(old_id)
+            except RelayUnavailable:
+                pass  # new feed is safe; old one is orphaned
+
+        _audit(net_db, sub, "rotated", admin.id)
+        await mark_family_subscriptions_dirty(net_db, admin.family_id)
+        await net_db.commit()
+        return _detail_response(sub)
 
 
 # ---------------------------------------------------------------------------
@@ -292,5 +309,5 @@ async def revoke_subscription(
     sub.publication_pending = False
     _audit(db, sub, "revoked", admin.id)
     await mark_family_subscriptions_dirty(db, admin.family_id)
-    await db.flush()
+    await db.commit()
     return {"ok": True}

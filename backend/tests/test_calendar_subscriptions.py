@@ -768,19 +768,31 @@ async def _pin_admin(client, admin):
     """Log in admin with PIN (returns a PIN session)."""
     res = await client.post("/api/auth/login/pin", json={"user_id": admin["id"], "pin": SETUP["admin_pin"]})
     assert res.status_code == 200, res.text
-    return {"Cookie": _cookie(res), "id": admin["id"]}
+    return {"Cookie": _cookie(res), "id": admin["id"], "family_id": admin["family_id"]}
 
 
 @pytest.fixture
-def subscription_recorder(monkeypatch):
+def subscription_recorder(monkeypatch, db_engine):
     """Capture relay calls: create_feed and revoke_feed go through this recorder.
 
     Patch where the router imports from (not where the function is defined),
     because the router does `from app.integrations.calendar_relay import
     create_feed, revoke_feed` which binds the names at import time.
+
+    Also monkeypatches the router's network session factory so that writes
+    go to the test database instead of production.
     """
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
     from app.integrations import calendar_relay
     from app.routers import calendar_subscriptions
+
+    # Replace the router's network session factory with one that uses
+    # the test engine, so writes land in the in-memory test database.
+    monkeypatch.setattr(
+        calendar_subscriptions,
+        "_network_session_factory",
+        async_sessionmaker(bind=db_engine, class_=AsyncSession, expire_on_commit=False),
+    )
 
     class Recorder:
         creates: list[tuple[str, bytes]] = []
@@ -943,6 +955,78 @@ async def test_create_reuses_existing_subscription_and_revokes_old_feed(
     assert len(listed) == 1
     assert listed[0]["kind"] == "titles"
     assert listed[0]["active"] is True
+
+
+async def test_create_relay_unavailable_during_recreate(
+    client, password_admin, subscription_recorder,
+):
+    """When relay is unavailable during re-create, the subscription row
+    remains unchanged and the old URL is not exposed."""
+    # Create the initial subscription.
+    res = await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    assert res.status_code == 201
+    old_url = res.json()["subscription_url"]
+    old_id = (await _sub(client, _h(password_admin), "titles"))["id"]
+    assert len(subscription_recorder.creates) == 1
+    assert len(subscription_recorder.revokes) == 0
+
+    # Make the relay unavailable for the re-create.
+    subscription_recorder.error = RelayUnavailable("relay down")
+
+    res = await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    assert res.status_code == 502
+
+    # Subscription row must be unchanged: same ID, same URL, still active.
+    # last_error is NOT set because the 502 was raised before any row modification.
+    listed = (await client.get("/api/calendar/subscriptions", headers=_h(password_admin))).json()
+    assert len(listed) == 1
+    assert listed[0]["id"] == old_id
+    assert listed[0]["active"] is True
+    assert listed[0]["last_error"] is None  # row was never modified on 502
+
+    # The old URL must not be exposed (reveal returns 400 since no new feed was created).
+    reveal = await client.post("/api/calendar/subscriptions/titles/reveal", headers=_h(password_admin))
+    # The subscription is still active, so reveal returns the old URL —
+    # but the new (uncommitted) URL was never created, so no new URL is exposed.
+    assert reveal.status_code == 200
+    assert reveal.json()["subscription_url"] == old_url
+
+    # Only one create was recorded (the original); no new feed was created.
+    assert len(subscription_recorder.creates) == 1
+    assert len(subscription_recorder.revokes) == 0  # old feed not revoked on failure
+
+
+async def test_rotate_relay_unavailable_retains_new_feed(
+    client, password_admin, subscription_recorder,
+):
+    """When relay is unavailable during rotate, the existing feed is
+    retained (old one orphaned) and no new URL is exposed."""
+    # Create the initial subscription.
+    res = await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    assert res.status_code == 201
+    old_url = res.json()["subscription_url"]
+
+    # Make the relay unavailable for the rotate.
+    subscription_recorder.error = RelayUnavailable("relay down")
+
+    res = await client.post("/api/calendar/subscriptions/titles/rotate", headers=_h(password_admin))
+    assert res.status_code == 502
+
+    # The subscription row must be unchanged: same URL, still active.
+    # last_error is NOT set because the 502 was raised before any row modification.
+    listed = (await client.get("/api/calendar/subscriptions", headers=_h(password_admin))).json()
+    assert len(listed) == 1
+    assert listed[0]["active"] is True
+    assert listed[0]["last_error"] is None  # row was never modified on 502
+
+    # Reveal must still return the old URL (no new feed was created).
+    reveal = await client.post("/api/calendar/subscriptions/titles/reveal", headers=_h(password_admin))
+    assert reveal.status_code == 200
+    assert reveal.json()["subscription_url"] == old_url
+
+    # Only the original create; no rotate create or revoke occurred.
+    assert len(subscription_recorder.creates) == 1
+    assert len(subscription_recorder.revokes) == 0
 
 
 async def test_reveal_on_nonexistent_subscription_returns_404(
