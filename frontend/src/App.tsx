@@ -15,6 +15,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const ManageUsers = lazy(() => import('./pages/ManageUsers'))
 const CalendarPage = lazy(() => import('./pages/CalendarPage'))
 const CalendarSettings = lazy(() => import('./pages/admin/CalendarSettings'))
+const CalendarSubscriptions = lazy(() => import('./pages/admin/CalendarSubscriptions'))
 const WallDisplays = lazy(() => import('./pages/admin/WallDisplays'))
 const WallLayout = lazy(() => import('./wall/WallLayout'))
 const PhotosPage = lazy(() => import('./pages/PhotosPage'))
@@ -94,6 +95,7 @@ function AppRoutes() {
           <Route element={<RequireAdmin />}>
             <Route path="/admin/users" element={<ManageUsers />} />
             <Route path="/admin/calendars" element={<CalendarSettings />} />
+            <Route path="/admin/subscriptions" element={<CalendarSubscriptions />} />
             <Route path="/admin/wall" element={<WallDisplays />} />
             <Route path="/admin/settings" element={<FamilySettings />} />
             <Route path="/admin/settings/:section" element={<FamilySettings />} />

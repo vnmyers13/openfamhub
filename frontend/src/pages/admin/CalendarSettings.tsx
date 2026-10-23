@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   useCalendarSources, useAddIcalSource, useSyncSource, useDeleteCalendarSource, useSourceLogs, useUpdateCalendarSource,
   type CalendarSource, type SourceChanges,
@@ -98,6 +99,7 @@ function EditSource({ source, onDone }: { source: CalendarSource; onDone: (saved
 }
 
 export default function CalendarSettings() {
+  const navigate = useNavigate()
   const { data: sources = [] } = useCalendarSources()
   const [url, setUrl] = useState('')
   const [name, setName] = useState('')
@@ -161,7 +163,15 @@ export default function CalendarSettings() {
 
         {/* Connected sources */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold text-white mb-3">Connected Sources</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-white">Connected Sources</h2>
+            <button
+              onClick={() => navigate('/admin/subscriptions')}
+              className="text-primary hover:text-primary-dark text-sm"
+            >
+              Calendar subscriptions →
+            </button>
+          </div>
           {sources.length === 0 && <p className="text-gray-400 text-sm">No sources configured yet.</p>}
           <div className="space-y-3">
             {sources.map((s) => (

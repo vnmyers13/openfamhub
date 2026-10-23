@@ -9,9 +9,15 @@ const FAMILY = { id: 'int', provider: 'internal', display_name: 'Family Calendar
 const SCHOOL = { id: 'sch', provider: 'ical', display_name: 'School', color_hex: '#059669',
   ics_url: 'https://example.test/s.ics', sync_interval_hours: 6, last_synced_at: null, sync_error: null, enabled: true }
 
-const renderPage = () => renderApp(<CalendarSettings />)
+const renderPage = (opts?: { routes?: Record<string, string> }) => renderApp(<CalendarSettings />, opts)
 
 describe('CalendarSettings', () => {
+  it('links to calendar subscriptions management', async () => {
+    mockApi({ 'GET /calendar/sources': [] })
+    renderPage({ routes: { '/admin/subscriptions': 'subscriptions' } })
+    expect(await screen.findByText('Calendar subscriptions →')).toBeTruthy()
+  })
+
   it('lists sources; only feeds can be synced or deleted', async () => {
     mockApi({ 'GET /calendar/sources': [FAMILY, SCHOOL] })
     renderPage()
