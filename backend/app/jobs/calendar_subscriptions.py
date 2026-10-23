@@ -3,7 +3,7 @@ from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
 from app.models.calendar_subscription import CalendarSubscription
-from app.services.calendar_subscriptions import publish_subscription
+from app.services.calendar_subscriptions import publication_due_conditions, publish_subscription
 
 
 async def publish_due_subscriptions() -> None:
@@ -11,8 +11,7 @@ async def publish_due_subscriptions() -> None:
     # fresh session; one failure cannot roll back another feed's delivery state.
     async with AsyncSessionLocal() as db:
         ids = (await db.execute(select(CalendarSubscription.id).where(
-            CalendarSubscription.active == True,
-            CalendarSubscription.publication_pending == True,
+            *publication_due_conditions(),
         ))).scalars().all()
     for subscription_id in ids:
         async with AsyncSessionLocal() as db:

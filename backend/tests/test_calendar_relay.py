@@ -91,6 +91,19 @@ async def test_provider_errors_and_redirects_never_follow_or_echo_the_provider(m
     assert len(calls) == 3
 
 
+@pytest.mark.parametrize("status", [401, 403])
+async def test_authentication_rejection_is_structured_and_tied_to_rejected_configuration(monkeypatch, status):
+    transport(monkeypatch, lambda r: httpx.Response(status, text="private provider body"))
+    with pytest.raises(relay.RelayUnavailable) as caught:
+        await relay.replace_feed("feed-1", ICS)
+    assert isinstance(caught.value, relay.RelayAuthenticationRejected)
+    identity = caught.value.configuration_identity
+    assert identity == relay.configuration_identity()
+    assert "private-management-token" not in identity and "relay.example" not in identity
+    monkeypatch.setattr(settings, "calendar_relay_token", "repaired-management-token")
+    assert relay.configuration_identity() != identity
+
+
 @pytest.mark.parametrize("body", [
     b"not json", b"null", b"[]", b"{}",
     json.dumps({**FEED, "relay_id": "../../evil"}).encode(),

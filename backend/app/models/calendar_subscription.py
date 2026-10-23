@@ -26,6 +26,10 @@ class CalendarSubscription(Base):
     publication_pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     last_published_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=True)
     last_error: Mapped[str] = mapped_column(Text, nullable=True)
+    # A keyed identity of the rejected configuration, never a credential. Its
+    # presence pauses delivery until the operator changes relay configuration.
+    auth_paused_config: Mapped[str] = mapped_column(String(64), nullable=True)
+    next_attempt_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), nullable=False, server_default=func.now(), onupdate=func.now()

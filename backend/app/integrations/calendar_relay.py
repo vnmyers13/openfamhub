@@ -5,6 +5,8 @@ that origin are validated but never fetched. Neither redirects nor environment
 proxies can move an authenticated management request to another destination.
 """
 import json
+import hashlib
+import hmac
 import logging
 import re
 from contextlib import aclosing
@@ -15,6 +17,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.core.config import settings
 from app.services import server_config as cfg
 
 TIMEOUT = httpx.Timeout(connect=5, read=15, write=15, pool=5)
@@ -43,6 +46,26 @@ class RelayFeed:
 
 class RelayUnavailable(Exception):
     """A safe message for the operator; never contains provider data."""
+
+
+class RelayAuthenticationRejected(RelayUnavailable):
+    """Structured 401/403, tied to the configuration actually sent."""
+
+    def __init__(self, configuration_identity: str):
+        super().__init__("calendar relay refused the access token")
+        self.configuration_identity = configuration_identity
+
+
+def _configuration_identity(base: str, token: str) -> str:
+    # Stable across restarts, domain-separated, and keyed against guessing weak
+    # operator tokens from the persisted value. Never store the token or URL.
+    message = b"openfamhub relay authentication\0" + json.dumps([base, token]).encode()
+    return hmac.new(settings.secret_key.encode(), message, hashlib.sha256).hexdigest()
+
+
+def configuration_identity() -> str:
+    """Identity of the current validated effective relay configuration."""
+    return _configuration_identity(*_configuration())
 
 
 def _configuration() -> tuple[str, str]:
@@ -92,7 +115,7 @@ async def _request(method: str, path: str, body: dict | None = None) -> tuple[by
                 "Authorization": "Bearer " + token, "Accept-Encoding": "identity",
             }, **({"json": body} if body is not None else {})) as response:
                 if response.status_code in (401, 403):
-                    raise RelayUnavailable("calendar relay refused the access token")
+                    raise RelayAuthenticationRejected(_configuration_identity(base, token))
                 expected = 201 if method == "POST" else 204
                 if response.status_code != expected:
                     raise RelayUnavailable("calendar relay returned an unexpected response")

@@ -2,6 +2,7 @@
 from contextlib import closing
 from datetime import date, datetime, timedelta, timezone
 import os
+import json
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -31,11 +32,14 @@ SECRET_URL = "https://relay.example/c/" + "s" * 43 + ".ics"
 @pytest.fixture(autouse=True)
 def fixed_clock(monkeypatch):
     class Clock(datetime):
+        current = NOW
+
         @classmethod
         def now(cls, tz=None):
-            return NOW if tz else NOW.replace(tzinfo=None)
+            return cls.current if tz else cls.current.replace(tzinfo=None)
 
     monkeypatch.setattr(subscriptions, "datetime", Clock)
+    return Clock
 
 
 async def source(db, *, family_id="family", **values):
@@ -374,7 +378,7 @@ async def test_event_edit_marks_both_active_feeds_dirty_only_after_commit(public
                for row in (await feed_states(factory)).values())
 
 
-async def test_relay_failure_keeps_local_event_change_pending_and_retries(publication_db, relay_recorder, monkeypatch):
+async def test_relay_failure_keeps_local_event_change_pending_and_retries(publication_db, relay_recorder, monkeypatch, fixed_clock):
     from app.integrations.calendar_relay import RelayUnavailable
 
     client, factory, headers, family_id = publication_db
@@ -386,11 +390,179 @@ async def test_relay_failure_keeps_local_event_change_pending_and_retries(public
     assert all(row.publication_pending and row.last_published_at is None
                and row.last_error == "Could not reach the calendar relay"
                for row in (await feed_states(factory)).values())
+    assert all(row.next_attempt_at == NOW + timedelta(seconds=60)
+               for row in (await feed_states(factory)).values())
     relay_recorder.error = None
+    await local_event(client, headers)  # calendar writes must not bypass backoff
+    fixed_clock.current = NOW + timedelta(seconds=59)
     await run_publication(factory, monkeypatch)
-    assert all(not row.publication_pending and row.last_error is None
+    assert relay_recorder.documents == {} and relay_recorder.attempts == 2
+    fixed_clock.current = NOW + timedelta(seconds=60)
+    await run_publication(factory, monkeypatch)
+    assert all(not row.publication_pending and row.last_error is None and row.next_attempt_at is None
                for row in (await feed_states(factory)).values())
     assert set(relay_recorder.documents) == {"titles", "full"}
+
+
+async def configure_relay(client, headers, **changes):
+    res = await client.put("/api/admin/server-settings", headers=headers, json=changes)
+    assert res.status_code == 200, res.text
+
+
+@pytest.fixture
+def rejecting_relay(monkeypatch):
+    import httpx
+    from app.integrations import calendar_relay
+
+    monkeypatch.setattr(settings, "calendar_relay_url", "")
+    monkeypatch.setattr(settings, "calendar_relay_token", "")
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        status = 204 if request.headers["Authorization"] == "Bearer repaired-token" else 401
+        return httpx.Response(status, stream=httpx.ByteStream(b""))
+
+    monkeypatch.setattr(calendar_relay, "_transport", lambda: httpx.MockTransport(handler))
+    return requests
+
+
+async def paused_feeds(publication_db, monkeypatch):
+    client, factory, headers, family_id = publication_db
+    await configure_relay(client, headers, calendar_relay_url="https://relay.example", calendar_relay_token="rejected-token")
+    await active_feeds(factory, family_id)
+    await local_event(client, headers)
+    await run_publication(factory, monkeypatch)
+    rows = await feed_states(factory)
+    assert all(row.auth_paused_config and row.publication_pending
+               and row.next_attempt_at is None and "configuration" in row.last_error
+               for row in rows.values())
+    return rows
+
+
+async def test_authentication_pause_requires_relay_configuration_repair(
+    publication_db, rejecting_relay, monkeypatch, fixed_clock,
+):
+    client, factory, headers, _ = publication_db
+    rows = await paused_feeds(publication_db, monkeypatch)
+    assert len(rejecting_relay) == 2
+    assert all("rejected-token" not in row.auth_paused_config and "relay.example" not in row.auth_paused_config
+               for row in rows.values())
+    fixed_clock.current = NOW + timedelta(days=1)
+    await local_event(client, headers)
+    await configure_relay(client, headers, smtp_host="mail.example")
+    await run_publication(factory, monkeypatch)
+    await run_publication(factory, monkeypatch)
+    assert len(rejecting_relay) == 2
+    await configure_relay(client, headers, calendar_relay_token="still-rejected")
+    await run_publication(factory, monkeypatch)
+    assert len(rejecting_relay) == 4
+    await run_publication(factory, monkeypatch)
+    assert len(rejecting_relay) == 4  # a bad repair pauses against the new identity
+    await configure_relay(client, headers, calendar_relay_token="")
+    await run_publication(factory, monkeypatch)
+    await configure_relay(client, headers, calendar_relay_token="still-rejected")
+    await run_publication(factory, monkeypatch)
+    assert len(rejecting_relay) == 4  # absent config / restoring the rejected value aren't repair
+    await configure_relay(client, headers, calendar_relay_token="repaired-token")
+    await run_publication(factory, monkeypatch)
+    assert len(rejecting_relay) == 6
+    assert all(row.auth_paused_config is None and row.next_attempt_at is None
+               and not row.publication_pending and row.last_error is None
+               for row in (await feed_states(factory)).values())
+
+
+RESTART_PROBE = r'''
+import asyncio, json
+import httpx
+from sqlalchemy import select
+from app.core.database import AsyncSessionLocal
+from app.integrations import calendar_relay
+from app.jobs.calendar_subscriptions import publish_due_subscriptions
+from app.models.calendar_subscription import CalendarSubscription
+from app.services import server_config
+
+async def main():
+    calls = []
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(204, stream=httpx.ByteStream(b""))
+    calendar_relay._transport = lambda: httpx.MockTransport(handler)
+    async with AsyncSessionLocal() as db:
+        await server_config.load(db)
+    await publish_due_subscriptions()
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(select(CalendarSubscription))).scalars().all()
+        print(json.dumps({"calls": len(calls), "paused": [bool(row.auth_paused_config) for row in rows],
+                          "pending": [row.publication_pending for row in rows]}))
+asyncio.run(main())
+'''
+
+
+@pytest.mark.parametrize("repaired", [False, True])
+async def test_restart_preserves_pause_unless_environment_configuration_is_repaired(publication_db, rejecting_relay, monkeypatch, repaired):
+    _, factory, _, _ = publication_db
+    await paused_feeds(publication_db, monkeypatch)
+    env = {**os.environ, "DATABASE_URL": str(factory.kw["bind"].url), "SECRET_KEY": settings.secret_key,
+           "CALENDAR_RELAY_URL": "", "CALENDAR_RELAY_TOKEN": "repaired-token" if repaired else ""}
+    proc = subprocess.run([sys.executable, "-c", RESTART_PROBE], cwd=BACKEND, env=env,
+                          text=True, capture_output=True, timeout=30)
+    assert proc.returncode == 0, proc.stderr
+    expected = ({"calls": 2, "paused": [False, False], "pending": [False, False]} if repaired else
+                {"calls": 0, "paused": [True, True], "pending": [True, True]})
+    assert json.loads(proc.stdout) == expected
+
+
+@pytest.mark.parametrize("authentication", [False, True])
+async def test_delivery_failure_still_persists_pause_or_backoff_after_concurrent_edit(
+    publication_db, rejecting_relay, monkeypatch, authentication,
+):
+    from app.integrations import calendar_relay
+
+    client, factory, headers, family_id = publication_db
+    await configure_relay(client, headers, calendar_relay_url="https://relay.example", calendar_relay_token="rejected-token")
+    await active_feeds(factory, family_id)
+    event_id = await local_event(client, headers)
+
+    async def failure_during_edit(relay_id, raw):
+        res = await client.patch(f"/api/calendar/events/{event_id}", headers=headers,
+                                 json={"title": "Committed during delivery " + relay_id})
+        assert res.status_code == 200
+        if authentication:
+            raise calendar_relay.RelayAuthenticationRejected(calendar_relay.configuration_identity())
+        raise calendar_relay.RelayUnavailable("private provider error")
+
+    monkeypatch.setattr(calendar_relay, "replace_feed", failure_during_edit)
+    await run_publication(factory, monkeypatch)
+    rows = await feed_states(factory)
+    assert all(row.publication_pending for row in rows.values())
+    if authentication:
+        assert all(row.auth_paused_config for row in rows.values())
+    else:
+        assert all(row.next_attempt_at == NOW + timedelta(seconds=60) for row in rows.values())
+
+
+async def test_retry_deadline_survives_reopening_database(publication_db, relay_recorder, monkeypatch, fixed_clock):
+    client, factory, headers, family_id = publication_db
+    await active_feeds(factory, family_id)
+    await local_event(client, headers)
+    relay_recorder.error = RuntimeError("private provider error")
+    await run_publication(factory, monkeypatch)
+    engine = create_async_engine(str(factory.kw["bind"].url))
+    restarted = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with restarted() as db:
+            deadlines = (await db.execute(select(CalendarSubscription.next_attempt_at))).scalars().all()
+            assert deadlines == [NOW + timedelta(seconds=60)] * 2
+        fixed_clock.current = NOW + timedelta(seconds=59)
+        await run_publication(restarted, monkeypatch)
+        assert relay_recorder.attempts == 2
+        fixed_clock.current += timedelta(seconds=1)
+        relay_recorder.error = None
+        await run_publication(restarted, monkeypatch)
+        assert relay_recorder.attempts == 4
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.parametrize("operation", ["disable", "delete", "metadata", "enable"])
@@ -527,11 +699,15 @@ def test_migration_upgrades_existing_database_and_downgrades_cleanly(tmp_path):
     migrate("upgrade", "f3c4d5e6f015")
     with closing(sqlite3.connect(db)) as con, con:
         con.execute("INSERT INTO families (id, name, timezone, settings_json, is_deleted) VALUES ('family', 'Family', 'UTC', '{}', 0)")
+    migrate("upgrade", "a4d5e6f7a016")
+    with closing(sqlite3.connect(db)) as con, con:
+        con.execute("INSERT INTO calendar_subscriptions (id, family_id, kind, active, publication_pending) VALUES ('legacy', 'legacy', 'titles', 1, 1)")
     migrate("upgrade", "head")
     with closing(sqlite3.connect(db)) as con, con:
         tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"calendar_subscriptions", "calendar_subscription_audits"} <= tables
         assert con.execute("SELECT name FROM families").fetchone() == ("Family",)
+        assert con.execute("SELECT active, publication_pending, auth_paused_config, next_attempt_at FROM calendar_subscriptions WHERE id='legacy'").fetchone() == (1, 1, None, None)
         con.execute("INSERT INTO calendar_subscriptions (id, family_id, kind) VALUES ('t', 'family', 'titles')")
         con.execute("INSERT INTO calendar_subscriptions (id, family_id, kind) VALUES ('f', 'family', 'full')")
         with pytest.raises(sqlite3.IntegrityError):
@@ -540,6 +716,11 @@ def test_migration_upgrades_existing_database_and_downgrades_cleanly(tmp_path):
             con.execute("INSERT INTO calendar_subscriptions (id, family_id, kind) VALUES ('bad', 'family', 'other')")
         with pytest.raises(sqlite3.IntegrityError):
             con.execute("INSERT INTO calendar_subscription_audits (id, subscription_id, family_id, action, actor_user_id) VALUES ('bad', 't', 'family', 'other', 'admin')")
+    migrate("downgrade", "a4d5e6f7a016")
+    with closing(sqlite3.connect(db)) as con:
+        columns = {r[1] for r in con.execute("PRAGMA table_info(calendar_subscriptions)")}
+        assert not {"auth_paused_config", "next_attempt_at"} & columns
+        assert con.execute("SELECT active, publication_pending FROM calendar_subscriptions WHERE id='legacy'").fetchone() == (1, 1)
     migrate("downgrade", "f3c4d5e6f015")
     with closing(sqlite3.connect(db)) as con, con:
         tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}

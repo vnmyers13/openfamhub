@@ -24,6 +24,31 @@ from app.models.calendar_source import CalendarSource
 from app.models.calendar_subscription import CalendarSubscription
 from app.services import server_config
 
+RETRY_INTERVAL = timedelta(seconds=60)
+
+
+def publication_due_conditions() -> tuple:
+    """Shared selection/last-minute gate, using durable state, not process flags.
+
+    A validated effective URL/token change is the operator's repair signal,
+    including an environment change followed by restart. Unrelated settings,
+    calendar edits, restarts, and absent/invalid configuration cannot unpause.
+    """
+    pause_ready = CalendarSubscription.auth_paused_config.is_(None)
+    try:
+        identity = calendar_relay.configuration_identity()
+    except calendar_relay.RelayUnavailable:
+        pass
+    else:
+        pause_ready = or_(pause_ready, CalendarSubscription.auth_paused_config != identity)
+    return (
+        CalendarSubscription.active == True,
+        CalendarSubscription.publication_pending == True,
+        pause_ready,
+        or_(CalendarSubscription.next_attempt_at.is_(None),
+            CalendarSubscription.next_attempt_at <= datetime.now(timezone.utc)),
+    )
+
 
 async def mark_family_subscriptions_dirty(db: AsyncSession, family_id: str) -> None:
     """Durable outbox marker, committed/rolled back with the calendar mutation.
@@ -49,7 +74,12 @@ async def publish_subscription(db: AsyncSession, subscription: CalendarSubscript
     Keep the durable marker until success; a crash after sending simply retries
     the same full replacement. A compare-and-set preserves edits during I/O.
     """
-    if not subscription.active or not subscription.publication_pending:
+    subscription = (await db.execute(select(CalendarSubscription).where(
+        CalendarSubscription.id == subscription.id,
+        CalendarSubscription.family_id == subscription.family_id,
+        *publication_due_conditions(),
+    ).execution_options(populate_existing=True))).scalar_one_or_none()
+    if subscription is None:
         return
     subscription_id, family_id = subscription.id, subscription.family_id
     generation, relay_id = subscription.updated_at, subscription.relay_id
@@ -58,18 +88,34 @@ async def publish_subscription(db: AsyncSession, subscription: CalendarSubscript
         # End the snapshot's read transaction before waiting for the network.
         await db.commit()
         await calendar_relay.replace_feed(relay_id, raw)
+    except calendar_relay.RelayAuthenticationRejected as exc:
+        values = {
+            "auth_paused_config": exc.configuration_identity,
+            "next_attempt_at": None,
+            "last_error": "Calendar relay authentication failed; repair the relay configuration",
+        }
     except Exception:
         # Never persist/log provider exceptions (URLs or credentials may occur).
-        values = {"last_error": "Could not reach the calendar relay"}
+        values = {
+            "last_error": "Could not reach the calendar relay",
+            "auth_paused_config": None,
+            "next_attempt_at": datetime.now(timezone.utc) + RETRY_INTERVAL,
+        }
     else:
         values = {
             "publication_pending": False,
             "last_published_at": datetime.now(timezone.utc),
             "last_error": None,
+            "auth_paused_config": None,
+            "next_attempt_at": None,
         }
     # Avoid SQLite's second-resolution func.now(): it also writes a different
     # text representation from UTCDateTime, which would break the next CAS.
-    values["updated_at"] = max(datetime.now(timezone.utc), generation + timedelta(microseconds=1))
+    succeeded = "publication_pending" in values
+    # Failures must persist pause/backoff even if an edit happened during I/O,
+    # without overwriting that edit's dirty generation or clearing its marker.
+    values["updated_at"] = (max(datetime.now(timezone.utc), generation + timedelta(microseconds=1))
+                            if succeeded else CalendarSubscription.updated_at)
     same_generation = CalendarSubscription.updated_at == generation
     if generation.microsecond == 0:
         # Lifecycle writes may still use the model's CURRENT_TIMESTAMP default.
@@ -83,7 +129,7 @@ async def publish_subscription(db: AsyncSession, subscription: CalendarSubscript
         CalendarSubscription.relay_id == relay_id,
         CalendarSubscription.active == True,
         CalendarSubscription.publication_pending == True,
-        same_generation,
+        same_generation if succeeded else True,
     ).values(**values).execution_options(synchronize_session=False))
     await db.flush()
 
