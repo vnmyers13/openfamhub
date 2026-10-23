@@ -726,3 +726,290 @@ def test_migration_upgrades_existing_database_and_downgrades_cleanly(tmp_path):
         tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert "calendar_subscriptions" not in tables and "calendar_subscription_audits" not in tables
         assert con.execute("SELECT name FROM families").fetchone() == ("Family",)
+
+
+# ===================================================================
+# Task 4: Password-gated subscription management API tests
+# ===================================================================
+
+from app.integrations.calendar_relay import (
+    RelayUnavailable,
+    create_feed as _create_feed,
+    revoke_feed as _revoke_feed,
+)
+from app.schemas.calendar_subscription import (
+    CalendarSubscriptionDetailResponse,
+    CalendarSubscriptionListResponse,
+)
+
+# Import fixtures and helpers from test_phase2 which defines admin, _member, _h.
+from tests.test_phase2 import SETUP, _cookie, _h, _member, TestAdminPasswordGate
+
+
+@pytest.fixture
+async def admin(client):
+    """Set up the first admin user (password session)."""
+    res = await client.post("/api/auth/setup", json=SETUP)
+    assert res.status_code == 200, res.text
+    return {"Cookie": _cookie(res), "id": res.json()["id"], "family_id": res.json()["family_id"]}
+
+
+@pytest.fixture
+async def password_admin(client, admin):
+    """Admin with a password session (unlocked)."""
+    res = await client.get("/api/auth/me", headers=_h(admin))
+    assert res.status_code == 200
+    me = res.json()
+    assert me["auth_method"] == "password"
+    return {"Cookie": admin["Cookie"], "id": admin["id"], "family_id": res.json()["family_id"]}
+
+
+async def _pin_admin(client, admin):
+    """Log in admin with PIN (returns a PIN session)."""
+    res = await client.post("/api/auth/login/pin", json={"user_id": admin["id"], "pin": SETUP["admin_pin"]})
+    assert res.status_code == 200, res.text
+    return {"Cookie": _cookie(res), "id": admin["id"]}
+
+
+@pytest.fixture
+def subscription_recorder(monkeypatch):
+    """Capture relay calls: create_feed and revoke_feed go through this recorder.
+
+    Patch where the router imports from (not where the function is defined),
+    because the router does `from app.integrations.calendar_relay import
+    create_feed, revoke_feed` which binds the names at import time.
+    """
+    from app.integrations import calendar_relay
+    from app.routers import calendar_subscriptions
+
+    class Recorder:
+        creates: list[tuple[str, bytes]] = []
+        revokes: list[str] = []
+        error: Exception | None = None
+        _counter = 0
+
+        async def create(self, kind, ics):
+            if self.error:
+                raise self.error
+            self._counter += 1
+            self.creates.append((kind, ics))
+            return RelayFeed(
+                "feed-" + kind + "-" + str(self._counter),
+                "https://relay.example/c/" + kind + "-" + str(self._counter) + ".ics",
+            )
+
+        async def revoke(self, relay_id):
+            if self.error:
+                raise self.error
+            self.revokes.append(relay_id)
+
+    rec = Recorder()
+    monkeypatch.setattr(calendar_relay, "create_feed", rec.create)
+    monkeypatch.setattr(calendar_relay, "revoke_feed", rec.revoke)
+    monkeypatch.setattr(calendar_subscriptions, "create_feed", rec.create)
+    monkeypatch.setattr(calendar_subscriptions, "revoke_feed", rec.revoke)
+    return rec
+
+
+async def _sub(client, headers, kind):
+    """Return the subscription dict for kind, or None."""
+    res = await client.get("/api/calendar/subscriptions", headers=headers)
+    assert res.status_code == 200
+    for s in res.json():
+        if s["kind"] == kind:
+            return s
+    return None
+
+
+async def test_only_unlocked_admin_can_create_or_reveal_subscription_url(client, admin, monkeypatch):
+    """Members and PIN admins get 403 on all write endpoints."""
+    member = await _member(client, admin)
+
+    # Member: plain 403.
+    res = await client.post("/api/calendar/subscriptions/titles", headers=_h(member))
+    assert res.status_code == 403
+
+    # PIN admin: password_required.
+    pin_admin = await _pin_admin(client, admin)
+    res = await client.post("/api/calendar/subscriptions/titles", headers=_h(pin_admin))
+    assert res.status_code == 403
+    assert res.json()["detail"] == "password_required"
+
+    # Reveal: same gate.
+    res = await client.post("/api/calendar/subscriptions/titles/reveal", headers=_h(member))
+    assert res.status_code == 403
+    res = await client.post("/api/calendar/subscriptions/titles/reveal", headers=_h(pin_admin))
+    assert res.status_code == 403
+    assert res.json()["detail"] == "password_required"
+
+
+async def test_list_response_never_contains_url_but_reveal_returns_only_requested_kind(
+    client, password_admin, subscription_recorder,
+):
+    """List never leaks URLs; reveal returns only the requested kind's URL."""
+    res = await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    assert res.status_code == 201
+    titles_data = res.json()
+
+    list_res = await client.get("/api/calendar/subscriptions", headers=_h(password_admin))
+    assert list_res.status_code == 200
+    listed = list_res.json()
+    assert len(listed) == 1
+    assert "subscription_url" not in listed[0]
+
+    reveal_titles = await client.post("/api/calendar/subscriptions/titles/reveal", headers=_h(password_admin))
+    assert "titles" in reveal_titles.json()["subscription_url"]
+
+    res = await client.post("/api/calendar/subscriptions/full", headers=_h(password_admin))
+    assert res.status_code == 201
+    full_data = res.json()
+
+    listed = (await client.get("/api/calendar/subscriptions", headers=_h(password_admin))).json()
+    assert len(listed) == 2
+    for item in listed:
+        assert "subscription_url" not in item
+
+    reveal_full = await client.post("/api/calendar/subscriptions/full/reveal", headers=_h(password_admin))
+    assert "full" in reveal_full.json()["subscription_url"]
+
+
+async def test_rotating_titles_invalidates_only_titles_and_revealing_full_still_returns_its_original_url(
+    client, password_admin, subscription_recorder,
+):
+    """Rotating one kind does not affect the other kind's URL."""
+    titles_res = await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    assert titles_res.status_code == 201
+    titles_url = titles_res.json()["subscription_url"]
+
+    full_res = await client.post("/api/calendar/subscriptions/full", headers=_h(password_admin))
+    assert full_res.status_code == 201
+    full_url = full_res.json()["subscription_url"]
+
+    old_titles_id = (await _sub(client, _h(password_admin), "titles"))["id"]
+
+    rotate_res = await client.post("/api/calendar/subscriptions/titles/rotate", headers=_h(password_admin))
+    assert rotate_res.status_code == 201
+
+    assert len(subscription_recorder.creates) == 3  # titles + full + rotate
+    assert len(subscription_recorder.revokes) == 1  # old titles revoked
+
+    reveal_full = await client.post("/api/calendar/subscriptions/full/reveal", headers=_h(password_admin))
+    assert reveal_full.json()["subscription_url"] == full_url
+
+    new_titles_url = rotate_res.json()["subscription_url"]
+    assert new_titles_url != titles_url
+    reveal_after = await client.post("/api/calendar/subscriptions/titles/reveal", headers=_h(password_admin))
+    assert reveal_after.json()["subscription_url"] == new_titles_url
+
+
+async def test_revoke_marks_only_requested_feed_inactive_and_audits_action(
+    client, password_admin, subscription_recorder,
+):
+    """Revoking one kind marks only it inactive, audits the action."""
+    await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    await client.post("/api/calendar/subscriptions/full", headers=_h(password_admin))
+
+    res = await client.delete("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    assert res.status_code == 200
+
+    listed = (await client.get("/api/calendar/subscriptions", headers=_h(password_admin))).json()
+    by_kind = {s["kind"]: s for s in listed}
+    assert by_kind["titles"]["active"] is False
+    assert by_kind["full"]["active"] is True
+
+    assert len(subscription_recorder.revokes) == 1
+    assert subscription_recorder.revokes[0].startswith("feed-titles")
+
+    reveal_full = await client.post("/api/calendar/subscriptions/full/reveal", headers=_h(password_admin))
+    assert reveal_full.status_code == 200
+    assert "subscription_url" in reveal_full.json()
+
+
+async def test_create_reuses_existing_subscription_and_revokes_old_feed(
+    client, password_admin, subscription_recorder,
+):
+    """Re-creating a subscription revokes the old feed and creates a new one."""
+    res = await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    assert res.status_code == 201
+    assert len(subscription_recorder.creates) == 1
+    assert len(subscription_recorder.revokes) == 0
+
+    res = await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    assert res.status_code == 201
+    assert len(subscription_recorder.creates) == 2  # original + recreate
+    assert len(subscription_recorder.revokes) == 1  # old feed revoked
+
+    listed = (await client.get("/api/calendar/subscriptions", headers=_h(password_admin))).json()
+    assert len(listed) == 1
+    assert listed[0]["kind"] == "titles"
+    assert listed[0]["active"] is True
+
+
+async def test_reveal_on_nonexistent_subscription_returns_404(
+    client, password_admin,
+):
+    """Revealing a kind that was never created returns 404."""
+    res = await client.post("/api/calendar/subscriptions/full/reveal", headers=_h(password_admin))
+    assert res.status_code == 404
+
+
+async def test_reveal_on_inactive_subscription_returns_400(
+    client, password_admin, subscription_recorder,
+):
+    """Revealing an inactive (revoked) subscription returns 400."""
+    await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    await client.delete("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+
+    res = await client.post("/api/calendar/subscriptions/titles/reveal", headers=_h(password_admin))
+    assert res.status_code == 400
+
+
+async def test_list_is_empty_when_no_subscriptions_exist(
+    client, password_admin,
+):
+    """An empty family returns an empty list, not an error."""
+    res = await client.get("/api/calendar/subscriptions", headers=_h(password_admin))
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+async def test_delete_nonexistent_subscription_returns_404(
+    client, password_admin,
+):
+    """Deleting a kind that was never created returns 404."""
+    res = await client.delete("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    assert res.status_code == 404
+
+
+async def test_rotate_nonexistent_subscription_returns_404(
+    client, password_admin,
+):
+    """Rotating a kind that was never created returns 404."""
+    res = await client.post("/api/calendar/subscriptions/titles/rotate", headers=_h(password_admin))
+    assert res.status_code == 404
+
+
+async def test_audit_entries_record_all_actions(
+    client, password_admin, subscription_recorder,
+):
+    """Every lifecycle action creates an audit entry."""
+    from sqlalchemy import select
+    from app.models.calendar_subscription import CalendarSubscription, CalendarSubscriptionAudit
+
+    await client.post("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+    await client.post("/api/calendar/subscriptions/titles/reveal", headers=_h(password_admin))
+    await client.post("/api/calendar/subscriptions/titles/rotate", headers=_h(password_admin))
+    await client.delete("/api/calendar/subscriptions/titles", headers=_h(password_admin))
+
+    from app.core.database import get_db
+    from app.main import app as fastapi_app
+    db = fastapi_app.dependency_overrides[get_db]()
+    audits = (await db.execute(
+        select(CalendarSubscriptionAudit).where(
+            CalendarSubscriptionAudit.family_id == password_admin["family_id"],
+        ).order_by(CalendarSubscriptionAudit.created_at),
+    )).scalars().all()
+
+    actions = [a.action for a in audits]
+    assert actions == ["created", "revealed", "rotated", "revoked"]
+    assert all(a.actor_user_id == password_admin["id"] for a in audits)
