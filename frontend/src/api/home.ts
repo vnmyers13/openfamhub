@@ -72,6 +72,15 @@ export function useDashboardSummary(scope: 'family' | 'mine' = 'family') {
   })
 }
 
+/** Birthdays in the current calendar month, sorted by day of month. */
+export function useMonthlyBirthdays() {
+  return useQuery({
+    queryKey: ['birthdays-monthly'],
+    queryFn: () => get<UpcomingBirthday[]>('/dashboard/birthdays/monthly'),
+    refetchInterval: 5 * 60_000,
+  })
+}
+
 export function useWeather() {
   return useQuery({ queryKey: ['weather'], queryFn: () => get<Weather>('/weather'), refetchInterval: 15 * 60_000 })
 }

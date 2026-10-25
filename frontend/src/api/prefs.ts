@@ -14,6 +14,8 @@ export interface NotificationPrefs {
   daily_time: string  // HH:MM, family timezone
   rewards: boolean  // admins
   birthdays: boolean  // the day before, at daily_time
+  birthdays_week_before: boolean  // 7 days before, at daily_time
+  birthdays_day_of: boolean  // on the day, at daily_time
   pantry: boolean  // members and admins: use-by dates, at daily_time
   allowance: boolean  // their weekly allowance was paid
   ntfy_topic: string | null  // their own topic on the server's ntfy
@@ -27,7 +29,7 @@ export interface NotificationPrefs {
 }
 
 export const DEFAULT_NOTIFICATIONS: NotificationPrefs = { events: 'off', event_minutes: 15, daily: true, daily_time: '07:00', rewards: true,
-  birthdays: true, pantry: true, allowance: true, ntfy_topic: null, email_to: null,
+  birthdays: true, birthdays_week_before: true, birthdays_day_of: true, pantry: true, allowance: true, ntfy_topic: null, email_to: null,
   water: false, water_every: 120, water_from: '09:00', water_until: '20:00', mindful: false, mindful_time: '15:00',
 }
 

@@ -61,6 +61,24 @@ async def upcoming(db: AsyncSession, family_id: str, today: date, days: int = 30
     return sorted(out, key=lambda b: (b.days_away, b.display_name.lower()))
 
 
+async def monthly(db: AsyncSession, family_id: str, today: date) -> list[Upcoming]:
+    """All birthdays in the current calendar month, sorted by day of month."""
+    first = today.replace(day=1)
+    # Last day of month: first of next month minus one day
+    if today.month == 12:
+        last = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
+    else:
+        last = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+    out = []
+    for u in await _members(db, family_id):
+        nxt = next_birthday(u.birthday, today)
+        if first <= nxt <= last:
+            out.append(Upcoming(user_id=u.id, display_name=u.display_name, color_hex=u.color_hex,
+                                avatar_value=u.avatar_value, date=nxt, turns=age_on(u.birthday, nxt),
+                                days_away=(nxt - today).days))
+    return sorted(out, key=lambda b: (b.date.day, b.display_name.lower()))
+
+
 async def birthday_events(db: AsyncSession, family_id: str, start: datetime, end: datetime) -> list[CalendarEventResponse]:
     """All-day entries for birthdays overlapping [start, end). Read-only: they
     carry an external_uid, which the app treats like a synced event."""

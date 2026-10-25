@@ -188,22 +188,50 @@ def _morning(prefs: NotificationPrefs, local: datetime) -> bool:
 
 
 async def _birthdays(db, family: Family, people: list[User], local: datetime) -> int:
-    tomorrow = local.date() + timedelta(days=1)
+    """Day-before, week-before, and day-of birthday notifications.
+
+    - **Day-before** (`birthdays`): "Tomorrow: {name} turns {age}" 7 days before the birthday.
+    - **Week-before** (`birthdays_week_before`): "Next week: {name} turns {age}" 7 days before.
+    - **Day-of** (`birthdays_day_of`): "Happy Birthday, {name}! (turns {age})" on the birthday.
+
+    The birthday person themselves never receives any of these.
+    """
+    today = local.date()
+    tomorrow = today + timedelta(days=1)
+    a_week = today + timedelta(days=7)
     rows = (await db.execute(
         select(User.id, User.display_name, User.birthday)
         .where(User.family_id == family.id, User.is_deleted == False, User.birthday.is_not(None))  # noqa: E712
         .order_by(User.display_name)
     )).all()
-    tomorrows = [(uid, name, born) for uid, name, born in rows if next_birthday(born, tomorrow) == tomorrow]
     sent = 0
-    for uid, name, born in tomorrows:
-        payload = {"title": f"Tomorrow: {name} turns {age_on(born, tomorrow)}", "body": "Their birthday is tomorrow.",
-                   "url": "/calendar"}
+    for uid, name, born in rows:
+        nxt = next_birthday(born, today)
+        nxt_a_week = next_birthday(born, a_week)
         for user in people:
             prefs = notification_prefs(user)
-            if user.id == uid or not prefs.birthdays or not _morning(prefs, local):
+            if user.id == uid:
+                continue  # never notify the birthday person about themselves
+            if not _morning(prefs, local):
                 continue
-            sent += await _push(db, family.id, user, "birthday", f"{uid}:{tomorrow.isoformat()}", payload)
+            # Day-before: next birthday is tomorrow
+            if prefs.birthdays and nxt == tomorrow:
+                age = age_on(born, tomorrow)
+                payload = {"title": f"Tomorrow: {name} turns {age}", "body": "Their birthday is tomorrow.",
+                           "url": "/calendar"}
+                sent += await _push(db, family.id, user, "birthday", f"{uid}:{tomorrow.isoformat()}", payload)
+            # Week-before: next birthday is 7 days away
+            if prefs.birthdays_week_before and nxt_a_week == a_week:
+                age = age_on(born, a_week)
+                payload = {"title": f"Next week: {name} turns {age}", "body": "Their birthday is next week.",
+                           "url": "/calendar"}
+                sent += await _push(db, family.id, user, "birthday_week", f"{uid}:{a_week.isoformat()}", payload)
+            # Day-of: next birthday is today (and it's the actual birthday day)
+            if prefs.birthdays_day_of and nxt == today:
+                age = age_on(born, today)
+                payload = {"title": f"Happy Birthday, {name}! (turns {age})", "body": "Today is their birthday!",
+                           "url": "/calendar"}
+                sent += await _push(db, family.id, user, "birthday_day", f"{uid}:{today.isoformat()}", payload)
     return sent
 
 

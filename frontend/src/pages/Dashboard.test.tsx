@@ -68,7 +68,9 @@ describe('Dashboard', () => {
 
   it('shows my day, meals, birthdays, stars and sync status', async () => {
     signIn('mom', 'admin')
-    homeApi()
+    homeApi({ 'GET /dashboard/summary': summary({ birthdays: [
+      { user_id: 'kid', display_name: 'Kid', color_hex: '#059669', avatar_value: null, date: TODAY, turns: 9, days_away: 0 },
+    ], announcements: [] }) })
     renderApp(<Dashboard />)
     expect(await screen.findByText('No events scheduled for today.')).toBeTruthy()
     const myDay = screen.getByRole('region', { name: 'My Day' })
@@ -127,7 +129,7 @@ describe('Dashboard', () => {
     renderApp(<Dashboard />)
     expect(await screen.findByText('Nothing planned today.')).toBeTruthy()
     expect(screen.queryByText('My points')).toBeNull()
-    expect(screen.getByText('None in the next month.')).toBeTruthy()
+    expect(screen.getByText('None this month.')).toBeTruthy()
     expect(screen.getByText('Nothing posted.')).toBeTruthy()
     expect(screen.queryByLabelText('New announcement')).toBeNull()
     expect(screen.queryByRole('region', { name: 'Sync Status' })).toBeNull()

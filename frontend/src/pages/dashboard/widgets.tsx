@@ -249,21 +249,20 @@ export function MealsToday({ summary }: { summary?: DashboardSummary }) {
 }
 
 export function Birthdays({ summary }: { summary?: DashboardSummary }) {
-  if (!summary) return <Card title="Birthdays"><Pending /></Card>
+  const list = summary?.birthdays ?? []
+  if (list.length === 0) return <Card title="Birthdays"><p className="text-sm text-slate-400">None this month.</p></Card>
   return (
     <Card title="Birthdays">
-      {summary.birthdays.length === 0 ? <p className="text-sm text-slate-400">None in the next month.</p> : (
-        <ul className="space-y-2">
-          {summary.birthdays.map((b) => (
-            <li key={b.user_id} className="flex items-center gap-3">
-              <Avatar name={b.display_name} color={b.color_hex} emoji={b.avatar_value} className="h-8 w-8 text-base" />
-              <span className="flex-1 text-white">{b.display_name} turns {b.turns}</span>
-              <span className="text-sm text-slate-400">{b.days_away === 0 ? '🎂 Today!' : b.days_away === 1 ? 'Tomorrow'
-                : new Date(`${b.date}T00:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="space-y-2">
+        {list.map((b) => (
+          <li key={b.user_id} className="flex items-center gap-3">
+            <Avatar name={b.display_name} color={b.color_hex} emoji={b.avatar_value} className="h-8 w-8 text-base" />
+            <span className="flex-1 text-white">{b.display_name} turns {b.turns}</span>
+            <span className="text-sm text-slate-400">{b.days_away === 0 ? '🎂 Today!' : b.days_away === 1 ? 'Tomorrow'
+              : new Date(`${b.date}T00:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+          </li>
+        ))}
+      </ul>
     </Card>
   )
 }

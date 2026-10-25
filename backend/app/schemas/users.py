@@ -139,6 +139,8 @@ class NotificationPrefs(BaseModel):
     daily_time: str = "07:00"  # HH:MM, family timezone
     rewards: bool = True  # admins: reward requests waiting for a yes
     birthdays: bool = True  # the day before someone's birthday, at daily_time
+    birthdays_week_before: bool = True  # 7 days before, at daily_time
+    birthdays_day_of: bool = True  # on the day, at daily_time
     pantry: bool = True  # members and admins: food reaching its use-by date, at daily_time
     allowance: bool = True  # their weekly allowance was paid
     ntfy_topic: Optional[str] = None  # their own topic on the server's ntfy (NTFY_URL)

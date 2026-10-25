@@ -237,6 +237,68 @@ class TestBirthdays:
         await run(now=local(8, 0))
         assert [p for _, p in inbox if p["tag"].startswith("birthday")] == []
 
+    async def test_week_before_notification(self, client, admin, inbox, run):
+        """A birthday 7 days away sends a 'next week' notification to everyone but the birthday person."""
+        kid = await _member(client, admin)
+        sib = await _member(client, admin, name="Sib", pin="2468")
+        a_week = TODAY + timedelta(days=7)
+        await client.patch(f"/api/users/{kid['id']}", json={"birthday": _born(10, a_week).isoformat()}, headers=_h(kid))
+        await device(client, admin)
+        await device(client, sib)
+        await notify(client, admin, birthdays_week_before=True)
+        await notify(client, sib, birthdays_week_before=True)
+        await run(now=local(7, 0))
+        got = [(u, p) for u, p in inbox if p["tag"].startswith("birthday_week")]
+        assert sorted(u for u, _ in got) == sorted([admin["id"], sib["id"]])
+        assert got[0][1]["title"] == "Next week: Kid turns 10"
+        await run(now=local(9, 0))
+        assert len([1 for _, p in inbox if p["tag"].startswith("birthday_week")]) == 2
+
+    async def test_week_before_can_be_turned_off(self, client, admin, inbox, run):
+        kid = await _member(client, admin)
+        a_week = TODAY + timedelta(days=7)
+        await client.patch(f"/api/users/{kid['id']}", json={"birthday": _born(10, a_week).isoformat()}, headers=_h(kid))
+        await device(client, admin)
+        await notify(client, admin, birthdays_week_before=False)
+        await run(now=local(7, 0))
+        assert [p for _, p in inbox if p["tag"].startswith("birthday_week")] == []
+
+    async def test_day_of_sends_happy_birthday_notification(self, client, admin, inbox, run):
+        """On the birthday, everyone except the birthday person gets a 'Happy Birthday' notification."""
+        kid = await _member(client, admin)
+        sib = await _member(client, admin, name="Sib", pin="2468")
+        await client.patch(f"/api/users/{kid['id']}", json={"birthday": _born(10, TODAY).isoformat()}, headers=_h(kid))
+        await device(client, admin)
+        await device(client, sib)
+        await notify(client, admin, birthdays_day_of=True)
+        await notify(client, sib, birthdays_day_of=True)
+        await run(now=local(7, 0))
+        got = [(u, p) for u, p in inbox if p["tag"].startswith("birthday_day")]
+        assert sorted(u for u, _ in got) == sorted([admin["id"], sib["id"]])
+        assert got[0][1]["title"] == "Happy Birthday, Kid! (turns 10)"
+        await run(now=local(9, 0))
+        assert len([1 for _, p in inbox if p["tag"].startswith("birthday_day")]) == 2
+
+    async def test_day_of_can_be_turned_off(self, client, admin, inbox, run):
+        kid = await _member(client, admin)
+        await client.patch(f"/api/users/{kid['id']}", json={"birthday": _born(10, TODAY).isoformat()}, headers=_h(kid))
+        await device(client, admin)
+        await notify(client, admin, birthdays_day_of=False)
+        await run(now=local(7, 0))
+        assert [p for _, p in inbox if p["tag"].startswith("birthday_day")] == []
+
+    async def test_birthday_person_does_not_get_their_own_notifications(self, client, admin, inbox, run):
+        """The birthday person themselves never get their own birthday notifications."""
+        kid = await _member(client, admin)
+        a_week = TODAY + timedelta(days=7)
+        await client.patch(f"/api/users/{kid['id']}", json={"birthday": _born(10, a_week).isoformat()}, headers=_h(kid))
+        await device(client, kid)
+        await run(now=local(7, 0))
+        got = [(u, p) for u, p in inbox if p["tag"].startswith("birthday")]
+        got_week = [p for _, p in inbox if p["tag"].startswith("birthday_week")]
+        got_day = [p for _, p in inbox if p["tag"].startswith("birthday_day")]
+        assert got == [] and got_week == [] and got_day == []
+
 
 class TestPantry:
     async def item(self, client, admin, name, expires):

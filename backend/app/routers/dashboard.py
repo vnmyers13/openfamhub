@@ -76,3 +76,12 @@ async def upcoming_birthdays(days: int = 60, db: AsyncSession = Depends(get_db),
     zone = await rewards.family_zone(db, user.family_id)
     today = rewards.local_today(zone)
     return [UpcomingBirthday(**vars(b)) for b in await birthdays.upcoming(db, user.family_id, today, max(1, min(days, 366)))]
+
+
+@router.get("/birthdays/monthly", response_model=list[UpcomingBirthday])
+async def monthly_birthdays(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    """All birthdays in the current month, sorted by day of month."""
+    from app.schemas.family_info import UpcomingBirthday
+    zone = await rewards.family_zone(db, user.family_id)
+    today = rewards.local_today(zone)
+    return [UpcomingBirthday(**vars(b)) for b in await birthdays.monthly(db, user.family_id, today)]

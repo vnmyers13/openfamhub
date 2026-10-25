@@ -225,6 +225,14 @@ function Notifications({ prefs, role, onChange }: {
         {canEdit && (
           <>
             <label className="flex items-center gap-2">
+              <input type="checkbox" checked={prefs.birthdays_week_before} onChange={(e) => set({ birthdays_week_before: e.target.checked })} />
+              Birthdays, a week before
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={prefs.birthdays_day_of} onChange={(e) => set({ birthdays_day_of: e.target.checked })} />
+              "Happy Birthday" on the day
+            </label>
+            <label className="flex items-center gap-2">
               <input type="checkbox" checked={prefs.pantry} onChange={(e) => set({ pantry: e.target.checked })} />
               Pantry food reaching its use-by date
             </label>
